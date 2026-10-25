@@ -27,7 +27,18 @@
 - ISA별 내용(레지스터, 명령어 분류, 툴체인)은 ISA 정의 계층에만.
 - 시점은 `(run, core, index, sim_time)`.
 - 읽기 전용. 상태를 바꾸는 GDB 명령은 거부.
-- 소스 귀속과 line 0 규칙은 tarmac_to_cachegrind와 같게 유지(ARCHITECTURE §6). 바꾸면 양쪽을 함께 바꿉니다.
+- tarmac_to_cachegrind와 **코드는 독립**입니다. 소스 귀속과 line 0 규칙은 ARCHITECTURE §6이 명세이고,
+  결과 비교 테스트로 같게 유지합니다. 규칙을 바꾸면 양쪽을 함께 바꿉니다.
+- 구현은 Rust(cargo workspace, ARCHITECTURE §7). 폐쇄망은 외부에서 빌드한 실행 파일을 반입만 하므로
+  현장에서 바뀔 수 있는 것은 설정 파일로 두고, 문제를 밖으로 가져올 진단 기능을 함께 만듭니다.
+- 설계는 AI 사용 방식(범위 훑기, 상태 없는 질의, JSON + 출처)을 기준으로 하고 개발자 사용 방식(step)은 그 안에서 처리합니다.
+- 시간은 기록된 값 그대로. 절대 시간은 변환 표가 있을 때만, 없으면 `unknown`.
+
+## 빌드와 테스트
+
+- `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test`를 PR 전에 통과시킵니다.
+- 테스트 생성물(ELF, trace, 정답)은 커밋합니다. 테스트 실행에 QEMU나 Arm 툴체인이 필요 없어야 합니다.
+- 생성물을 다시 만드는 방법은 `tests/firmware/README.md`에 둡니다.
 
 ## 검증
 
