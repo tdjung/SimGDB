@@ -22,15 +22,25 @@
 | 0-1 | 실제 Tarmac에 있는 레코드 종류 | 아래 명령으로 종류별 개수 | 메모리 쓰기 데이터(`ST`/`MW`/`BNW` 등), 모든 레지스터 쓰기(xPSR, 뱅크된 SP, FPU), 예외 stacking 쓰기 기록 여부 → Step 1에서 복원 가능한 범위 |
 | 0-2 | Verdi HW/SW Debug 평가 | 실제 Tarmac 하나로 `hwsw_debug_convert` 실행 | M4/M35P `cpuType` 지원, 역방향 step, call stack·변수, 메모리 출처, SFR 보기, 대용량 성능 → Step 2에서 우리가 만들 범위 |
 | 0-3 | Cadence Verisium ESW Debug | AE 문의 | 입력 형식, 지원 코어, 외부 디버거 연동 |
-| 0-4 | 실행 환경 | 확인 | Python 버전(변환기는 3.6.8 지원), 폐쇄망에서 쓸 수 있는 AI 클라이언트와 MCP 허용 여부, VS Code 확장 오프라인 설치(vsix), arm-none-eabi-gdb 버전 |
-| 0-5 | waveform 환경 | 확인 | 덤프 범위(메모리 배열·bus 포함 여부), VCD 변환 시간과 크기, Verdi NPI/VC Apps 사용 가능 여부 |
+| 0-4 | 실행 환경 | 확인 | OS와 glibc 버전(실행 파일 빌드 대상), 폐쇄망에서 쓸 수 있는 AI 클라이언트와 MCP 허용 여부, VS Code 확장 오프라인 설치(vsix), arm-none-eabi-gdb 버전 |
+| 0-5 | waveform 환경 | 확인 | 덤프 범위(메모리 배열·bus 포함 여부), VCD 변환 시간과 크기, Verdi NPI/VC Apps 사용 가능 여부, NPI 보조 프로그램을 빌드할 gcc·헤더 |
 | 0-6 | 규모 | 확인 | 대표 Tarmac 크기(명령어 수), 한 회귀에서의 run 수, 코어 수 |
+| 0-7 | 시간 기준 | 확인 | ES `tic`이 세는 것(코어 클럭/전역 tick), clock gating 중 카운터 정지 여부, 테스트 중 주파수 변경 여부, 한 프로젝트에서 두 형식이 섞이는지 → 시간 변환 표의 필요와 출처(D16) |
 
 0-1 확인 명령:
 
 ```bash
 zcat -f tarmac.log | awk '{t=($2=="ps"||$2=="tic"||$2=="ns")?$3:$1; sub(/[0-9_].*$/,"",t); print t}' \
   | sort | uniq -c | sort -rn | head -20
+```
+
+0-4, 0-7 확인 명령:
+
+```bash
+head -3 /etc/os-release
+ldd --version | head -1
+# ES 레코드 사이 tic 간격 분포 (큰 간격이 가끔 있으면 WFI 동안에도 카운터가 증가)
+zcat -f es.log | awk '$2=="tic"{if(p!="")d[$1-p]++; p=$1} END{for(k in d) print k, d[k]}' | sort -n | head -20
 ```
 
 **완료 기준:** 위 표가 채워지고, Step 1의 "복원 가능한 값" 목록과 Step 2의 범위(상용 도구에 맡길 것 / 우리가 만들 것)가 정해짐.
@@ -41,9 +51,11 @@ zcat -f tarmac.log | awk '{t=($2=="ps"||$2=="tic"||$2=="ns")?$3:$1; sub(/[0-9_].
 
 - **Runway (수집·인덱싱)**
   - Tarmac 공급자: ES, IT/IS/IF, CCFAIL, IF 중복, 예외. 레지스터 쓰기(`R`), 메모리 접근(`LD`/`ST`/`MR`/`MW`/`BNR`…).
-    변환기 파서를 출발점으로 확장.
+    변환기와 tarmac-trace-utilities의 파싱 규칙을 참고해 새로 작성(D14). 표기 변형은 설정 파일로.
   - 인덱스 저장소: 명령어, 레지스터 쓰기, 메모리 접근, 예외 테이블과 역색인(PC → 시점들, 주소 → 쓰기 시점들), 일정 간격 상태 checkpoint.
-  - ELF: 심볼, DWARF line table, 초기 메모리 이미지(.data/.rodata/.text).
+  - 파생 표: 호출·복귀(`calls`), PC별 실행 횟수(`pc_hits`) (D15).
+  - 진단: `index --report`(레코드 종류별 개수, 해석 못 한 줄 샘플, 복원 가능 범위).
+  - ELF: 심볼, DWARF line table, 초기 메모리 이미지(.data/.rodata/.text), 전역변수 주소·타입(엔진 DWARF).
 - **엔진**
   - 임의 시점의 레지스터·메모리 복원(값 + 출처).
   - 질의: 위치(locate), 실행 시점 목록(hits), 마지막 쓰기(last_write), 조건 검색(find_first), 예외 목록, 상태 비교(diff).
@@ -65,7 +77,9 @@ zcat -f tarmac.log | awk '{t=($2=="ps"||$2=="tic"||$2=="ns")?$3:$1; sub(/[0-9_].
   같은 펌웨어를 QEMU gdbstub으로 실행해 특정 시점의 레지스터·backtrace·변수를 기록하고, SimGDB가 같은 값을 주는지 확인.
 - GDB 서버: arm-none-eabi-gdb로 스크립트 테스트(breakpoint, step, next, finish, reverse-step, backtrace, print).
 - MCP: 도구 단위 테스트 + **AI 평가 세트**(질문과 기대하는 답 몇 개)로 실제 AI 클라이언트에서 확인.
-- 성능: 수백만~수천만 명령어 trace에서 인덱싱 시간, 질의 응답 시간 측정.
+- 성능: 수백만~수천만 명령어 trace에서 인덱싱 시간, 질의 응답 시간 측정. 목표: 대화형 100 ms 이하, 1억 명령어 훑기 수 초.
+- 교차 확인: tarmac_to_cachegrind와 소스 귀속 결과 비교, tarmac-trace-utilities와 시점별 상태 비교.
+- 검증 층과 방법은 [ARCHITECTURE.md](ARCHITECTURE.md) §8.
 
 ### 완료 기준
 
@@ -125,16 +139,23 @@ Step 0-2 평가 결과에 따라 범위를 조정합니다(상용 도구가 충�
 |---|---|---|
 | 실제 Tarmac에 메모리 쓰기 데이터나 일부 레지스터가 없음 | 변수·backtrace 정확도 하락 | Step 0-1에서 확인. 없으면 "모름" 표시, Step 2 waveform으로 보충 |
 | 대용량 trace(수 GB) | 인덱싱 시간, 디스크 | 스트리밍 파서, 열 기반 저장, checkpoint 간격 조정, 필요 구간만 인덱싱 |
-| 폐쇄망 Python 버전이 낮음 (MCP Python SDK는 3.10+) | MCP 서버 구현 제약 | Step 0-4에서 확인. 엔진은 낮은 버전 호환, MCP 앞단만 별도 런타임 또는 직접 구현 |
+| 폐쇄망에서 다시 빌드할 수 없음 | 현장 문제를 바로 못 고침 | 바뀔 수 있는 것은 설정 파일, `index --report` 진단 요약을 밖으로 가져와 고친 실행 파일 반입 |
+| 폐쇄망 glibc가 오래됨 | 실행 파일이 안 뜸 | Step 0-4에서 확인, 해당 glibc 대상 빌드 또는 정적 링크 |
+| QEMU trace가 실제 Tarmac 형식과 다름 | 파서 검증 공백 | 실제 수집 줄 fixture, 사용자 확인(ARCHITECTURE §8) |
 | Cortex-M waveform 신호 찾기 | Step 2 지연 | Arm RTL의 Tarmac tracer 모듈이 쓰는 신호 참고, 설정 파일화, Tarmac 비교로 검증 |
 | 상용 도구와 기능 중복 | 노력 낭비 | Step 0-2 평가로 역할 분담 |
 | AI가 도구를 잘못 쓰거나 값을 지어냄 | 잘못된 분석 | 적고 원자적인 도구, 출처·증거 필수, skill 문서, 평가 세트, 호출 로그 |
 | VCD 변환 크기 | Step 2 실용성 | 신호·구간 선택 변환, 이후 FSDB 직접 읽기 |
 
-## 미정 사항 (결정 필요)
+## 결정된 사항 (2026-10-25)
 
-- 구현 언어: 엔진은 **Python**(변환기 재사용, 폐쇄망 배포 용이)이 1순위 후보. 성능이 부족한 부분만
-  네이티브 확장. Step 0-4 결과로 확정.
-- 인덱스 저장 형식: SQLite / 열 기반 파일(Parquet 등) / 자체 형식. Step 1 초기에 프로토타입으로 비교.
-- GDB RSP 구현: 직접 구현(패킷 수가 적음) vs 라이브러리.
-- 변환기 파서를 공유 패키지로 분리할지, SimGDB 쪽으로 복사해 시작할지.
+이전 미정 사항은 논의를 거쳐 정했습니다. 이유는 [BACKGROUND.md](BACKGROUND.md) §3.1.
+
+| 항목 | 결정 |
+|---|---|
+| 구현 언어 | Rust, 실행 파일 하나(D11). 폐쇄망은 반입만 |
+| 인덱스 저장 형식 | Arrow IPC 열 파일 + SQLite(D12). 비교 결과는 [benchmarks/storage.md](benchmarks/storage.md) |
+| GDB RSP 구현 | `gdbstub` crate(D13) |
+| 변환기 코드 | 독립. 소스 귀속 결과 비교 테스트(D14) |
+| 설계 기준 | AI 사용 방식(D15) |
+| 시간 | 기록값 그대로 + 구간별 변환 표(D16) |

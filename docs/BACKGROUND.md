@@ -20,7 +20,7 @@
 
 | 도구 | 하는 일 | SimGDB와의 관계 |
 |---|---|---|
-| [tarmac_to_cachegrind](https://github.com/tdjung/tarmac_to_cachegrind) | Tarmac → Cachegrind 변환. 대량 일괄 변환, merge, coverage index | Tarmac 파서, ELF 처리를 재사용 |
+| [tarmac_to_cachegrind](https://github.com/tdjung/tarmac_to_cachegrind) | Tarmac → Cachegrind 변환. 대량 일괄 변환, merge, coverage index | 파싱·분류·소스 귀속 규칙과 검증 방법을 참고. 코드는 독립, 소스 귀속 결과는 비교 테스트로 일치(D14) |
 | [performance_profiler](https://github.com/tdjung/performance_profiler) | Cachegrind 프로파일·coverage 뷰어 (Electron + Next.js) | Step 3에서 분석 결과 연동 |
 
 변환기에서 검증해 둔 것(그대로 가져갈 자산):
@@ -73,6 +73,12 @@
   호출 트리, 프로파일, flame graph.
 - **인덱스**가 trace의 모든 시점 상태를 기록합니다. trace에 나오지 않은 메모리는 `??`.
 - GDB 서버 기능은 소개 글에 없습니다. 인덱싱 방식은 참고하거나 재사용할 가치가 있습니다.
+- 확인 결과(2026-10): C++14, 약 2만 2천 줄, `libtarmac` 라이브러리로 분리, 2026년 9월까지 활동.
+  파서가 여러 실제 Tarmac 표기(Fast Models `IT`/`R`/`MR4`/`MW1`, ES와 `LD`/`ST` 16바이트 형식 등)를 처리하고,
+  실제 수집한 trace 줄로 된 파서 테스트(`tests/parsertest.txt`)가 있습니다. 인덱스는 디스크 AVL 트리로
+  한 시점 조회용이라 훑기 질의에는 맞지 않습니다.
+- 활용: 파서 규칙과 테스트 줄을 참고(Apache-2.0, 출처 표기)하고, 테스트에서 **독립 구현끼리 비교하는
+  교차 확인 도구**로 씁니다.
 
 ### 2.3 상용 도구 (라이선스 보유: Synopsys, Cadence)
 
@@ -119,6 +125,19 @@
 | D8 | waveform은 **보충 공급자**로 붙인다 | 실행 흐름·레지스터는 trace가 정확하고 가벼움. waveform은 trace에 없는 값(메모리, SFR, 다른 master)만 보충 |
 | D9 | waveform 신호 매핑은 **설정 파일 + trace와 자동 비교로 검증** | 코어·릴리스·SoC마다 매핑이 달라짐. trace가 정답지 역할 |
 | D10 | 상용 도구와 **역할 분담 가능성**을 열어둔다 | Verdi HW/SW Debug 평가 결과에 따라 Step 2 범위 결정 |
+
+### 3.1 개발 시작 시 추가 결정 (2026-10-25)
+
+PLAN의 미정 사항을 논의해 정한 내용입니다.
+
+| # | 결정 | 이유 |
+|---|---|---|
+| D11 | **Rust**로 구현하고 엔진·GDB RSP·MCP·CLI를 **실행 파일 하나**로 배포한다 | Step 3까지 보면 인덱싱과 범위 훑기(여러 run 포함)가 엔진 대부분이라 네이티브 속도가 필요. 틀린 값을 조용히 내는 메모리 버그를 컴파일 단계에서 막음. 폐쇄망은 코드를 고치지 않고 **외부에서 빌드한 실행 파일을 반입**만 하므로 Python 버전·pip 제약이 사라짐. 부품이 성숙함(`gdbstub`, `gimli`, `arrow`, 공식 MCP SDK `rmcp`) |
+| D12 | 저장소는 **열 기반 파일(Arrow IPC, mmap) + SQLite** | 큰 테이블(명령어, 레지스터 쓰기, 메모리 접근, 역색인, checkpoint)은 mmap 열 파일로 훑기와 index 직접 접근. 작고 수정되는 것(메타데이터, bookmark, 호출 로그, 작업 상태)은 SQLite. 표준 형식이라 Step 3에서 DuckDB 등을 저장 형식 변경 없이 붙일 수 있음. 1천만 명령어 비교에서 Arrow IPC는 SQLite보다 한 시점 질의 수십~수백 배, 훑기 수십 배 빠름([benchmarks/storage.md](benchmarks/storage.md)) |
+| D13 | GDB RSP는 **`gdbstub` crate**로 구현 | 패킷·checksum·`qSupported`·역방향 실행 확장을 제공. 우리가 작성하는 부분(레지스터, 메모리, 실행, breakpoint)은 직접 구현과 같음 |
+| D14 | tarmac_to_cachegrind와 **코드는 독립**, 소스 귀속 **결과는 같게** 유지 | 필요한 파서가 다르고 시간이 지나며 더 갈라짐. 대신 같은 ELF에서 PC → (파일, 라인, 함수)를 비교하는 테스트로 결과 일치를 보장(프로파일러 연동 시 혼란 방지) |
+| D15 | **AI 사용 방식을 기준으로 설계**하고 개발자 사용 방식은 그 안에서 처리 | 개발자는 한 시점 주변(step), AI는 범위 전체 훑기·집계·여러 run. 훑기 우선 저장소, 인덱싱 때 만드는 파생 표, 엔진 자체 DWARF 해석, 성능 목표 두 개(ARCHITECTURE §2.11–§2.13) |
+| D16 | 시간은 **기록된 값 그대로** 저장하고, 절대 시간은 **구간별 변환 표**로 계산. 표가 없으면 `unknown` | ES의 `tic`은 사이클이고 주파수 변경·clock gating이 있으면 고정 배율이 틀림. 값의 출처 규칙(D5)을 시간에도 적용 |
 
 ## 4. 출처
 
