@@ -23,7 +23,7 @@ attribute_line_zero)와 tests/firmware(QEMU 기반 테스트 펌웨어와 trace)
 3. 그다음 GDB RSP 서버(최소 기능: target XML, g/p/m, s/c, Z0, bs/bc, monitor time/goto)를
    arm-none-eabi-gdb로 테스트해 줘.
 
-작업 규칙은 CLAUDE.md를 따르고, feature 브랜치에서 PR로 진행해 줘.
+작업 규칙은 CLAUDE.md를 따르고, main에 작업 단위별 커밋으로 push해 줘.
 실제 데이터는 폐쇄망에 있어서 내가 나중에 확인할 거야. 나에게 확인을 부탁할 것은 명령과 기대 결과로 정리해 줘.
 ```
 
