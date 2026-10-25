@@ -408,8 +408,20 @@ def truth_point(elf, core, pc, k, regions, tmp, rrfile):
         qemu.wait()
 
 
+def symbol(elf, name):
+    out = subprocess.run([tool("NM", "arm-none-eabi-nm"), "-S", str(elf)],
+                         check=True, stdout=subprocess.PIPE, universal_newlines=True).stdout
+    for line in out.splitlines():
+        p = line.split()
+        if len(p) == 4 and p[3] == name:
+            return int(p[0], 16), int(p[1], 16)
+    raise KeyError(name)
+
+
 def ram_regions(elf, insns):
-    """RAM worth comparing: .data/.bss and every stack byte the run touched."""
+    """Memory worth comparing: .data/.bss, every stack byte the run touched,
+    and two flash ranges (vector table, a .rodata table) so values taken from
+    the ELF load image are checked too."""
     out = subprocess.run([tool("OBJDUMP", "arm-none-eabi-objdump"), "-h", str(elf)],
                          check=True, stdout=subprocess.PIPE, universal_newlines=True).stdout
     regions = []
@@ -418,6 +430,9 @@ def ram_regions(elf, insns):
         if len(p) >= 4 and p[1] in (".data", ".bss"):
             vma, size = int(p[3], 16), int(p[2], 16)
             regions.append((vma, vma + size))
+    vectors, vsize = symbol(elf, "vectors")
+    table, tsize = symbol(elf, "table")
+    regions = [(vectors, vectors + vsize), (table, table + tsize)] + regions
     low_msp = min(i.before["msp"] for i in insns)
     top_msp = insns[0].before["msp"]
     regions.append(((low_msp - 64) & ~15, top_msp))
