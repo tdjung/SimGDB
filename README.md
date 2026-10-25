@@ -41,6 +41,7 @@ arm-none-eabi-gdb firmware.elf -ex "target remote :3333" -ex "source tools/simgd
 | [docs/PLAN.md](docs/PLAN.md) | Step 0~3 전체 계획, 단계별 범위·산출물·완료 기준·위험 |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 구성요소, 데이터 모델, 인터페이스, 처음부터 고정할 설계 결정 |
 | [docs/LIMITATIONS.md](docs/LIMITATIONS.md) | 데이터 출처별로 보이는 것과 보이지 않는 것 (제약사항) |
+| [docs/BUILD.md](docs/BUILD.md) | 빌드 방법 (Rust 설치, 빌드, 폐쇄망 패키지) |
 | [docs/SESSION_PROMPT.md](docs/SESSION_PROMPT.md) | 개발 세션 시작용 프롬프트 |
 | [CLAUDE.md](CLAUDE.md) | 이 repo에서 작업하는 에이전트를 위한 작업 규칙 |
 
