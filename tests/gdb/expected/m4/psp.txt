@@ -1,0 +1,128 @@
+Reset_Handler () at startup.c:11
+11	    while (dst < &__data_end) *dst++ = *src++;
+Breakpoint 1 at 0x17c: file state.c, line 73.
+
+Breakpoint 1, walk_list () at state.c:73
+73	    for (struct record *r = head; r; r = r->next)
+=== psp_a
+r0             0x3dee7b20          1039039264
+r1             0x1                 1
+r2             0x200000b0          536871088
+r3             0x20000098          536871064
+r4             0x3                 3
+r5             0x705cbb72          1885125490
+r6             0x0                 0
+r7             0x0                 0
+r8             0x0                 0
+r9             0x0                 0
+r10            0x0                 0
+r11            0x0                 0
+r12            0xc8                200
+sp             0x200004f0          0x200004f0 <psp_stack+1008>
+lr             0x297               663
+pc             0x17c               0x17c <walk_list>
+xpsr           0x61000000          1627389952
+msp            0x2000ffe0          536936416
+psp            0x200004f0          536872176
+control        0x2                 2
+#0  walk_list () at state.c:73
+#1  0x00000296 in work (round=3) at state.c:140
+#2  0x000002f0 in main () at state.c:160
+No arguments.
+r = <optimized out>
+sum = 0
+=== /
+0x00000296 in work (round=3) at state.c:140
+140	    acc += walk_list();
+Value returned is $1 = 4322
+=== psp_b
+r0             0x10e2              4322
+r1             0x1c                28
+r2             0xe4                228
+r3             0x0                 0
+r4             0x3                 3
+r5             0x705cbb72          1885125490
+r6             0x0                 0
+r7             0x0                 0
+r8             0x0                 0
+r9             0x0                 0
+r10            0x0                 0
+r11            0x0                 0
+r12            0xc8                200
+sp             0x200004f0          0x200004f0 <psp_stack+1008>
+lr             0x297               663
+pc             0x296               0x296 <work+14>
+xpsr           0x61000000          1627389952
+msp            0x2000ffe0          536936416
+psp            0x200004f0          536872176
+control        0x2                 2
+#0  0x00000296 in work (round=3) at state.c:140
+#1  0x000002f0 in main () at state.c:160
+round = 3
+acc = 3
+=== /
+Breakpoint 2 at 0x240: file state.c, line 111.
+
+Breakpoint 2, SysTick_Handler () at state.c:111
+111	    uint32_t t = ++ticks;
+=== psp_c
+r0             0x34                52
+r1             0x1c                28
+r2             0x200000cb          536871115
+r3             0x200000ba          536871098
+r4             0x3                 3
+r5             0x10e2              4322
+r6             0x0                 0
+r7             0x0                 0
+r8             0x0                 0
+r9             0x0                 0
+r10            0x0                 0
+r11            0x0                 0
+r12            0xc8                200
+sp             0x2000ffe0          0x2000ffe0
+lr             0xfffffffd          -3
+pc             0x240               0x240 <SysTick_Handler>
+xpsr           0x8100000f          -2130706417
+msp            0x2000ffe0          536936416
+psp            0x200004d0          536872144
+control        0x0                 0
+#0  SysTick_Handler () at state.c:111
+#1  <signal handler called>
+#2  0x000001b2 in fill_bytes (start=3 '\003') at state.c:80
+#3  0x0000029e in work (round=3) at state.c:141
+#4  0x000002f0 in main () at state.c:160
+No arguments.
+t = <optimized out>
+=== /
+Breakpoint 3 at 0x214: file state.c, line 105.
+
+Breakpoint 3, SVC_Handler () at state.c:105
+105	    svc_calls++;
+=== psp_d
+r0             0x807c9703          -2139318525
+r1             0xdeadbeef          -559038737
+r2             0x338               824
+r3             0x807c9703          -2139318525
+r4             0x3                 3
+r5             0x10e2              4322
+r6             0x0                 0
+r7             0x0                 0
+r8             0x0                 0
+r9             0x0                 0
+r10            0x0                 0
+r11            0x0                 0
+r12            0xc8                200
+sp             0x2000ffe0          0x2000ffe0
+lr             0xfffffffd          -3
+pc             0x214               0x214 <SVC_Handler>
+xpsr           0x6100000b          1627389963
+msp            0x2000ffe0          536936416
+psp            0x200004d0          536872144
+control        0x0                 0
+#0  SVC_Handler () at state.c:105
+#1  <signal handler called>
+#2  work (round=3) at state.c:145
+#3  0x000002f0 in main () at state.c:160
+No arguments.
+No locals.
+=== /

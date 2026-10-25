@@ -17,7 +17,16 @@ pub const FAULTMASK: RegId = 21;
 pub const CONTROL: RegId = 22;
 
 const CORE: &str = "org.gnu.gdb.arm.m-profile";
+/// Feature of MSP, PSP and the special registers. With this standard name
+/// GDB (13 and later) unwinds exception frames on either stack, but reads
+/// both MSP and PSP for *every* exception frame.
 const SYSTEM: &str = "org.gnu.gdb.arm.m-system";
+/// Used instead when the trace never writes PSP (PSP is UNKNOWN after reset;
+/// bare-metal firmware often never sets it). GDB then uses its generic
+/// unwinder, which needs no PSP for frames on the main stack, and the
+/// registers still show in `info registers`. Frames on the process stack
+/// cannot occur without a PSP write.
+const SYSTEM_NO_PSP: &str = "org.simgdb.arm.m-system";
 
 macro_rules! reg {
     ($name:expr, $feature:expr, $ty:expr) => {
@@ -26,31 +35,34 @@ macro_rules! reg {
 }
 
 static REGISTERS: [RegDef; 23] = [
-    reg!("r0", CORE, "uint32"),
-    reg!("r1", CORE, "uint32"),
-    reg!("r2", CORE, "uint32"),
-    reg!("r3", CORE, "uint32"),
-    reg!("r4", CORE, "uint32"),
-    reg!("r5", CORE, "uint32"),
-    reg!("r6", CORE, "uint32"),
-    reg!("r7", CORE, "uint32"),
-    reg!("r8", CORE, "uint32"),
-    reg!("r9", CORE, "uint32"),
-    reg!("r10", CORE, "uint32"),
-    reg!("r11", CORE, "uint32"),
-    reg!("r12", CORE, "uint32"),
+    reg!("r0", CORE, "int"),
+    reg!("r1", CORE, "int"),
+    reg!("r2", CORE, "int"),
+    reg!("r3", CORE, "int"),
+    reg!("r4", CORE, "int"),
+    reg!("r5", CORE, "int"),
+    reg!("r6", CORE, "int"),
+    reg!("r7", CORE, "int"),
+    reg!("r8", CORE, "int"),
+    reg!("r9", CORE, "int"),
+    reg!("r10", CORE, "int"),
+    reg!("r11", CORE, "int"),
+    reg!("r12", CORE, "int"),
     reg!("sp", CORE, "data_ptr"),
     reg!("lr", CORE, "int"),
     reg!("pc", CORE, "code_ptr"),
     reg!("xpsr", CORE, "int"),
-    reg!("msp", SYSTEM, "data_ptr"),
-    reg!("psp", SYSTEM, "data_ptr"),
-    reg!("primask", SYSTEM, "int8"),
-    reg!("basepri", SYSTEM, "int8"),
-    reg!("faultmask", SYSTEM, "int8"),
-    reg!("control", SYSTEM, "int8"),
+    reg!("msp", SYSTEM, "int"),
+    reg!("psp", SYSTEM, "int"),
+    reg!("primask", SYSTEM, "int"),
+    reg!("basepri", SYSTEM, "int"),
+    reg!("faultmask", SYSTEM, "int"),
+    reg!("control", SYSTEM, "int"),
 ];
 
+/// GDB types follow the descriptions QEMU and GDB ship for M-profile, so
+/// `info registers` prints the same way against SimGDB and a real target.
+///
 /// Lower-case trace names (Fast Models, RTL tracers, ES dialect) → register.
 /// Secure/Non-secure banked names map to the single bank SimGDB models.
 fn alias(name: &str) -> Option<RegId> {
@@ -140,7 +152,8 @@ impl Isa for ArmM {
         vec![]
     }
 
-    fn target_xml(&self) -> String {
+    fn target_xml(&self, never_written: &[String]) -> String {
+        let system = if never_written.iter().any(|r| r == "psp") { SYSTEM_NO_PSP } else { SYSTEM };
         let mut xml = String::from(
             "<?xml version=\"1.0\"?>\n<!DOCTYPE target SYSTEM \"gdb-target.dtd\">\n<target version=\"1.0\">\n<architecture>arm</architecture>\n",
         );
@@ -151,7 +164,8 @@ impl Isa for ArmM {
                     xml.push_str("</feature>\n");
                 }
                 feature = r.feature;
-                xml.push_str(&format!("<feature name=\"{feature}\">\n"));
+                let name = if feature == SYSTEM { system } else { feature };
+                xml.push_str(&format!("<feature name=\"{name}\">\n"));
             }
             xml.push_str(&format!(
                 "<reg name=\"{}\" bitsize=\"{}\" regnum=\"{}\" type=\"{}\" group=\"general\"/>\n",
@@ -255,8 +269,12 @@ mod tests {
 
     #[test]
     fn target_xml_lists_all_registers() {
-        let xml = ArmM.target_xml();
+        let xml = ArmM.target_xml(&[]);
         assert!(xml.contains("org.gnu.gdb.arm.m-profile"));
+        assert!(xml.contains("org.gnu.gdb.arm.m-system"));
+        // Without any PSP write GDB must not be told to depend on PSP.
+        let xml = ArmM.target_xml(&["psp".to_string()]);
+        assert!(xml.contains("org.simgdb.arm.m-system") && !xml.contains("org.gnu.gdb.arm.m-system"));
         assert!(xml.contains("name=\"xpsr\" bitsize=\"32\" regnum=\"16\""));
         assert!(xml.contains("name=\"control\" bitsize=\"32\" regnum=\"22\""));
     }

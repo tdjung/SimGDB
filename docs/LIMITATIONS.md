@@ -43,6 +43,19 @@ Step 0의 실제 Tarmac 조사 결과에 따라 갱신합니다.
 - **주변장치 영역**(`0x40000000–0x5FFFFFFF`, `0xA0000000` 이상): 항상 `unknown`. 마지막 접근은 증거로만 보여 줍니다.
 - **`IF` 레코드**: 바로 앞 명령어와 PC가 같으면 중복으로 보고 제외합니다(실제 의미는 Step 0에서 확인).
 
+## GDB에서 보이는 동작
+
+- **역방향 실행**: `reverse-step`, `reverse-next`, `reverse-stepi`, `reverse-continue`, `reverse-finish`가 동작합니다.
+  trace 처음과 끝에서는 “No more reverse-execution history”로 멈춥니다.
+- **시점 이동**: `monitor goto <index>`, `monitor goto time <t>`. gdb는 대상이 바뀐 것을 모르므로
+  `tools/simgdb.gdb`의 `simgdb-goto`/`simgdb-goto-time`을 쓰면 캐시를 비우고 새 frame을 보여 줍니다.
+- **인터럽트가 끼어든 명령어의 breakpoint**: 실제 하드웨어는 PC가 도착한 순간(인터럽트 처리 전)과 실제 실행 때 두 번
+  멈출 수 있지만, Tarmac에는 실행만 기록되므로 SimGDB는 실행 때 한 번 멈춥니다.
+- **PSP를 쓰는 펌웨어**: trace가 PSP를 한 번이라도 쓰면 gdb의 M-profile 예외 unwinder를 씁니다. 이 unwinder는 예외 frame마다
+  PSP를 읽으므로, PSP가 처음 쓰이기 전 핸들러 안의 backtrace는 `Register … is not available`에서 끊깁니다(PSP는 reset 후 UNKNOWN).
+  PSP를 전혀 쓰지 않는 trace에서는 이 문제가 없습니다.
+- **쓰기 명령**: `set var`, 레지스터·메모리 쓰기는 거부됩니다(“Cannot access memory” 등).
+
 ## 값 표시 규칙
 
 - GDB: 모르는 레지스터는 unavailable로 응답(`<unavailable>`), 모르는 메모리는 읽기 오류.

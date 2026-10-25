@@ -1,0 +1,220 @@
+Reset_Handler () at startup.c:11
+11	    while (dst < &__data_end) *dst++ = *src++;
+Breakpoint 1 at 0xe0: file state.c, line 58.
+
+Breakpoint 1, build_list (n=6) at state.c:58
+58	    head = 0;
+=== steps_a
+r0             0x6                 6
+r1             0x7                 7
+r2             0x0                 0
+r3             0xe000e000          -536813568
+r4             0x0                 0
+r5             0x0                 0
+r6             0x0                 0
+r7             0x0                 0
+r8             0x0                 0
+r9             0x0                 0
+r10            0x0                 0
+r11            0x0                 0
+r12            0x0                 0
+sp             0x2000ffd0          0x2000ffd0
+lr             0x293               659
+pc             0xe0                0xe0 <build_list>
+xpsr           0x21000000          553648128
+msp            0x2000ffd0          536936400
+psp            0x0                 0
+control        0x0                 0
+#0  build_list (n=6) at state.c:58
+#1  0x00000292 in work (round=0) at state.c:139
+#2  0x000002d6 in main () at state.c:157
+n = 6
+No locals.
+=== /
+59	    for (int i = 0; i < n; i++) {
+=== steps_b
+r0             0x6                 6
+r1             0x7                 7
+r2             0x0                 0
+r3             0x0                 0
+r4             0x0                 0
+r5             0x0                 0
+r6             0x20000018          536870936
+r7             0x0                 0
+r8             0x0                 0
+r9             0x0                 0
+r10            0x6                 6
+r11            0x0                 0
+r12            0x0                 0
+sp             0x2000ffa0          0x2000ffa0
+lr             0x293               659
+pc             0xf0                0xf0 <build_list+16>
+xpsr           0x21000000          553648128
+msp            0x2000ffa0          536936352
+psp            0x0                 0
+control        0x0                 0
+#0  build_list (n=6) at state.c:59
+#1  0x00000292 in work (round=0) at state.c:139
+#2  0x000002d6 in main () at state.c:157
+n = 6
+i = 0
+=== /
+60	        struct record *r = &pool[i];
+63	        r->value = mix(seed, table[i]);
+=== steps_c
+r0             0x22e86623          585655843
+r1             0x1020304           16909060
+r2             0x20000020          536870944
+r3             0x30dc305b          819736667
+r4             0x20000020          536870944
+r5             0x33c               828
+r6             0x20000018          536870936
+r7             0x12                18
+r8             0x12345678          305419896
+r9             0x20000006          536870918
+r10            0x0                 0
+r11            0x3                 3
+r12            0x0                 0
+sp             0x2000ffa0          0x2000ffa0
+lr             0x131               305
+pc             0x138               0x138 <build_list+88>
+xpsr           0x1000000           16777216
+msp            0x2000ffa0          536936352
+psp            0x0                 0
+control        0x0                 0
+#0  build_list (n=6) at state.c:63
+#1  0x00000292 in work (round=0) at state.c:139
+#2  0x000002d6 in main () at state.c:157
+n = 6
+r = 0x20000020 <pool>
+i = <optimized out>
+=== /
+64	        r->stamp = ((uint64_t)r->value << 32) | ticks;
+=== steps_d
+r0             0x22e86623          585655843
+r1             0x1020304           16909060
+r2             0x20000020          536870944
+r3             0x30dc305b          819736667
+r4             0x20000020          536870944
+r5             0x33c               828
+r6             0x20000018          536870936
+r7             0x12                18
+r8             0x12345678          305419896
+r9             0x20000006          536870918
+r10            0x0                 0
+r11            0x3                 3
+r12            0x0                 0
+sp             0x2000ffa0          0x2000ffa0
+lr             0x131               305
+pc             0x13e               0x13e <build_list+94>
+xpsr           0x1000000           16777216
+msp            0x2000ffa0          536936352
+psp            0x0                 0
+control        0x0                 0
+#0  build_list (n=6) at state.c:64
+#1  0x00000292 in work (round=0) at state.c:139
+#2  0x000002d6 in main () at state.c:157
+n = 6
+r = 0x20000020 <pool>
+i = <optimized out>
+=== /
+work (round=0) at state.c:140
+140	    acc += walk_list();
+=== steps_e
+r0             0x3dee7b20          1039039264
+r1             0x1                 1
+r2             0x200000b0          536871088
+r3             0x20000098          536871064
+r4             0x0                 0
+r5             0x0                 0
+r6             0x0                 0
+r7             0x0                 0
+r8             0x0                 0
+r9             0x0                 0
+r10            0x0                 0
+r11            0x0                 0
+r12            0x0                 0
+sp             0x2000ffd0          0x2000ffd0
+lr             0x12                18
+pc             0x292               0x292 <work+10>
+xpsr           0x61000000          1627389952
+msp            0x2000ffd0          536936400
+psp            0x0                 0
+control        0x0                 0
+#0  work (round=0) at state.c:140
+#1  0x000002d6 in main () at state.c:157
+round = 0
+acc = 0
+=== /
+walk_list () at state.c:73
+73	    for (struct record *r = head; r; r = r->next)
+0x0000017e	73	    for (struct record *r = head; r; r = r->next)
+0x00000180	73	    for (struct record *r = head; r; r = r->next)
+=== steps_f
+r0             0x3dee7b20          1039039264
+r1             0x1                 1
+r2             0x200000b0          536871088
+r3             0x20000098          536871064
+r4             0x0                 0
+r5             0x0                 0
+r6             0x0                 0
+r7             0x0                 0
+r8             0x0                 0
+r9             0x0                 0
+r10            0x0                 0
+r11            0x0                 0
+r12            0x0                 0
+sp             0x2000ffd0          0x2000ffd0
+lr             0x297               663
+pc             0x180               0x180 <walk_list+4>
+xpsr           0x61000000          1627389952
+msp            0x2000ffd0          536936400
+psp            0x0                 0
+control        0x0                 0
+#0  0x00000180 in walk_list () at state.c:73
+#1  0x00000296 in work (round=0) at state.c:140
+#2  0x000002d6 in main () at state.c:157
+No arguments.
+r = 0x20000098 <pool+120>
+sum = 0
+=== /
+$1 = {2, 3, 5, 7, 11, 13, 17, 19}
+$2 = {0x1020304, 0x11223344, 0xa5a5a5a5, 0xdeadbeef, 0x0, 0x1, 0x80000000, 0x7fffffff}
+$3 = 305419896
+$4 = 0x330 "simgdb"
+0x330:	"simgdb"
+$5 = {kind = 0 '\000', len = 200, value = 585655843, stamp = 2515372692396310528, next = 0x0 <vectors>}
+$6 = {kind = 15 '\017', len = 1300, value = 1039039264, stamp = 4462639658139910146, next = 0x20000080 <pool+96>}
+Breakpoint 2 at 0x17c: file state.c, line 73.
+
+Breakpoint 2, walk_list () at state.c:73
+73	    for (struct record *r = head; r; r = r->next)
+0x00000296 in work (round=1) at state.c:140
+140	    acc += walk_list();
+Value returned is $7 = 4207
+=== steps_g
+r0             0x106f              4207
+r1             0x9                 9
+r2             0xd1                209
+r3             0x0                 0
+r4             0x1                 1
+r5             0x271e8f77          656314231
+r6             0x0                 0
+r7             0x0                 0
+r8             0x0                 0
+r9             0x0                 0
+r10            0x0                 0
+r11            0x0                 0
+r12            0xc8                200
+sp             0x2000ffd0          0x2000ffd0
+lr             0x297               663
+pc             0x296               0x296 <work+14>
+xpsr           0x61000000          1627389952
+msp            0x2000ffd0          536936400
+psp            0x0                 0
+control        0x0                 0
+#0  0x00000296 in work (round=1) at state.c:140
+#1  0x000002d6 in main () at state.c:157
+round = 1
+acc = 1
+=== /

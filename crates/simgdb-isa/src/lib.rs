@@ -91,8 +91,10 @@ pub trait Isa: Send + Sync {
     /// order a block's records arbitrarily (SP before xPSR on exception
     /// return, for example).
     fn resolve(&self, state: &RegState, written: &[bool]) -> Vec<RegWrite>;
-    /// GDB target description XML.
-    fn target_xml(&self) -> String;
+    /// GDB target description XML. `never_written` lists registers the
+    /// trace never writes; an ISA may describe them differently so GDB does
+    /// not depend on values that can never be known.
+    fn target_xml(&self, never_written: &[String]) -> String;
     /// Default memory map: regions whose contents change without core
     /// accesses (peripherals), for which a remembered value is not trusted.
     fn volatile_regions(&self) -> &'static [(u64, u64)];

@@ -1,0 +1,17 @@
+[package]
+name = "simgdb-gdb"
+description = "GDB remote serial protocol server for SimGDB"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+simgdb-engine.workspace = true
+simgdb-isa.workspace = true
+simgdb-model.workspace = true
+gdbstub = "0.7"
+
+[dev-dependencies]
+simgdb-store.workspace = true
+tempfile.workspace = true
