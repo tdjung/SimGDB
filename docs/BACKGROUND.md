@@ -133,7 +133,7 @@ PLAN의 미정 사항을 논의해 정한 내용입니다.
 | # | 결정 | 이유 |
 |---|---|---|
 | D11 | **Rust**로 구현하고 엔진·GDB RSP·MCP·CLI를 **실행 파일 하나**로 배포한다 | Step 3까지 보면 인덱싱과 범위 훑기(여러 run 포함)가 엔진 대부분이라 네이티브 속도가 필요. 틀린 값을 조용히 내는 메모리 버그를 컴파일 단계에서 막음. 폐쇄망은 코드를 고치지 않고 **외부에서 빌드한 실행 파일을 반입**만 하므로 Python 버전·pip 제약이 사라짐. 부품이 성숙함(`gdbstub`, `gimli`, `arrow`, 공식 MCP SDK `rmcp`) |
-| D12 | 저장소는 **열 기반 파일(Arrow IPC) + SQLite** | 큰 테이블(명령어, 레지스터 쓰기, 메모리 접근, 역색인, checkpoint)은 mmap 열 파일로 훑기와 index 직접 접근. 작고 수정되는 것(메타데이터, bookmark, 호출 로그, 작업 상태)은 SQLite. 표준 형식이라 Step 3에서 DuckDB 등을 저장 형식 변경 없이 붙일 수 있음. 숫자 비교는 `docs/benchmarks/` |
+| D12 | 저장소는 **열 기반 파일(Arrow IPC, mmap) + SQLite** | 큰 테이블(명령어, 레지스터 쓰기, 메모리 접근, 역색인, checkpoint)은 mmap 열 파일로 훑기와 index 직접 접근. 작고 수정되는 것(메타데이터, bookmark, 호출 로그, 작업 상태)은 SQLite. 표준 형식이라 Step 3에서 DuckDB 등을 저장 형식 변경 없이 붙일 수 있음. 1천만 명령어 비교에서 Arrow IPC는 SQLite보다 한 시점 질의 수십~수백 배, 훑기 수십 배 빠름([benchmarks/storage.md](benchmarks/storage.md)) |
 | D13 | GDB RSP는 **`gdbstub` crate**로 구현 | 패킷·checksum·`qSupported`·역방향 실행 확장을 제공. 우리가 작성하는 부분(레지스터, 메모리, 실행, breakpoint)은 직접 구현과 같음 |
 | D14 | tarmac_to_cachegrind와 **코드는 독립**, 소스 귀속 **결과는 같게** 유지 | 필요한 파서가 다르고 시간이 지나며 더 갈라짐. 대신 같은 ELF에서 PC → (파일, 라인, 함수)를 비교하는 테스트로 결과 일치를 보장(프로파일러 연동 시 혼란 방지) |
 | D15 | **AI 사용 방식을 기준으로 설계**하고 개발자 사용 방식은 그 안에서 처리 | 개발자는 한 시점 주변(step), AI는 범위 전체 훑기·집계·여러 run. 훑기 우선 저장소, 인덱싱 때 만드는 파생 표, 엔진 자체 DWARF 해석, 성능 목표 두 개(ARCHITECTURE §2.11–§2.13) |

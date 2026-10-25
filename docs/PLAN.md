@@ -154,7 +154,7 @@ Step 0-2 평가 결과에 따라 범위를 조정합니다(상용 도구가 충�
 | 항목 | 결정 |
 |---|---|
 | 구현 언어 | Rust, 실행 파일 하나(D11). 폐쇄망은 반입만 |
-| 인덱스 저장 형식 | Arrow IPC 열 파일 + SQLite(D12). 비교 결과는 `docs/benchmarks/` |
+| 인덱스 저장 형식 | Arrow IPC 열 파일 + SQLite(D12). 비교 결과는 [benchmarks/storage.md](benchmarks/storage.md) |
 | GDB RSP 구현 | `gdbstub` crate(D13) |
 | 변환기 코드 | 독립. 소스 귀속 결과 비교 테스트(D14) |
 | 설계 기준 | AI 사용 방식(D15) |
