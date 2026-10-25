@@ -43,6 +43,8 @@ pub const MEM_READ: u8 = 0;
 pub const MEM_WRITE: u8 = 1;
 /// Bytes an exception entry may have overwritten without a trace record.
 pub const MEM_CLOBBER: u8 = 2;
+/// Bytes another core wrote (multi-core traces indexed one core at a time).
+pub const MEM_FOREIGN: u8 = 3;
 
 pub const NONE: u64 = u64::MAX;
 
@@ -123,6 +125,11 @@ pub struct Report {
     pub parse_errors: Unparsed,
     /// Lines from cores other than the indexed one.
     pub other_cores: BTreeMap<u32, u64>,
+    /// Memory writes by other cores: those bytes become unknown for this core.
+    pub other_core_writes: u64,
+    /// Exception entries whose frame could not be placed (stack pointer or
+    /// EXC_RETURN unknown): stack values after them may be stale.
+    pub exception_frames_unplaced: u64,
     pub time_unit: Option<TimeUnit>,
     pub first_time: Option<u64>,
     pub last_time: Option<u64>,

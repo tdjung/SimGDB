@@ -17,6 +17,22 @@ GDB, VS Code, AI 에이전트(MCP)에서 디버깅합니다.
   (DMA가 쓴 메모리, IP의 SFR)을 보충하고, waveform 뷰어와 시간을 동기화하며,
   **여러 run(회귀 테스트)과 멀티코어**를 가로지르는 분석을 합니다.
 
+## 빠른 시작
+
+```bash
+# 인덱스 만들기 (Tarmac은 gzip이어도 됨). --report는 레코드 종류, 해석 못 한 줄, 가능한 기능을 JSON으로 출력
+simgdb index trace.log --elf firmware.elf -o trace.idx --report
+
+# 질의 (JSON)
+simgdb info trace.idx
+simgdb query trace.idx registers --at 1000
+simgdb query trace.idx memory --addr 0x20000000 --len 64 --time 13350000
+
+# GDB 서버
+simgdb serve trace.idx --listen 127.0.0.1:3333
+arm-none-eabi-gdb firmware.elf -ex "target remote :3333" -ex "source tools/simgdb.gdb"
+```
+
 ## 문서
 
 | 문서 | 내용 |

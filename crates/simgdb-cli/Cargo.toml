@@ -15,6 +15,7 @@ simgdb-model.workspace = true
 simgdb-isa.workspace = true
 simgdb-store.workspace = true
 simgdb-engine.workspace = true
+simgdb-gdb.workspace = true
 clap.workspace = true
 serde.workspace = true
 serde_json.workspace = true

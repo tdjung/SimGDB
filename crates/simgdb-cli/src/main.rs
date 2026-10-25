@@ -31,7 +31,7 @@ enum Command {
         /// Core to index when lines carry `cpuN` (default: the first seen).
         #[arg(long)]
         core: Option<u32>,
-        #[arg(long, default_value_t = 4096)]
+        #[arg(long, default_value_t = 4096, value_parser = clap::value_parser!(u64).range(1..))]
         checkpoint_interval: u64,
         /// Print the diagnostics report (record counts, unrecognised lines, capabilities) as JSON.
         #[arg(long)]
@@ -45,6 +45,19 @@ enum Command {
     },
     /// Dataset information: size, time unit, capabilities, limitations.
     Info { index: PathBuf },
+    /// Serve the index to GDB (remote serial protocol over TCP).
+    Serve {
+        index: PathBuf,
+        /// Address to listen on. Use 0.0.0.0 to accept connections from other hosts.
+        #[arg(long, default_value = "127.0.0.1:3333")]
+        listen: String,
+        /// Start at this instruction index.
+        #[arg(long, default_value_t = 0)]
+        at: u64,
+        /// Exit after the first GDB session ends.
+        #[arg(long)]
+        once: bool,
+    },
     /// Query the state at a point.
     Query {
         index: PathBuf,
@@ -134,6 +147,16 @@ fn run(cli: Cli) -> Result<(), String> {
                 );
             }
             Ok(())
+        }
+        Command::Serve { index, listen, at, once } => {
+            let engine = Engine::open(&index).map_err(|e| e.to_string())?;
+            let mut session = simgdb_gdb::Session::new(engine);
+            session.set_index(at);
+            let listener = std::net::TcpListener::bind(&listen).map_err(|e| format!("{listen}: {e}"))?;
+            eprintln!(
+                "simgdb: waiting for gdb on {listen} (target extended-remote is not needed: use `target remote {listen}`)"
+            );
+            simgdb_gdb::serve(&mut session, listener, once)
         }
         Command::Info { index } => {
             let engine = Engine::open(&index).map_err(|e| e.to_string())?;

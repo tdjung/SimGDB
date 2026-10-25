@@ -34,14 +34,34 @@ Step 0의 실제 Tarmac 조사 결과에 따라 갱신합니다.
 ## Step 1 구현의 규칙 (첫 마일스톤)
 
 - **레지스터**: trace에 쓰기 기록이 나온 뒤부터 알려짐. 그 전에는 `unknown`. `x` 자리가 있는 값은 일부만 알려짐(GDB에는 unavailable).
-- **SP와 MSP/PSP**: trace가 어느 쪽을 쓰든(`r13`, `r13 (MSP)`, `SP_main`, `MSP` …) 모드(IPSR)와 CONTROL.SPSEL로
-  나머지를 맞춥니다. 모드를 모르면 맞추지 않습니다.
+- **SP와 MSP/PSP**: trace가 어느 쪽을 쓰든(`r13`, `r13 (MSP)`, `r13 (PSP) 값`, `SP_main`, `MSP` …) 모드(IPSR)와
+  CONTROL.SPSEL로 나머지를 맞춥니다. 모드를 모르면 어느 쪽이 바뀌었는지 알 수 없으므로, 낡았을 수 있는 쪽을 `unknown`으로 둡니다.
+  알려지지 않은 PSP로 전환하면 SP도 `unknown`입니다.
+- **TrustZone(Armv8-M)**: Secure 뱅크(`MSP_S` 등)만 모델링합니다. Non-secure 뱅크(`MSP_NS` 등)는 합치지 않고
+  보고서의 `unmodelled_registers`에 나옵니다. Non-secure 상태로 실행하는 구간의 SP/MSP/PSP 정확도는 아직 보장하지 않습니다.
 - **메모리**: 그 바이트에 대한 마지막 기록(읽기 포함)의 값. 기록이 없으면 ELF load image(플래시 등 load 주소 기준),
   없으면 나중에 쓰기 없이 읽힌 값(`inferred`), 그것도 없으면 `unknown`. `.data`의 RAM 주소는 startup 복사가 trace에 나온 뒤부터 알려짐.
-- **예외 진입**: 코어가 스택에 frame을 쌓는 저장이 trace에 없으면, 진입 전 SP 아래와 진입 후 frame 위치의 108바이트를
-  `unknown`으로 표시합니다(옛 값을 보여 주지 않음). 저장이 trace에 있으면 그 값을 씁니다.
+- **예외 진입**: 코어가 스택에 frame을 쌓는 저장이 trace에 없으면 frame 영역을 `unknown`으로 표시합니다(옛 값을 보여 주지 않음).
+  진입 전 SP 아래 216바이트(가장 큰 frame, 살아 있는 데이터 없음)와, 진입 후 EXC_RETURN이 가리키는 스택의 frame 크기만큼입니다
+  (기본 32바이트, FP 문맥이면 더 큼). 저장이 trace에 있으면 그 값을 씁니다. SP나 EXC_RETURN을 몰라 frame 위치를 정할 수 없으면
+  보고서의 `exception_frames_unplaced`에 셉니다.
+- **멀티코어 trace**: 한 번에 한 코어를 인덱싱합니다. 다른 코어가 쓴 메모리 바이트는 그 시점부터 `unknown`입니다.
+- **주소 범위**: ISA 주소 범위(M-profile 32비트)를 벗어난 접근은 해석 오류로 보고하고 쓰지 않습니다.
 - **주변장치 영역**(`0x40000000–0x5FFFFFFF`, `0xA0000000` 이상): 항상 `unknown`. 마지막 접근은 증거로만 보여 줍니다.
 - **`IF` 레코드**: 바로 앞 명령어와 PC가 같으면 중복으로 보고 제외합니다(실제 의미는 Step 0에서 확인).
+
+## GDB에서 보이는 동작
+
+- **역방향 실행**: `reverse-step`, `reverse-next`, `reverse-stepi`, `reverse-continue`, `reverse-finish`가 동작합니다.
+  trace 처음과 끝에서는 “No more reverse-execution history”로 멈춥니다.
+- **시점 이동**: `monitor goto <index>`, `monitor goto time <t>`. gdb는 대상이 바뀐 것을 모르므로
+  `tools/simgdb.gdb`의 `simgdb-goto`/`simgdb-goto-time`을 쓰면 캐시를 비우고 새 frame을 보여 줍니다.
+- **인터럽트가 끼어든 명령어의 breakpoint**: 실제 하드웨어는 PC가 도착한 순간(인터럽트 처리 전)과 실제 실행 때 두 번
+  멈출 수 있지만, Tarmac에는 실행만 기록되므로 SimGDB는 실행 때 한 번 멈춥니다.
+- **PSP를 쓰는 펌웨어**: trace가 PSP를 한 번이라도 쓰면 gdb의 M-profile 예외 unwinder를 씁니다. 이 unwinder는 예외 frame마다
+  PSP를 읽으므로, PSP가 처음 쓰이기 전 핸들러 안의 backtrace는 `Register … is not available`에서 끊깁니다(PSP는 reset 후 UNKNOWN).
+  PSP를 전혀 쓰지 않는 trace에서는 이 문제가 없습니다.
+- **쓰기 명령**: `set var`, 레지스터·메모리 쓰기는 거부됩니다(“Cannot access memory” 등).
 
 ## 값 표시 규칙
 

@@ -391,6 +391,9 @@ impl Parser {
     fn diagram(&mut self, rest: &[Tok<'_>], write: bool) -> Result<Record, ParseError> {
         let Some(base) = rest.first().and_then(|t| hex(t.s)) else { return err("LD/ST: expected address") };
         self.continuation = Some((rest[0].pos, write));
+        if base.checked_add(16).is_none() {
+            return err("LD/ST: address out of range");
+        }
         // 16 cells, most significant (highest address) first.
         let mut cells: Vec<Option<Option<u8>>> = Vec::with_capacity(16);
         for t in &rest[1..] {
@@ -462,8 +465,11 @@ fn fused_time(s: &str) -> Option<(u64, TimeUnit)> {
 fn register(rest: &[Tok<'_>]) -> Result<Record, ParseError> {
     let Some(name) = rest.first() else { return err("R without register name") };
     let mut j = 1;
-    // Mode annotation before the value: R R1 (USR) 00000800
-    if rest.get(j).is_some_and(|t| t.s.starts_with('(')) {
+    // Annotation before the value: a mode (`R R1 (USR) 00000800`) or a
+    // stack bank (`R r13 (PSP) 20000800`). Kept; the ISA decides what it means.
+    let mut before = None;
+    if let Some(t) = rest.get(j).filter(|t| t.s.starts_with('(')) {
+        before = Some(t.s.trim_start_matches('(').trim_end_matches(')').to_string());
         j += 1;
     }
     let mut name = name.s.to_string();
@@ -491,7 +497,10 @@ fn register(rest: &[Tok<'_>]) -> Result<Record, ParseError> {
         bits += b;
         j += 1;
     }
-    let bank = rest.get(j).and_then(|t| t.s.strip_prefix('(').and_then(|s| s.strip_suffix(')')).map(|s| s.to_string()));
+    let bank = rest
+        .get(j)
+        .and_then(|t| t.s.strip_prefix('(').and_then(|s| s.strip_suffix(')')).map(|s| s.to_string()))
+        .or(before);
     Ok(Record::Register(Register { name, bank, value, known, bits }))
 }
 
@@ -580,7 +589,9 @@ fn memory(kind: &str, rest: &[Tok<'_>]) -> Result<Record, ParseError> {
                 return err(format!("{kind}: expected two data words"));
             }
             let high = data[data.len() - 2];
-            Ok(Record::Memory(vec![one(addr, 8, last)?, one(addr + 8, 8, high)?]))
+            let next =
+                addr.checked_add(8).ok_or_else(|| ParseError { message: format!("{kind}: address out of range") })?;
+            Ok(Record::Memory(vec![one(addr, 8, last)?, one(next, 8, high)?]))
         }
         _ => err(format!("{kind}: unsupported size {size}")),
     }
@@ -676,7 +687,9 @@ mod tests {
         let Record::Register(r) = one("         10 ns R psr xx0xxXxx") else { panic!() };
         assert_eq!((r.value, r.known), (0, 0x00f0_0000));
         let Record::Register(r) = one("                    R R1 (USR) 00000800") else { panic!() };
-        assert_eq!((r.name.as_str(), r.value), ("R1", 0x800));
+        assert_eq!((r.name.as_str(), r.value, r.bank.as_deref()), ("R1", 0x800, Some("USR")));
+        let Record::Register(r) = one("2 ps R r13 (PSP) 20000800") else { panic!() };
+        assert_eq!((r.value, r.bank.as_deref()), (0x2000_0800, Some("PSP")));
     }
 
     #[test]
