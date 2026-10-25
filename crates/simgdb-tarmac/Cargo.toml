@@ -1,0 +1,12 @@
+[package]
+name = "simgdb-tarmac"
+description = "Tarmac trace parser for SimGDB"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+simgdb-model.workspace = true
+flate2.workspace = true
+thiserror.workspace = true

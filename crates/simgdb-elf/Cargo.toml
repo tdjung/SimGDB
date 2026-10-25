@@ -1,0 +1,11 @@
+[package]
+name = "simgdb-elf"
+description = "ELF load image and symbols for SimGDB"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+object.workspace = true
+thiserror.workspace = true

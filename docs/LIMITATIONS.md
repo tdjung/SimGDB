@@ -31,6 +31,18 @@ Step 0의 실제 Tarmac 조사 결과에 따라 갱신합니다.
   시간 변환 표가 있을 때만 계산하고, 없으면 `unknown`입니다(주파수 변경·clock gating 때문에 고정 배율을 쓰지 않음).
   waveform과 시간을 맞추려면(Step 2) 변환 표가 필요합니다.
 
+## Step 1 구현의 규칙 (첫 마일스톤)
+
+- **레지스터**: trace에 쓰기 기록이 나온 뒤부터 알려짐. 그 전에는 `unknown`. `x` 자리가 있는 값은 일부만 알려짐(GDB에는 unavailable).
+- **SP와 MSP/PSP**: trace가 어느 쪽을 쓰든(`r13`, `r13 (MSP)`, `SP_main`, `MSP` …) 모드(IPSR)와 CONTROL.SPSEL로
+  나머지를 맞춥니다. 모드를 모르면 맞추지 않습니다.
+- **메모리**: 그 바이트에 대한 마지막 기록(읽기 포함)의 값. 기록이 없으면 ELF load image(플래시 등 load 주소 기준),
+  없으면 나중에 쓰기 없이 읽힌 값(`inferred`), 그것도 없으면 `unknown`. `.data`의 RAM 주소는 startup 복사가 trace에 나온 뒤부터 알려짐.
+- **예외 진입**: 코어가 스택에 frame을 쌓는 저장이 trace에 없으면, 진입 전 SP 아래와 진입 후 frame 위치의 108바이트를
+  `unknown`으로 표시합니다(옛 값을 보여 주지 않음). 저장이 trace에 있으면 그 값을 씁니다.
+- **주변장치 영역**(`0x40000000–0x5FFFFFFF`, `0xA0000000` 이상): 항상 `unknown`. 마지막 접근은 증거로만 보여 줍니다.
+- **`IF` 레코드**: 바로 앞 명령어와 PC가 같으면 중복으로 보고 제외합니다(실제 의미는 Step 0에서 확인).
+
 ## 값 표시 규칙
 
 - GDB: 모르는 레지스터는 unavailable로 응답(`<unavailable>`), 모르는 메모리는 읽기 오류.

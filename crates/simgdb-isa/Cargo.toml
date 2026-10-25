@@ -1,0 +1,10 @@
+[package]
+name = "simgdb-isa"
+description = "ISA definitions for SimGDB: registers, trace register names, GDB target descriptions"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+serde.workspace = true
