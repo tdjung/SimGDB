@@ -31,7 +31,7 @@ enum Command {
         /// Core to index when lines carry `cpuN` (default: the first seen).
         #[arg(long)]
         core: Option<u32>,
-        #[arg(long, default_value_t = 4096)]
+        #[arg(long, default_value_t = 4096, value_parser = clap::value_parser!(u64).range(1..))]
         checkpoint_interval: u64,
         /// Print the diagnostics report (record counts, unrecognised lines, capabilities) as JSON.
         #[arg(long)]

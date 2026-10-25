@@ -54,9 +54,11 @@ impl RegState {
         RegState { values: vec![0; n], known: vec![0; n] }
     }
 
-    pub fn get(&self, reg: RegId) -> Option<u64> {
+    /// Value when every bit of the register is known.
+    pub fn get(&self, reg: RegId, bits: u32) -> Option<u64> {
         let r = reg as usize;
-        (self.known[r] != 0).then_some(self.values[r])
+        let full = RegState::full_mask(bits);
+        (self.known[r] & full == full).then_some(self.values[r])
     }
 
     pub fn full_mask(bits: u32) -> u64 {
@@ -98,8 +100,15 @@ pub trait Isa: Send + Sync {
     /// Default memory map: regions whose contents change without core
     /// accesses (peripherals), for which a remembered value is not trusted.
     fn volatile_regions(&self) -> &'static [(u64, u64)];
-    /// Bytes an exception entry may write below the stack pointer.
-    fn exception_frame_bytes(&self) -> u64;
+    /// Most bytes an exception entry may write below the stack pointer in
+    /// use before entry (any frame format, with alignment padding).
+    fn exception_frame_max(&self) -> u64;
+    /// Where the frame of an exception entry lies, from the register state
+    /// right after entry: `(base, size)`. `None` when that state does not
+    /// say (e.g. the stack selector is unknown).
+    fn exception_frame(&self, after_entry: &RegState) -> Option<(u64, u64)>;
+    /// Addresses are below this limit (e.g. 2^32 for a 32-bit ISA).
+    fn address_limit(&self) -> u64;
 }
 
 pub fn by_name(name: &str) -> Option<Box<dyn Isa>> {

@@ -10,8 +10,8 @@ use simgdb_tarmac::{Event, Parser, Record};
 
 use crate::table::{Column, write};
 use crate::{
-    Capabilities, FLAG_FAILED, FLAG_FETCH_FAILED, FORMAT_VERSION, MEM_CLOBBER, MEM_READ, MEM_WRITE, Meta, NONE, Report,
-    Sample, StoreError, Unparsed,
+    Capabilities, FLAG_FAILED, FLAG_FETCH_FAILED, FORMAT_VERSION, MEM_CLOBBER, MEM_FOREIGN, MEM_READ, MEM_WRITE, Meta,
+    NONE, Report, Sample, StoreError, Unparsed,
 };
 
 pub struct IndexOptions {
@@ -85,6 +85,8 @@ struct Builder {
 /// placeholder clobber row is filled in when the next instruction starts.
 struct PendingEntry {
     row: usize,
+    /// The range below the pre-entry stack pointer was marked.
+    placed_below: bool,
 }
 
 pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
@@ -92,6 +94,9 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
         Some(p) => Some(Elf::load(p)?),
         None => None,
     };
+    if opts.checkpoint_interval == 0 {
+        return Err(StoreError::Trace("checkpoint interval must be at least 1".into()));
+    }
     std::fs::create_dir_all(&opts.out).map_err(|e| StoreError::io(&opts.out, e))?;
     let reader = simgdb_tarmac::open(&opts.trace).map_err(|e| StoreError::io(&opts.trace, e))?;
     let nregs = isa.registers().len();
@@ -111,7 +116,9 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
     let mut stacking_seen = false;
     let mut writes_since_entry = false;
     let mut block = Block { written: vec![false; nregs], line: 0 };
-    let frame = isa.exception_frame_bytes();
+    let frame_max = isa.exception_frame_max();
+    let sp_bits = isa.registers()[isa.stack_pointer() as usize].bits;
+    let limit = isa.address_limit();
     let sp = isa.stack_pointer();
     let mask = |s: &str| if opts.mask_samples { mask_hex(s) } else { s.to_string() };
 
@@ -141,6 +148,17 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
         if let (Some(c), Some(want)) = (current_core, core) {
             if c != want {
                 *report.other_cores.entry(c).or_default() += 1;
+                // Another core's stores change memory this core sees: those
+                // bytes become unknown from here on.
+                if let Record::Memory(accesses) = &parsed.record {
+                    let now = b.pc.len() as u64;
+                    for a in accesses.iter().filter(|a| a.write) {
+                        if a.addr.checked_add(a.size as u64).is_some_and(|end| end <= limit) {
+                            report.other_core_writes += 1;
+                            mark_unknown(&mut b, MEM_FOREIGN, now, a.addr, a.size as u64, lineno);
+                        }
+                    }
+                }
                 continue;
             }
         }
@@ -153,7 +171,7 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
                 }
                 report.derived_register_writes += block.resolve(isa, &mut b, &mut state, &mut last_write_row, at);
                 if let Some(p) = pending.take() {
-                    finish_entry(&mut b, p, &state, isa, frame);
+                    report.exception_frames_unplaced += finish_entry(&mut b, p, &state, isa) as u64;
                 }
                 if at % opts.checkpoint_interval == 0 {
                     b.cp_index.push(at);
@@ -213,6 +231,16 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
             }
             Record::Memory(accesses) => {
                 for a in accesses {
+                    if a.addr.checked_add(a.size as u64).is_none_or(|end| end > limit) {
+                        report.parse_errors.count += 1;
+                        if report.parse_errors.samples.len() < SAMPLES {
+                            report.parse_errors.samples.push(Sample {
+                                line: lineno,
+                                text: format!("address out of range for {}: {}", isa.name(), mask(&text)),
+                            });
+                        }
+                        continue;
+                    }
                     // A read shows what was there before the instruction ran.
                     let row_at = if a.write { at } else { at.saturating_sub(1) };
                     if a.write {
@@ -247,17 +275,21 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
                     continue;
                 }
                 if let Some(p) = pending.take() {
-                    finish_entry(&mut b, p, &state, isa, frame);
+                    report.exception_frames_unplaced += finish_entry(&mut b, p, &state, isa) as u64;
                 }
                 // The frame is pushed below the stack pointer in use before
                 // entry; bytes there are unknown unless the trace shows the
-                // stores (they follow this record and override the clobber).
-                if let Some(s) = state.get(sp) {
-                    clobber(&mut b, at, s.saturating_sub(frame), frame, lineno);
+                // stores (they follow this record and override this). Below
+                // the stack pointer nothing is live, so the largest frame is
+                // covered.
+                let below = state.get(sp, sp_bits);
+                if let Some(s) = below {
+                    mark_unknown(&mut b, MEM_CLOBBER, at, s.saturating_sub(frame_max), s.min(frame_max), lineno);
                 }
-                // Placeholder for the range at the post-entry stack pointer.
-                clobber(&mut b, at, 0, 0, lineno);
-                pending = Some(PendingEntry { row: b.m_at.len() - 1 });
+                // Placeholder for the exact frame at the post-entry stack
+                // pointer (known once the entry's register records are read).
+                mark_unknown(&mut b, MEM_CLOBBER, at, 0, 0, lineno);
+                pending = Some(PendingEntry { row: b.m_at.len() - 1, placed_below: below.is_some() });
                 writes_since_entry = false;
             }
             Record::Header | Record::Blank => {}
@@ -277,7 +309,7 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
     let at = b.pc.len() as u64;
     report.derived_register_writes += block.resolve(isa, &mut b, &mut state, &mut last_write_row, at);
     if let Some(p) = pending.take() {
-        finish_entry(&mut b, p, &state, isa, frame);
+        report.exception_frames_unplaced += finish_entry(&mut b, p, &state, isa) as u64;
     }
     let instructions = b.pc.len() as u64;
     if instructions == 0 {
@@ -359,36 +391,27 @@ fn push_write(b: &mut Builder, state: &mut RegState, rows: &mut [u64], w: &RegWr
     state.apply(w);
 }
 
-fn clobber(b: &mut Builder, at: u64, addr: u64, size: u64, line: u64) {
+fn mark_unknown(b: &mut Builder, kind: u8, at: u64, addr: u64, size: u64, line: u64) {
     b.m_at.push(at);
     b.m_addr.push(addr);
     b.m_size.push(size as u32);
-    b.m_kind.push(MEM_CLOBBER);
+    b.m_kind.push(kind);
     b.m_value.push(0);
     b.m_known.push(0);
     b.m_line.push(line);
 }
 
-/// After entry the frame sits at the post-entry value of the stack
-/// EXC_RETURN names (Arm M: PSP if LR bit 2, else MSP); `isa` gives SP and the
-/// conservative frame size. Without an Arm-specific hook the post-entry SP of
-/// the ISA is used.
-fn finish_entry(b: &mut Builder, p: PendingEntry, state: &RegState, isa: &dyn Isa, frame: u64) {
-    let base = frame_base(state, isa);
-    if let Some(base) = base {
-        b.m_addr[p.row] = base;
-        b.m_size[p.row] = frame as u32;
+/// Fill in the placeholder with the exact frame the ISA reads from the
+/// post-entry state. Returns true when neither range could be placed.
+fn finish_entry(b: &mut Builder, p: PendingEntry, state: &RegState, isa: &dyn Isa) -> bool {
+    match isa.exception_frame(state) {
+        Some((base, size)) => {
+            b.m_addr[p.row] = base;
+            b.m_size[p.row] = size as u32;
+            false
+        }
+        None => !p.placed_below,
     }
-}
-
-fn frame_base(state: &RegState, isa: &dyn Isa) -> Option<u64> {
-    if isa.name() == "arm-m" {
-        use simgdb_isa::arm_m::{LR, MSP, PSP};
-        let lr = state.get(LR)?;
-        let bank = if lr & 4 != 0 { PSP } else { MSP };
-        return state.get(bank);
-    }
-    state.get(isa.stack_pointer())
 }
 
 fn write_tables(b: &Builder, out: &Path, nregs: usize, elf: Option<&Elf>) -> Result<(), StoreError> {

@@ -9,7 +9,7 @@ use std::path::Path;
 use serde::Serialize;
 use simgdb_isa::{Isa, RegId, RegState};
 use simgdb_model::{Conflict, Evidence, Point, SimTime, Source, TimeUnit, Value};
-use simgdb_store::{Dataset, FLAG_FAILED, MEM_CLOBBER, MEM_READ, MEM_WRITE, NONE, StoreError};
+use simgdb_store::{Dataset, FLAG_FAILED, MEM_CLOBBER, MEM_FOREIGN, MEM_READ, MEM_WRITE, NONE, StoreError};
 
 #[derive(Debug, thiserror::Error)]
 pub enum EngineError {
@@ -21,7 +21,12 @@ pub enum EngineError {
     OutOfRange { index: u64, last: u64 },
     #[error("unknown register {0}")]
     Register(String),
+    #[error("memory request of {0} bytes is larger than the limit of {MAX_MEMORY_REQUEST}")]
+    TooLarge(u64),
 }
+
+/// Largest memory read answered in one request.
+pub const MAX_MEMORY_REQUEST: u64 = 1 << 20;
 
 pub struct Engine {
     pub ds: Dataset,
@@ -245,6 +250,9 @@ impl Engine {
     /// Bytes `addr..addr+len` at `index`, one value per byte.
     pub fn memory(&self, addr: u64, len: u64, index: u64) -> Result<Vec<Value<u8>>, EngineError> {
         self.check(index)?;
+        if len > MAX_MEMORY_REQUEST {
+            return Err(EngineError::TooLarge(len));
+        }
         Ok((0..len).map(|k| self.byte(addr.wrapping_add(k), index)).collect())
     }
 
@@ -297,7 +305,11 @@ impl Engine {
             let evidence = self.row_evidence(row);
             return match ds.mem_kind.get(row) {
                 MEM_CLOBBER => Value::unknown_because(Evidence {
-                    note: Some("exception entry may have overwritten this byte (frame push not in the trace)".into()),
+                    note: Some("exception entry may have written this byte; the trace has no store for it".into()),
+                    ..evidence
+                }),
+                MEM_FOREIGN => Value::unknown_because(Evidence {
+                    note: Some("another core wrote this byte; its value is not known here".into()),
                     ..evidence
                 }),
                 _ => match self.row_byte(row, addr) {

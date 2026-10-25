@@ -71,12 +71,15 @@ fn alias(name: &str) -> Option<RegId> {
         "r14" | "lr" => LR,
         "r15" | "pc" => PC,
         "xpsr" | "psr" | "cpsr" => XPSR,
-        "msp" | "sp_main" | "r13_main" | "msp_s" | "msp_ns" | "r13_main_s" | "r13_main_ns" => MSP,
-        "psp" | "sp_process" | "r13_process" | "psp_s" | "psp_ns" | "r13_process_s" | "r13_process_ns" => PSP,
-        "primask" | "primask_s" | "primask_ns" => PRIMASK,
-        "basepri" | "basepri_s" | "basepri_ns" => BASEPRI,
-        "faultmask" | "faultmask_s" | "faultmask_ns" => FAULTMASK,
-        "control" | "control_s" | "control_ns" => CONTROL,
+        // Secure (`_s`) names are the banks SimGDB models. Non-secure banks
+        // (`_ns`) are separate registers on Armv8-M with TrustZone and are
+        // not modelled yet: they are reported, never merged into these.
+        "msp" | "sp_main" | "r13_main" | "msp_s" | "r13_main_s" => MSP,
+        "psp" | "sp_process" | "r13_process" | "psp_s" | "r13_process_s" => PSP,
+        "primask" | "primask_s" => PRIMASK,
+        "basepri" | "basepri_s" => BASEPRI,
+        "faultmask" | "faultmask_s" => FAULTMASK,
+        "control" | "control_s" => CONTROL,
         _ => {
             let n = name.strip_prefix('r')?.parse::<u16>().ok()?;
             if n <= 12 { n } else { return None }
@@ -136,20 +139,43 @@ impl Isa for ArmM {
     }
 
     fn resolve(&self, state: &RegState, written: &[bool]) -> Vec<RegWrite> {
-        let Some(bank) = ArmM::active_bank(state) else { return vec![] };
-        let (sp, b) = (SP as usize, bank as usize);
-        if written[sp] && !written[b] {
-            // SP was written: it is the active bank.
-            if state.known[sp] != 0 && (state.values[sp] != state.values[b] || state.known[sp] != state.known[b]) {
-                return vec![RegWrite { reg: bank, value: state.values[sp], known: state.known[sp], derived: true }];
+        let (sp, msp, psp) = (SP as usize, MSP as usize, PSP as usize);
+        let copy = |reg: RegId, from: usize| RegWrite {
+            reg,
+            value: state.values[from],
+            known: state.known[from],
+            derived: true,
+        };
+        let unknown = |reg: RegId| RegWrite { reg, value: 0, known: 0, derived: true };
+        let mut out = Vec::new();
+        match ArmM::active_bank(state) {
+            Some(bank) => {
+                let b = bank as usize;
+                if written[sp] && !written[b] {
+                    // SP was written: that is the active bank (unknown bits too).
+                    out.push(copy(bank, sp));
+                } else if !written[sp] {
+                    // The bank, the mode or SPSEL changed: SP is the active
+                    // bank, unknown if that bank is.
+                    out.push(copy(SP, b));
+                }
             }
-        } else if !written[sp] && state.known[b] != 0 {
-            // The bank, the mode or SPSEL changed: SP follows the active bank.
-            if state.values[sp] != state.values[b] || state.known[sp] != state.known[b] {
-                return vec![RegWrite { reg: SP, value: state.values[b], known: state.known[b], derived: true }];
+            None => {
+                // Mode or SPSEL unknown: which bank SP is cannot be decided.
+                // Anything that may have gone stale becomes unknown.
+                if written[sp] {
+                    for bank in [MSP, PSP] {
+                        if !written[bank as usize] {
+                            out.push(unknown(bank));
+                        }
+                    }
+                } else if written[msp] || written[psp] || written[XPSR as usize] || written[CONTROL as usize] {
+                    out.push(unknown(SP));
+                }
             }
         }
-        vec![]
+        out.retain(|w| state.values[w.reg as usize] != w.value || state.known[w.reg as usize] != w.known);
+        out
     }
 
     fn target_xml(&self, never_written: &[String]) -> String {
@@ -181,9 +207,38 @@ impl Isa for ArmM {
         &[(0x4000_0000, 0x6000_0000), (0xA000_0000, 0x1_0000_0000)]
     }
 
-    fn exception_frame_bytes(&self) -> u64 {
-        // Extended frame with FP state (0x68) plus a 4-byte alignment pad.
-        0x6c
+    fn exception_frame_max(&self) -> u64 {
+        // Armv8-M with TrustZone: additional state (0x28) + basic (0x20) +
+        // FP (0x48) + Secure FP (0x40) = 0xd0, plus a 4-byte alignment pad.
+        // Bytes below the pre-entry SP are not live, so over-covering is safe.
+        0xd8
+    }
+
+    fn exception_frame(&self, after: &RegState) -> Option<(u64, u64)> {
+        // EXC_RETURN in LR: bit 2 SPSEL (frame on PSP), bit 4 FType (0 = FP
+        // state stacked), bit 5 DCRS and bit 6 S (Armv8-M: 0 DCRS with S set
+        // means the callee registers were stacked as additional state).
+        let lr = after.get(LR, 32)?;
+        if lr >> 24 != 0xff {
+            return None;
+        }
+        let bank = if lr & 4 != 0 { PSP } else { MSP };
+        let base = after.get(bank, 32)?;
+        let mut size = 0x20;
+        if lr & (1 << 4) == 0 {
+            // FP context. Secure FP state (FPCCR.TS) is not visible and bit 6
+            // is also 1 on Armv7-M, so it is assumed stacked: this may hide
+            // valid bytes above a smaller frame but never shows stale ones.
+            size += 0x48 + if lr & (1 << 6) != 0 { 0x40 } else { 0 };
+        }
+        if lr & (1 << 6) != 0 && lr & (1 << 5) == 0 {
+            size += 0x28;
+        }
+        Some((base, size))
+    }
+
+    fn address_limit(&self) -> u64 {
+        1 << 32
     }
 }
 
@@ -257,14 +312,55 @@ mod tests {
             s.apply(&RegWrite { reg: r, value: v, known: FULL, derived: false });
         }
         assert_eq!(ArmM.resolve(&s, &written(&[SP, XPSR, PSP])), vec![]);
-        assert_eq!(s.get(MSP), Some(0x2000_ffe0));
+        assert_eq!(s.get(MSP, 32), Some(0x2000_ffe0));
     }
 
     #[test]
-    fn unknown_mode_does_not_guess_bank() {
+    fn unknown_mode_makes_stale_banks_unknown() {
+        // SP written, mode unknown: MSP may be stale, so it becomes unknown.
         let mut s = state(&[(MSP, 0x2000_1000)]);
         s.apply(&RegWrite { reg: SP, value: 0x2000_0f00, known: FULL, derived: false });
-        assert_eq!(ArmM.resolve(&s, &written(&[SP])), vec![]);
+        assert_eq!(ArmM.resolve(&s, &written(&[SP])), vec![RegWrite { reg: MSP, value: 0, known: 0, derived: true }]);
+        // A bank written, mode unknown: SP may be stale.
+        let mut s = state(&[(SP, 0x2000_1000)]);
+        s.apply(&RegWrite { reg: MSP, value: 0x2000_0f00, known: FULL, derived: false });
+        assert_eq!(ArmM.resolve(&s, &written(&[MSP])), vec![RegWrite { reg: SP, value: 0, known: 0, derived: true }]);
+    }
+
+    #[test]
+    fn switch_to_unknown_psp_makes_sp_unknown() {
+        let mut s = state(&[(XPSR, 0x0100_0000), (CONTROL, 0), (MSP, 0x2000_1000), (SP, 0x2000_1000)]);
+        s.apply(&RegWrite { reg: CONTROL, value: 2, known: FULL, derived: false });
+        assert_eq!(
+            ArmM.resolve(&s, &written(&[CONTROL])),
+            vec![RegWrite { reg: SP, value: 0, known: 0, derived: true }]
+        );
+    }
+
+    #[test]
+    fn unknown_sp_value_reaches_the_bank() {
+        let mut s = state(&[(XPSR, 0x0100_0000), (CONTROL, 0), (MSP, 0x2000_1000), (SP, 0x2000_1000)]);
+        s.apply(&RegWrite { reg: SP, value: 0, known: 0, derived: false });
+        assert_eq!(ArmM.resolve(&s, &written(&[SP])), vec![RegWrite { reg: MSP, value: 0, known: 0, derived: true }]);
+    }
+
+    #[test]
+    fn non_secure_banks_are_not_merged() {
+        assert_eq!(lookup("MSP_NS", None), None);
+        assert_eq!(lookup("MSP_S", None), Some(MSP));
+    }
+
+    #[test]
+    fn frame_from_exc_return() {
+        let s = state(&[(LR, 0xffff_fff9), (MSP, 0x2000_0fa0)]);
+        assert_eq!(ArmM.exception_frame(&s), Some((0x2000_0fa0, 0x20)));
+        // PSP, FP frame. Bit 6 is 1 on Armv7-M too, so the possible Secure
+        // FP state (0x40) is included: hiding valid bytes, never stale ones.
+        let s = state(&[(LR, 0xffff_ffed), (PSP, 0x2000_0400)]);
+        assert_eq!(ArmM.exception_frame(&s), Some((0x2000_0400, 0x68 + 0x40)));
+        let s = state(&[(LR, 0xffff_ff48), (MSP, 0x3000_0f00)]); // v8-M Secure, FP, additional state
+        assert_eq!(ArmM.exception_frame(&s), Some((0x3000_0f00, 0x20 + 0x48 + 0x40 + 0x28)));
+        assert_eq!(ArmM.exception_frame(&state(&[(MSP, 0x2000_0fa0)])), None);
     }
 
     #[test]

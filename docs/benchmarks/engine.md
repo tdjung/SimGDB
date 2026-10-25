@@ -9,12 +9,12 @@
 
 | 항목 | 값 |
 |---|---:|
-| 시간 | 23.1 s (약 105만 줄/s, 56 MB/s, 단일 스레드) |
+| 시간 | 23–28 s (약 90만–105만 줄/s, 단일 스레드; 리뷰 수정 후 28 s) |
 | 최대 메모리 | 2.7 GB |
 | 인덱스 크기 | 1.8 GB (trace의 1.4배) |
 
-파일별 크기: `mem_index` 840 MB, `reg_writes` 324 MB, `instructions` 307 MB, `mem` 192 MB, `pc_index` 162 MB.
-`mem_index`의 절반 이상은 예외 진입 때 stacking 영역을 “모름”으로 표시하는 바이트 항목입니다(예외마다 최대 216바이트).
+파일별 크기: `mem_index` 840 MB(리뷰 수정 후 911 MB), `reg_writes` 324 MB, `instructions` 307 MB, `mem` 192 MB, `pc_index` 162 MB.
+`mem_index`의 절반 이상은 예외 진입 때 stacking 영역을 “모름”으로 표시하는 바이트 항목입니다(예외마다 진입 전 SP 아래 216바이트 + frame 크기).
 
 ## 질의 지연 (임의 시점 1,000개)
 

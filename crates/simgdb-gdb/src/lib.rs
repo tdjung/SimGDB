@@ -179,13 +179,10 @@ impl Session {
                     }
                     i += 1;
                     let pc = self.engine.ds.insn_pc.get(i as usize);
-                    if pc < start || pc >= end || self.breakpoints.contains(&pc) {
+                    let hit = self.breakpoints.contains(&pc);
+                    if pc < start || pc >= end || hit {
                         self.index = i;
-                        return if self.breakpoints.contains(&pc) && (pc < start || pc >= end) {
-                            BaseStopReason::SwBreak(())
-                        } else {
-                            BaseStopReason::DoneStep
-                        };
+                        return if hit { BaseStopReason::SwBreak(()) } else { BaseStopReason::DoneStep };
                     }
                 }
             }
