@@ -1,0 +1,33 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+rust-version = "1.85"
+
+[workspace.dependencies]
+simgdb-model = { path = "crates/simgdb-model" }
+simgdb-isa = { path = "crates/simgdb-isa" }
+simgdb-elf = { path = "crates/simgdb-elf" }
+simgdb-tarmac = { path = "crates/simgdb-tarmac" }
+simgdb-store = { path = "crates/simgdb-store" }
+simgdb-engine = { path = "crates/simgdb-engine" }
+arrow-array = "60"
+arrow-buffer = "60"
+arrow-ipc = "60"
+arrow-schema = "60"
+memmap2 = "0.9"
+rusqlite = { version = "0.41", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+flate2 = "1"
+object = { version = "0.37", default-features = false, features = ["read_core", "elf", "std"] }
+clap = { version = "4", features = ["derive"] }
+thiserror = "2"
+tempfile = "3"
+
+[profile.release]
+debug = 1

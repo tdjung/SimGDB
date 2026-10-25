@@ -1,0 +1,373 @@
+# Copyright 2016-2021 Arm Limited. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# This file is part of Tarmac Trace Utilities
+
+# Each (non-comment, non-blank) line of this file is a line of Tarmac
+# trace: most of them were seen in the wild from some trace-generating
+# tool, but a few are handwritten.
+#
+# They're all collected here as a regression test suite for this
+# system's Tarmac parsing module. But each line is independent: the
+# parser test program doesn't retain any state between lines.
+
+# ----------------------------------------------------------------------
+# Trace lines seen in the output of Fast Models's Tarmac plugin
+
+0 clk IT (0) 00008000 fa000000 A svc_s : BLX      {pc}+8 ; 0x8008
+1 clk IT (1) 00008008 a00a T svc_s : ADR      r0,{pc}+0x2c ; 0x8034
+12 clk IS (12) 0000802c 1afb T svc_s : SUBNE    r3,r7,r3
+2696 clk IT (2696) 000096ea e8bd87f0 T svc_s : POP      {r4-r10,pc}
+0 clk IT (0) 00008000 940011de O EL3h_s : BL       {pc}+0x4778 ; 0xc778
+483 clk IS (483) 0000c7ec 54ffffa1 O EL3h_s : B.NE     {pc}-0xc ; 0xc7e0
+
+9 clk R r0 0000ab34
+2 clk R r10 000029b4
+0 clk R r14_svc 00008004
+0 clk R cpsr 000001f3
+0 clk R X30 0000000000008004
+502 clk R SP_EL3 0000000010000000
+1150 clk R d8 0000000000000000
+1103 clk R s0 3f800000
+513 clk R FPCR 01230123:23452345
+
+2 clk MR4 00008034 000029b4
+415 clk MR1 000090c0 72
+1191 clk MR2 0000ab94 2202
+763 clk MW1 0fffffb8 00
+21 clk MW4 0000ab34 00000000
+1 clk MR8 0000c7c8:00000000c7c8 00000000_0000ca68
+1137 clk MR4 0000cc20:00000000cc20 00000000
+1151 clk MR1 0000a2c8:00000000a2c8 72
+494 clk MW8 0000cbf0:00000000cbf0 00000000_0000cbd0
+20 clk MW4 0000cc00:00000000cc00 00000000
+1709 clk MW1 0000ce00:00000000ce00 68
+
+4541 clk CADI E simulation_stopped
+
+28491 clk MR4 dfdfdfcf (ABORTED)
+
+3 clk IT (3) 0000800a:00000000800a,00000000800c e8900c00 T svc_s : LDM      r0,{r10,r11}
+
+23 clk IT (23) 0000815c:00000000815c_NS,00000000815e_NS f7ffef76 T hyp_n : BLX      {pc}-0x110 ; 0x804c
+23 clk IT (23) 0000815c:00000000815c_S,00000000815e_S f7ffef76 T hyp_n : BLX      {pc}-0x110 ; 0x804c
+43964 clk MR8 60004200:0000a0004200_RL Device-nGnRnE (StronglyOrdered) 3b3b3b3b_19191919
+44082 clk MR8 a0004200:0000a0004200_RT Device-nGnRnE (StronglyOrdered) 52525252_70707070
+
+40 clk R DC CISW 00000000:00000000
+1678 clk R IC IALLU 00000000:0000000
+35977 clk R TLBI ALLE3 00000000:00000000
+39319 clk R AT S12E1W 00000000:00000004
+
+0 clk cpu0 E DebugEvent_HaltingDebugState 00000000
+0 clk cpu0 R r0 00000000
+0 clk cpu0 R r1 00000000
+0 clk cpu1 E DebugEvent_HaltingDebugState 00000000
+0 clk cpu1 R r0 00000000
+0 clk cpu1 R r1 00000000
+0 clk cpu0 E 10001848 00000001 CoreEvent_RESET
+0 clk cpu0 R r13_main_s 30040000
+0 clk cpu0 R MSP_S 30040000
+1 clk cpu0 IT (1) 10001848 f64f6000 T thread_s : MOV      r0,#0xfe00
+1 clk cpu0 R r0 0000fe00
+2 clk cpu0 IT (2) 1000184c f2c30003 T thread_s : MOVT     r0,#0x3003
+2 clk cpu0 R r0 3003fe00
+
+180000140000 ps MR8 0000010006fffcc0:010116fffcc0_NS 00000100_05101000
+
+27678000000 ps R Z0 401c0000_00000000_40180000_00000000_40140000_00000000_40100000_00000000_40080000_00000000_40000000_00000000_3ff00000_00000000_00000000_00000000
+27679000000 ps R P1 01010101_01010101
+
+# ----------------------------------------------------------------------
+# Trace lines seen in other broadly Fast Models flavoured Tarmac
+
+72415 clk MR16 400171e0 400f731b40000000 3ff87cc460000000
+72419 clk MW16 4001c440 4050d645c8ac92fc c04ce8c2677550b4
+
+97703 clk R Z3 40437ae4_3f9b5c75_403f687a_3fe1f6c0
+97711 clk R Z1 42a6fb1c_c28000a6_42a2af83_c2813814
+26230 clk R P0 a682
+26244 clk R P2 1511
+48492 clk R Z0 00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000
+48885 clk R Z0 400c18aa_3fa5a905_407b8ea0_3f8b78e9_401f9352_3ff6136a_4052128c_3f9cb9b7
+52131 clk R Z1 4022c837_4022c837_3fcae10a_3fcae10a_4017e9da_4017e9da_3fb2fdc3_3fb2fdc3
+33096 clk R P0 a6826647
+33096 clk R P2 14141015
+
+# ----------------------------------------------------------------------
+# Trace lines seen in multiple samples of broadly Cycle Models
+# flavoured Tarmac
+
+Tarmac Text Rev 3t
+      17000 ns  ES  EXC [0x00] Reset
+                    BR (00000000) A
+      41000 ns  ES  (00000000:e59ff018) A svc:            LDR      pc,{pc}+0x20 ; 0x20
+                    LD 00000020  ........ ........ ........ 00000080     0000000020    NM ISH INC
+                    BR (00000080) A
+     178000 ns  ES  (00000164:e59f1198) A svc:            LDR      r1,{pc}+0x1a0 ; 0x304
+                    LD 00000300  ........ ........ 00000800 ........     0000000300    NM ISH INC
+                    R R1 (USR) 00000800
+     181000 ns  ES  (0000016c:e1800001) A svc:            ORR      r0,r0,r1
+                    R R0 (USR) 00c50878
+     183000 ns  ES  (00000170:ee010f10) A svc:            MCR      p15,#0x0,r0,c1,c0,#0
+                    R SCTLR (AARCH32) 00c50878
+     800000 ns  ES  (000001a4:03a06a01) A svc:     CCFAIL MOVEQ    r6,#0x1000
+   23225000 ns  ES  (00000358:e4d12001) A svc:            LDRB     r2,[r1],#1
+                    LD 00000370  ........ ......48 ........ ........     0000000370    NM ISH IWBRWA
+                    R R1 (USR) 00000379
+                    R R2 (USR) 00000048
+   22857000 ns  ES  (000001fc:e5810000) A svc:            STR      r0,[r1,#0]
+                    ST b0080100  ........ ........ ........ 00000001     00b0080100    DV ISH INC
+   22858000 ns  ES  (00000208:e5810004) A svc:            STR      r0,[r1,#4]
+                    ST b0080100  ........ ........ ffffffff ........     00b0080100    DV ISH INC
+   23226000 ns  ES  (00000364:e5c02000) A svc:            STRB     r2,[r0,#0]
+                    ST b0000000  ........ ........ ........ ......##     00b0000000    SO ISH INC
+   23233000 ns  ES  (00000364:e5c02000) A svc:            STRB     r2,[r0,#0]
+                    ST b0000000  ........ ........ ........ ......65     00b0000000    SO ISH INC
+
+                    R V0<127:64> ffeeddccbbaa9988
+                    R V0<63:0> 7766554433221100
+
+# ----------------------------------------------------------------------
+
+Tarmac Text Rev 3t
+     499294 ns  ES  EXC Reset
+                    R CPSR 000003cd
+                    R SPSR_EL3 00000000000001cd
+                    BR (0000000000000000) O
+     541481 ns  ES  (0000000000000000:d53800a1) O el3h_s:         MRS      x1,MPIDR_EL1
+                    R X1 0000000081000000
+     541483 ns  ES  (0000000000000004:d3483c20) O el3h_s:         UBFX     x0,x1,#8,#8
+                    R X0 0000000000000000
+     541533 ns  ES  (00000000000001b0:a9be7bfd) O el3h_s:         STP      x29,x30,[sp,#-0x20]!
+                    ST 0000000004001b60 02000000 00000000 00000000 00000020    S:0004001b60    nGnRnE OSH
+                    R SP_EL3 0000000004001b60
+     564127 ns  ES  (000000009ffa4a74:397f8002) O el3h_s:         LDRB     w2,[x0,#0xfe0]
+                    LD 000000007ff80fe0 ........ ........ ........ ......11    S:007ff80fe0    nGnRnE OSH
+                    R X2 0000000000000011
+     577915 ns  ES  (000000009ffb3ad0:39045fbf) O el3h_s:         STRB     wzr,[x29,#0x117]
+                    ST 000000009ffdb810 ........ ........ 00...... ........    S:009ffdb810    NM NSH IWTNA OWTNA
+
+# ----------------------------------------------------------------------
+
+    6000000 cs IT (00000000004d6eb8) 54fffea1 O  ---_- :        b.ne	0x4d6e8c
+    6000001 cs R08 0000007f99d14af4 4305000042ea0000
+    6000022 cs W08 0000007f99d09ef0 41fc6886421faa65
+    6000021 cs R Q17 42211549420dd96e41fed91542211526
+    6000017 cs R cpsr 20000000 __C_
+    6000019 cs R E15 0000007f99d14b94
+    6379085 cs W04 X ffffffbdc3c15c30 010c010b
+
+# ----------------------------------------------------------------------
+
+# Trace lines seen in the output of a Cortex-A53 RTL simulator
+
+# Pair of lines that substitute for for 'ES EXC [...] Reset'
+     12345 ns  ES  Reset
+               EXC [0x00] Reset
+
+# Floating-point register updates represented as partial updates to
+# the containing q-register
+123 ns R Q0 -------- -------- 3ff6a09e 667f3bcd
+124 ns R Q0 3ff428a2 f98d728b -------- --------
+
+# Trace lines seen in the output of a Cortex-M3 RTL simulator
+
+     109570 ns MSW4___D 201fffec xxxxxxxx
+
+# ----------------------------------------------------------------------
+
+# Trace lines seen in the output of a Cortex-M4 RTL simulator. Note
+# that the data-bus memory access lines are given in memory order.
+# Instruction fetch lines will be ignored completely (emitted as
+# text-only events).
+
+      3041 cyc IT (00022a7c:00000006) 00022a7c     48f6 T16 LDR      r0,[pc,#984]  ; [0x22e58]
+      3039 cyc MNW4___D 2002fa00 efbeefbe
+      3037 cyc MNR4O__I 00022ae4 f7ffffcb
+
+# ----------------------------------------------------------------------
+
+# Trace lines seen in the output of a different Cortex-M4 RTL
+# simulator, showing the use of 'x' and 'X' in place of the more usual
+# '_' for an indeterminate part of the register value.
+
+         10 ns R psr xx0xxXxx
+         10 ns R fpscr xXX000Xx
+
+# ----------------------------------------------------------------------
+
+# Trace lines seen in the output of the Tarmac RTL module from
+# Cortex-M0-AT510-r0p0-00rel0 (RTL development kit). These don't have
+# a space between the timestamp and the unit ("271ns", not "271 ns").
+
+271ns R r13 20001fff (MSP)
+
+# ----------------------------------------------------------------------
+
+# Trace line seen from multiple totally different cores, in which
+# instruction fetch failed (possibly due to ECC memory fault) and the
+# instruction bit pattern was printed as --------.
+
+     307754 tic ES  (0000aaaaabaf59f0:--------) O el0t_ns:
+11519 tic ES (10000b58:--------) T thrd_s:
+
+# ----------------------------------------------------------------------
+
+# Trace snippet seen from an unnamed Neoverse core, in which the
+# second of a pair of consecutive ST records is missing the initial
+# record type, so that the parser has to infer from context that it
+# must be intended to represent the same type as the previous line.
+
+  947020259 ps  ES  (000000008000d1fc:a90d8be1) O el3t_rt:        STP      x1,x2,[sp,#0xd8] 
+                    ST 000000009884cfb0  ........ ........ 00000000 000000fe  NS:000000009884cfb0   NM ISH IWBRWA
+                       000000009884cfa0  00000000 00000007 ........ ........  NS:000000009884cfa0   NM ISH IWBRWA
+
+# ----------------------------------------------------------------------
+
+# Trace snippet seen from the execution testbench provided with
+# Neoverse-N1 RTL, in which a write to a d-register from xzr (which
+# also zeroes out the top 64 bits of the containing v-register) is
+# displayed as two register updates each covering a 64-bit range, but
+# with only 32 bits (8 hex digits) of zero data shown, violating the
+# usual convention that the data is written with a number of digits
+# corresponding to its bit width.
+
+      16465 tic ES  (00000000000001ac:9e6703e5) O el3h_s:         FMOV     d5,xzr
+                    R V5<63:0> 00000000
+                    R V5<127:64> 00000000
+
+# ----------------------------------------------------------------------
+
+# Trace lines seen in the output of an Cortex-R5 RTL simulation.
+
+# In this otherwise normal IT line, the CPU mode is missing: it
+# usually comes between the instruction-set state (the 'A') and the
+# colon.
+ 948756 ns IT (00000000:00000000) 00000000 ea000006 A :                      B pc+0x00000018 ; 0x00000020
+
+# This memory access line is normal except for the bracketed pair of
+# hex numbers, which don't normally appear in M records at all.
+# Comparing with nearby records in the same file, it looks as if the
+# first is the address of the instruction, and the second is a serial
+# number that increments per instruction. So this would provide a way
+# to tie a memory access to the instruction that caused it.
+1340833 ns MNW4____ (00000050:000000a8) 05011000 00000003
+
+# This MCR instruction is followed by an unusual record that looks
+# like a memory access, but isn't, because the address is replaced by
+# the word TRANSFER. From the context of the MCR, this appears to be
+# logging the data transferred to or from the coprocessor.
+1359353 ns IT (01000250:000000bb) 01000250 ee064f12 A :                      MCR p15,0x0,r4,c6,c2,0x0
+1359353 ns MCW4___R (01000250:000000bb) TRANSFER 00000000
+
+# ----------------------------------------------------------------------
+# Manually written tests
+
+# Test LD and ST records (showing a 16-byte region of memory with
+# non-accessed bytes as ".." and accessed ones as their hex contents),
+# in which the bytes written/read are not all contiguous. The parser
+# should generate multiple memory access events for each one.
+
+    1234567 cs E DebugEvent_dummy to reset timestamp for next two lines
+                    LD 000000007ff80fe0 ........ 44444444 ........ 2222..11    S:007ff80fe0    nGnRnE OSH
+                    ST 000000009ffdb810 ....0000 ........ 88888888 88888888    S:009ffdb810    NM NSH IWTNA OWTNA
+
+# Different-length forms of SP and FPCR updates.
+R FPCR fedcba9876543210
+R FPCR 76543210
+R SP 01234567
+R SP 0123456789abcdef
+
+# Assorted ways to address a vector register. The one with V0 and an
+# underscore can be produced by an EBM. The one with q0 and no
+# underscore is compatible with Fast Models. The other two with
+# combinations of those features are handwritten hybrids, and the one
+# with spaces is as it would be produced by Cortex-A53 RTL. All should
+# be parsed the same.
+
+608 clk R q0 93c467e37db0c7a4d1be3f810152cb56
+608 clk R q0 93c467e37db0c7a4_d1be3f810152cb56
+608 clk R V0 93c467e37db0c7a4d1be3f810152cb56
+608 clk R V0 93c467e37db0c7a4_d1be3f810152cb56
+608 clk R Q0 93c467e3 7db0c7a4 d1be3f81 0152cb56
+
+# M33 cycle model from the IPSS (IP Selection Sandbox)
+# uses ps for clock unit
+      15000 ps  ES  EXC [1] Reset
+                    R MSP_S 00000000
+                    R XPSR f9000000
+                    BR (00000000) A
+
+# An even more extended version of the Neoverse phenomenon where the
+# "ST" token is not repeated on the next line. With _two_ continuation
+# lines, we force the parser to propagate the type token from
+# prev_line into next_line.
+  947020259 ps  ES  (000000008000d1fc:a90d8be1) O el3t_rt:        STP      x1,x2,[sp,#0xd8] 
+                    ST 000000009884cfb0  ........ ........ 00000000 000000fe  NS:000000009884cfb0   NM ISH IWBRWA
+                       000000009884cfa0  00000000 00000007 ........ ........  NS:000000009884cfa0   NM ISH IWBRWA
+                       000000009884cf90  ........ 11111111 22222222 ........  NS:000000009884cf90   NM ISH IWBRWA
+
+# Another variant on the same theme of continuation, seen in the
+# output of an RTL emulation of a Cortex-M33. This is 32-bit rather
+# than 64-bit, and has the extra confusing feature that the memory
+# address at the start of the continuation line happens to have all
+# its hex digits in the range 0-9 rather than a-f, so it could be
+# confused with a decimal timestamp.
+       3981 tic ES  (000000d8:c878)     T thrd_s:         LDMCS    r0!,{r3-r6}
+                    LD 00004020  ........ 626d654d 2043424d 4545203e   S:0000000000004020  NM NSH
+                       00004010  3e000a73 ........ ........ ........   S:0000000000004010  NM NSH
+
+# Seen in the output of a Fast Model. The CPSR register is only 32 bits
+# wide, but Fast Models uses the register name 'cpsr' in an extended
+# sense, including some additional status bits stored elsewhere. So
+# an update that apparently writes more than 32 bits to CPSR is possible.
+8677000000 ps R cpsr 1220023cd
+
+# Seen in the output of an unnamed CPU's hardware Tarmac module: the
+# data for a 64-bit register update can be split by a space.
+R X0 01234567 89abcdef
+R SP_EL2 fedcba98 76543210
+
+# From the same Tarmac generator: sometimes core register updates list
+# their contents as -------- (perhaps because the Tarmac generator
+# can't retrieve the value for some reason?). And sometimes they don't
+# list the full 64 bits of the value. We interpret this as a
+# non-update (because the same syntax in other contexts means some of
+# the register is left alone, e.g. examples above that update only
+# half of Q0), which might not be the best interpretation, but we
+# should at least not reject the input that doesn't have enough -
+# signs to fill X1.
+R X0 -------- --------
+R X1 --------
+
+# CPU exceptions. "E" is IT style; "ES EXC" and "EXC" are ES style.
+0 ps E 00000000 00000000 CoreEvent_Reset
+39000000 ps E 00008100 00000084 CoreEvent_CURRENT_SPx_SYNC
+          0 tic ES  EXC Reset
+                    EXC [0x200] Synchronous Current EL with SP_ELx
+
+# Full set of SVE z-register and p-register update lines, testing all
+# valid sizes.
+
+10000 clk R Z3 00000003_00000002_00000001_00000000
+10001 clk R Z31 00000007_00000006_00000005_00000004_00000003_00000002_00000001_00000000
+10002 clk R Z11 0000000f_0000000e_0000000d_0000000c_0000000b_0000000a_00000009_00000008_00000007_00000006_00000005_00000004_00000003_00000002_00000001_00000000
+10003 clk R Z0 0000001f_0000001e_0000001d_0000001c_0000001b_0000001a_00000019_00000018_00000017_00000016_00000015_00000014_00000013_00000012_00000011_00000010_0000000f_0000000e_0000000d_0000000c_0000000b_0000000a_00000009_00000008_00000007_00000006_00000005_00000004_00000003_00000002_00000001_00000000
+10004 clk R Z29 0000003f_0000003e_0000003d_0000003c_0000003b_0000003a_00000039_00000038_00000037_00000036_00000035_00000034_00000033_00000032_00000031_00000030_0000002f_0000002e_0000002d_0000002c_0000002b_0000002a_00000029_00000028_00000027_00000026_00000025_00000024_00000023_00000022_00000021_00000020_0000001f_0000001e_0000001d_0000001c_0000001b_0000001a_00000019_00000018_00000017_00000016_00000015_00000014_00000013_00000012_00000011_00000010_0000000f_0000000e_0000000d_0000000c_0000000b_0000000a_00000009_00000008_00000007_00000006_00000005_00000004_00000003_00000002_00000001_00000000
+20000 clk R P31 3210
+20001 clk R P0 76543210
+20002 clk R P7 fedcba98_76543210
+20003 clk R P13 0f0e0d0c_0b0a0908_07060504_03020100
+20004 clk R P23 1f1e1d1c_1b1a1918_17161514_13121110_0f0e0d0c_0b0a0908_07060504_03020100
