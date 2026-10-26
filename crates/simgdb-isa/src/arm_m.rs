@@ -19,13 +19,18 @@ pub const CONTROL: RegId = 22;
 const CORE: &str = "org.gnu.gdb.arm.m-profile";
 /// Feature of MSP, PSP and the special registers. With this standard name
 /// GDB (13 and later) unwinds exception frames on either stack, but reads
-/// both MSP and PSP for *every* exception frame.
+/// both MSP and PSP whenever it builds a frame without CFI and for every
+/// exception frame; one of them unavailable fails the whole backtrace
+/// (`Register 92 is not available`), which IDE front ends treat as fatal.
 const SYSTEM: &str = "org.gnu.gdb.arm.m-system";
-/// Used instead when the trace never writes PSP (PSP is UNKNOWN after reset;
-/// bare-metal firmware often never sets it). GDB then uses its generic
-/// unwinder, which needs no PSP for frames on the main stack, and the
-/// registers still show in `info registers`. Frames on the process stack
-/// cannot occur without a PSP write.
+/// Used instead when MSP or PSP is unknown at some point the session cares
+/// about: PSP is UNKNOWN after reset, bare-metal firmware often never sets
+/// it, and an RTOS sets it only when the scheduler starts. GDB then needs
+/// neither, and the registers still show in `info registers`. Its cost: GDB
+/// no longer switches to the process stack when it unwinds an exception
+/// frame, so a backtrace from a handler that interrupted a thread on PSP
+/// goes wrong below that frame (SimGDB's own call stack, `monitor where`,
+/// is not affected). Without any PSP write such frames cannot occur.
 const SYSTEM_NO_PSP: &str = "org.simgdb.arm.m-system";
 
 macro_rules! reg {
@@ -178,8 +183,8 @@ impl Isa for ArmM {
         out
     }
 
-    fn target_xml(&self, never_written: &[String]) -> String {
-        let system = if never_written.iter().any(|r| r == "psp") { SYSTEM_NO_PSP } else { SYSTEM };
+    fn target_xml(&self, not_always_known: &[String]) -> String {
+        let system = if not_always_known.iter().any(|r| r == "psp" || r == "msp") { SYSTEM_NO_PSP } else { SYSTEM };
         let mut xml = String::from(
             "<?xml version=\"1.0\"?>\n<!DOCTYPE target SYSTEM \"gdb-target.dtd\">\n<target version=\"1.0\">\n<architecture>arm</architecture>\n",
         );
@@ -412,9 +417,12 @@ mod tests {
         let xml = ArmM.target_xml(&[]);
         assert!(xml.contains("org.gnu.gdb.arm.m-profile"));
         assert!(xml.contains("org.gnu.gdb.arm.m-system"));
-        // Without any PSP write GDB must not be told to depend on PSP.
-        let xml = ArmM.target_xml(&["psp".to_string()]);
-        assert!(xml.contains("org.simgdb.arm.m-system") && !xml.contains("org.gnu.gdb.arm.m-system"));
+        // When PSP or MSP is unknown anywhere GDB must not be told to depend on them.
+        for reg in ["psp", "msp"] {
+            let xml = ArmM.target_xml(&[reg.to_string()]);
+            assert!(xml.contains("org.simgdb.arm.m-system") && !xml.contains("org.gnu.gdb.arm.m-system"));
+        }
+        assert!(ArmM.target_xml(&["r0".to_string()]).contains("org.gnu.gdb.arm.m-system"));
         assert!(xml.contains("name=\"xpsr\" bitsize=\"32\" regnum=\"16\""));
         assert!(xml.contains("name=\"control\" bitsize=\"32\" regnum=\"22\""));
     }

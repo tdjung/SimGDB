@@ -90,7 +90,7 @@ impl Isa for RiscV32 {
         Vec::new()
     }
 
-    fn target_xml(&self, _never_written: &[String]) -> String {
+    fn target_xml(&self, _not_always_known: &[String]) -> String {
         let mut xml = String::from(
             "<?xml version=\"1.0\"?>\n<!DOCTYPE target SYSTEM \"gdb-target.dtd\">\n<target version=\"1.0\">\n<architecture>riscv:rv32</architecture>\n",
         );

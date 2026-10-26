@@ -72,6 +72,10 @@ struct Builder {
     last_pc: Option<u64>,
     /// Registers that have a write record.
     written_regs: Vec<bool>,
+    /// Registers not fully known at some point, and each register's
+    /// all-bits-known mask.
+    not_always_known: Vec<bool>,
+    full_mask: Vec<u64>,
     // checkpoints
     cp_index: Vec<u64>,
     cp_rw_row: Vec<u64>,
@@ -135,6 +139,8 @@ impl Builder {
             count: 0,
             last_pc: None,
             written_regs: vec![false; nregs],
+            not_always_known: vec![false; nregs],
+            full_mask: vec![u64::MAX; nregs],
             cp_index: vec![],
             cp_rw_row: vec![],
             cp_v: vec![vec![]; nregs],
@@ -257,6 +263,9 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
     let tmp = opts.out.join(".sort");
     std::fs::create_dir_all(&tmp).map_err(|e| StoreError::io(&tmp, e))?;
     let mut b = Builder::new(&opts.out, nregs, opts, &tmp)?;
+    for (r, def) in isa.registers().iter().enumerate() {
+        b.full_mask[r] = RegState::full_mask(def.bits);
+    }
     let mut report = Report { time_monotonic: true, ..Default::default() };
     let mut state = RegState::new(nregs);
     let mut last_write_row = vec![NONE; nregs];
@@ -329,6 +338,15 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
                 report.derived_register_writes += block.resolve(isa, &mut b, &mut state, &mut last_write_row, at)?;
                 if let Some(p) = pending.take() {
                     report.exception_frames_unplaced += finish_entry(&mut b, p, &state, isa)? as u64;
+                }
+                if at == 0 {
+                    // The first point: anything not known yet. Later a
+                    // register's knowledge changes only through a write.
+                    for r in 0..nregs {
+                        if state.known[r] != b.full_mask[r] {
+                            b.not_always_known[r] = true;
+                        }
+                    }
                 }
                 if at.is_multiple_of(opts.checkpoint_interval) {
                     b.cp_index.push(at);
@@ -484,6 +502,14 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
         .filter(|(r, _)| *r as u16 != isa.pc() && !b.written_regs[*r])
         .map(|(_, d)| d.name.to_string())
         .collect();
+    report.registers_not_always_known = Some(
+        isa.registers()
+            .iter()
+            .enumerate()
+            .filter(|(r, _)| *r as u16 != isa.pc() && b.not_always_known[*r])
+            .map(|(_, d)| d.name.to_string())
+            .collect(),
+    );
 
     write_tables(b, &opts.out, nregs, elf.as_ref(), opts.batch_rows)?;
     let _ = std::fs::remove_dir_all(&tmp);
@@ -575,6 +601,10 @@ fn push_write(
     b.rw.flush(0)?;
     b.written_regs[w.reg as usize] = true;
     state.apply(w);
+    let r = w.reg as usize;
+    if state.known[r] != b.full_mask[r] {
+        b.not_always_known[r] = true;
+    }
     Ok(())
 }
 

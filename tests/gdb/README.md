@@ -59,3 +59,14 @@ python3 tests/gdb/ide_session.py --simgdb target/release/simgdb --gdb arm-none-e
 
 2 gdb × 2 코어 × 3 방언 모두 통과합니다. 예외 frame 저장이 trace에 없는 방언(fm, es)에서는 핸들러의 스택이
 `<signal handler called>`에서 멈추는 것이 정상입니다(쌓인 frame이 "모름").
+
+## 모든 시점의 stack 조회 (`stack_scan.py`)
+
+IDE가 멈출 때마다 보내는 `-stack-list-frames`를 trace의 모든 시점에서 실행합니다. 기본 모드는 PSP를 모르는 시점에서만,
+`--no-psp-unwind`는 어디서도 실패하면 안 됩니다.
+
+```bash
+python3 tests/gdb/stack_scan.py --simgdb target/release/simgdb --gdb arm-none-eabi-gdb --core m4 --dialect m4rtl
+```
+
+결과(m4, m4rtl): 기본 4,748개 시점 중 1,524개 실패(모두 PSP를 처음 쓰기 전), `--no-psp-unwind` 0개.

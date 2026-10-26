@@ -130,10 +130,45 @@ pub enum Error {
     Engine(String),
 }
 
+/// Registers unknown at some point. Indexes built before the indexer
+/// recorded this fall back to what is visible cheaply: registers never
+/// written or not fully known at the first point (this misses a register
+/// that is known at the start and becomes unknown later).
+fn not_always_known(engine: &Engine) -> Vec<String> {
+    let report = &engine.ds.meta.report;
+    if let Some(list) = &report.registers_not_always_known {
+        return list.clone();
+    }
+    let mut list = report.registers_never_written.clone();
+    if let Ok(regs) = engine.registers(0) {
+        for r in regs {
+            let partial = r.value.value.is_none() || r.value.known_mask.is_some();
+            if partial && !list.iter().any(|n| n == r.name) {
+                list.push(r.name.to_string());
+            }
+        }
+    }
+    list
+}
+
 impl Session {
     pub fn new(engine: Engine) -> Session {
-        let never = &engine.ds.meta.report.registers_never_written;
-        let xml: &'static str = Box::leak(engine.isa().target_xml(never).into_boxed_str());
+        Session::with_stack_registers(engine, false)
+    }
+
+    /// `avoid_unknown`: describe registers that are unknown at some point
+    /// (not only those never written) so GDB does not depend on them. On
+    /// Arm M-profile this keeps GDB from failing every stack query while
+    /// MSP or PSP is unknown (before the first PSP write), which IDE front
+    /// ends treat as fatal; the cost is that GDB no longer unwinds exception
+    /// frames on the process stack correctly (see docs/USAGE.md).
+    pub fn with_stack_registers(engine: Engine, avoid_unknown: bool) -> Session {
+        let unknown = if avoid_unknown {
+            not_always_known(&engine)
+        } else {
+            engine.ds.meta.report.registers_never_written.clone()
+        };
+        let xml: &'static str = Box::leak(engine.isa().target_xml(&unknown).into_boxed_str());
         let count = engine.isa().registers().len();
         let _ = LAYOUT.set(Layout { xml, count });
         Session { engine, index: 0, breakpoints: BTreeSet::new(), resume: None, annotations: None }

@@ -65,6 +65,13 @@ enum Command {
         /// Exit after the first GDB session ends.
         #[arg(long)]
         once: bool,
+        /// Arm M-profile: do not let GDB depend on MSP/PSP when either is
+        /// unknown somewhere (before the first PSP write). Stack queries
+        /// there no longer fail (IDE front ends end the session on them),
+        /// but backtraces through exception frames on PSP become unreliable.
+        /// See docs/USAGE.md.
+        #[arg(long)]
+        no_psp_unwind: bool,
     },
     /// Serve the index to AI clients over MCP (stdio).
     Mcp {
@@ -321,9 +328,9 @@ fn run(cli: Cli) -> Result<(), String> {
             }
             Ok(())
         }
-        Command::Serve { index, listen, at, once } => {
+        Command::Serve { index, listen, at, once, no_psp_unwind } => {
             let engine = Engine::open(&index).map_err(|e| e.to_string())?;
-            let mut session = simgdb_gdb::Session::new(engine);
+            let mut session = simgdb_gdb::Session::with_stack_registers(engine, no_psp_unwind);
             match simgdb_store::annotations::Annotations::open(&index.join("annotations.sqlite")) {
                 Ok(a) => session = session.with_annotations(a),
                 Err(e) => eprintln!("simgdb: bookmarks disabled ({e})"),

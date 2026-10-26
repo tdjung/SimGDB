@@ -76,9 +76,13 @@ Step 0의 실제 Tarmac 조사 결과에 따라 갱신합니다.
   `tools/simgdb.gdb`의 `simgdb-goto`/`simgdb-goto-time`을 쓰면 캐시를 비우고 새 frame을 보여 줍니다.
 - **인터럽트가 끼어든 명령어의 breakpoint**: 실제 하드웨어는 PC가 도착한 순간(인터럽트 처리 전)과 실제 실행 때 두 번
   멈출 수 있지만, Tarmac에는 실행만 기록되므로 SimGDB는 실행 때 한 번 멈춥니다.
-- **PSP를 쓰는 펌웨어**: trace가 PSP를 한 번이라도 쓰면 gdb의 M-profile 예외 unwinder를 씁니다. 이 unwinder는 예외 frame마다
-  PSP를 읽으므로, PSP가 처음 쓰이기 전 핸들러 안의 backtrace는 `Register … is not available`에서 끊깁니다(PSP는 reset 후 UNKNOWN).
-  PSP를 전혀 쓰지 않는 trace에서는 이 문제가 없습니다.
+- **PSP를 쓰는 펌웨어**: trace가 PSP를 한 번이라도 쓰면 gdb의 M-profile unwinder를 씁니다. 이 unwinder는 frame을 만들 때마다
+  MSP와 PSP를 읽으므로, PSP가 처음 쓰이기 전 구간(PSP는 reset 후 UNKNOWN)에서는 backtrace와 `-stack-list-frames`가
+  `Register 92 is not available`로 실패합니다. 시험 trace에서는 PSP를 쓰기 전 4,748개 시점 중 1,524개였습니다. gdb 명령줄에서는
+  backtrace가 끊기는 정도지만, VS Code(cppdbg)는 이 실패를 "Failed to find thread 1 for break event"로 보고하고 세션을 끝냅니다.
+  `simgdb serve --no-psp-unwind`로 띄우면 gdb가 MSP/PSP에 의존하지 않아 이 실패가 없어지는 대신, PSP 위의 thread를 끊고 들어온
+  핸들러에서는 예외 frame 아래 backtrace가 틀립니다(gdb가 MSP 쪽에서 예외 frame을 읽음). 그 구간의 호출 관계는 `monitor where`가
+  맞게 보여 줍니다. PSP를 전혀 쓰지 않는 trace에서는 두 문제 모두 없습니다.
 - **쓰기 명령**: `set var`, 레지스터·메모리 쓰기는 거부됩니다(“Cannot access memory” 등).
 
 ## 값 표시 규칙

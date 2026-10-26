@@ -103,7 +103,10 @@ Microsoft C/C++(cppdbg):
   SimGDB는 실제로 실행될 때 한 번 멈춥니다. 그래서 `ignore`나 hit 횟수(`info breakpoints`의 "already hit")가
   보드보다 작을 수 있습니다. 멈춘 시점의 레지스터·메모리 값은 같습니다.
 - **`next`/`finish` 도중 인터럽트**: 보드와 같이 핸들러를 건너뛰고 원래 함수에서 멈춥니다.
-- **PSP를 쓰는 펌웨어**에서는 PSP가 처음 쓰이기 전 핸들러 안의 `bt`가 중간에 끊길 수 있습니다(LIMITATIONS 참고).
+- **PSP를 쓰는 펌웨어(RTOS 등)**에서는 PSP가 처음 쓰이기 전 구간에서 gdb의 call stack 조회가 실패하고, VS Code(cppdbg)는
+  "Failed to find thread 1 for break event"를 내며 끝납니다. 그 구간을 IDE로 볼 때는 `simgdb serve --no-psp-unwind`로 띄우세요.
+  대신 PSP 위의 thread를 끊고 들어온 핸들러에서는 예외 frame 아래 call stack이 틀리게 보이므로, 그때는 `monitor where`를
+  보세요(LIMITATIONS 참고).
 
 ## 3. 명령줄 질의
 

@@ -148,6 +148,11 @@ pub struct Report {
     pub time_monotonic: bool,
     /// Registers (by name) that were never written.
     pub registers_never_written: Vec<String>,
+    /// Registers (by name) not fully known at some point: never written,
+    /// unknown before their first write, or written with unknown bits.
+    /// `None` in indexes built before this was recorded.
+    #[serde(default)]
+    pub registers_not_always_known: Option<Vec<String>>,
     /// Source attribution of the ELF code.
     pub sources: sources::SourceSummary,
 }
