@@ -33,6 +33,14 @@ python3 selftest/tests/gdb/gdb_tests.py check --core m4 --dialect m4rtl --simgdb
 기대 결과: 네 줄이 모두 `ok`입니다(`exceptions`, `psp`, `reverse`, `steps`). 괄호 안의 “differ only as unknown” 개수는
 SimGDB가 모른다고 답한 줄 수라 0이 아니어도 정상입니다. `FAIL`이 나오면 출력 전체와 `arm-none-eabi-gdb --version` 첫 줄을 전달해 주세요.
 
+VS Code 확장이 쓰는 방식(gdb MI)도 점검합니다.
+
+```bash
+python3 selftest/tests/gdb/ide_session.py --simgdb bin/simgdb --gdb arm-none-eabi-gdb --core m4 --dialect m4rtl
+```
+
+기대 결과: `m4 m4rtl ide session: ok (16 checks)`. 실패하면 마지막 출력(`AssertionError` 줄)을 전달해 주세요.
+
 ## 3. 실제 trace 인덱싱과 진단 보고서
 
 ```bash
@@ -123,6 +131,25 @@ bin/simgdb query real.idx locate --at I
   `source.inline`에 들어 있습니다). 예외 항목(`"kind": "exception"`) 다음 자리가 gdb의 `<signal handler called>`입니다.
 - 줄 번호는 같거나, 함수 첫 명령어 등에서 한 줄 다를 수 있습니다(ARCHITECTURE §6의 line table 규칙 차이).
 - 다르면 `locate` 출력과 `bt` 출력을 함께 알려 주세요. RTOS 문맥 전환이 있는 펌웨어라면 그 사실도 알려 주세요.
+
+### VS Code
+
+`USAGE.md` §2의 launch.json(cortex-debug 또는 cppdbg)으로 `bin/simgdb serve real.idx`에 붙습니다.
+
+기대 결과: 처음 시점에서 멈춰 있고, breakpoint, 계속, step over/into/out, call stack, 변수, 레지스터 보기가 됩니다.
+디버그 콘솔에서 `reverse-next`(cppdbg는 `-exec reverse-next`)로 한 줄 거꾸로 갑니다. 안 되는 동작이 있으면 확장 이름·버전과
+디버그 콘솔 출력을 알려 주세요.
+
+### SW 트랙
+
+```bash
+bin/simgdb track real.idx -o sw.vcd --mark <관심 있는 file.c:line>          # 시간이 ps/ns인 trace
+bin/simgdb track real.idx -o sw.vcd --cycle-period <코어 클럭 주기, 예: 10ns>   # 시간이 cycle인 trace
+```
+
+기대 결과: Verdi에서 `sw.vcd`를 HW waveform과 함께 열면 `sw.pc`, `sw.function`, `sw.line`, `sw.exception`이 보이고,
+`sw.exception`이 0이 아닌 구간이 인터럽트 신호와 맞습니다. 시간 축이 어긋나면(주기·시작 시점) 어긋난 정도를 알려 주세요.
+`sw.function`의 이름은 `sw.vcd.names.csv`에 있습니다(nWave의 value alias로 이름을 붙일 수 있는지도 알려 주시면 반영하겠습니다).
 
 ## 6. 범위 질의
 

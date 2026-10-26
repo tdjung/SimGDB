@@ -70,3 +70,8 @@ cargo run --release -p simgdb-engine --example bench_queries -- idx_big
 조건 검색은 입력이 바뀔 수 있는 시점만 평가하므로(시점당 약 1.2 µs) 시간은 그런 시점 수에 비례합니다.
 1억 명령어 trace에서도 같은 비율이면 수 초 안입니다(분석형 목표, ARCHITECTURE §2.13). 처음 구현에서 예외 목록(1.8 s)과
 호출 트리(3.5 s)가 느렸는데, 예외 상세를 요청한 페이지에만 계산하고 호출 트리를 프레임마다 한 번 처리하도록 바꿨습니다.
+
+## SW 트랙 VCD (2026-10-26)
+
+같은 1천만 명령어 trace 전체를 `simgdb track --cycle-period 10ns --mark state.c:111`로 쓰는 데 4.5 s, VCD 564 MB.
+VCD는 바뀐 신호만 쓰지만 PC는 명령어마다 바뀌므로 크기는 명령어 수에 비례합니다. 큰 trace는 `--from`/`--to`로 구간을 좁힙니다.

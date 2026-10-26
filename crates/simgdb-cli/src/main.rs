@@ -1,5 +1,7 @@
 //! `simgdb`: index traces and query them. JSON on stdout, messages on stderr.
 
+mod vcd;
+
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -64,6 +66,24 @@ enum Command {
         /// Bookmarks and the tool-call log (default: annotations.sqlite in the index directory).
         #[arg(long)]
         annotations: Option<PathBuf>,
+    },
+    /// Write the SW track as VCD (function, line, PC, call depth, exception, marker lines) to view with HW waveforms.
+    Track {
+        index: PathBuf,
+        /// Output VCD file. `<out>.names.csv` (function/file ids) and `<out>.gtkw-filter` are written next to it.
+        #[arg(short, long)]
+        out: PathBuf,
+        #[command(flatten)]
+        range: Span,
+        /// A line (`file.c:123`), function or PC to show as a 1-bit signal; repeat for more.
+        #[arg(long = "mark")]
+        marks: Vec<String>,
+        /// For traces timed in cycles: the clock period, e.g. `10ns` (time = cycles x period).
+        #[arg(long)]
+        cycle_period: Option<String>,
+        /// Use the instruction index as time instead of the trace's time stamps.
+        #[arg(long)]
+        index_time: bool,
     },
     /// Print the skill document for AI clients (save as .claude/skills/simgdb-debug/SKILL.md).
     Skill,
@@ -271,6 +291,10 @@ fn run(cli: Cli) -> Result<(), String> {
         Command::Serve { index, listen, at, once } => {
             let engine = Engine::open(&index).map_err(|e| e.to_string())?;
             let mut session = simgdb_gdb::Session::new(engine);
+            match simgdb_store::annotations::Annotations::open(&index.join("annotations.sqlite")) {
+                Ok(a) => session = session.with_annotations(a),
+                Err(e) => eprintln!("simgdb: bookmarks disabled ({e})"),
+            }
             session.set_index(at);
             let listener = std::net::TcpListener::bind(&listen).map_err(|e| format!("{listen}: {e}"))?;
             eprintln!(
@@ -281,6 +305,56 @@ fn run(cli: Cli) -> Result<(), String> {
         Command::Info { index } => {
             let engine = Engine::open(&index).map_err(|e| e.to_string())?;
             println!("{}", serde_json::to_string_pretty(&engine.info()).unwrap());
+            Ok(())
+        }
+        Command::Track { index, out, range, marks, cycle_period, index_time } => {
+            let engine = Engine::open(&index).map_err(|e| e.to_string())?;
+            let unit = engine.info().time_unit;
+            let time = match (index_time, &cycle_period, &unit) {
+                (true, _, _) => vcd::Time::Index,
+                (false, Some(p), Some(simgdb_model::TimeUnit::Cycle(_))) => {
+                    let split =
+                        p.find(|c: char| !c.is_ascii_digit()).ok_or("--cycle-period wants a unit, e.g. 10ns")?;
+                    let (n, u) = p.split_at(split);
+                    if !["fs", "ps", "ns", "us", "ms", "s"].contains(&u) {
+                        return Err(format!("--cycle-period unit must be fs, ps, ns, us, ms or s, not {u}"));
+                    }
+                    vcd::Time::Cycles { period: n.parse().map_err(|_| format!("bad period {p}"))?, unit: u.into() }
+                }
+                (false, None, Some(simgdb_model::TimeUnit::Cycle(u))) => {
+                    return Err(format!(
+                        "this trace is timed in cycles ({u}); give --cycle-period (e.g. 10ns) or --index-time"
+                    ));
+                }
+                (false, Some(_), _) => return Err("--cycle-period is for traces timed in cycles".into()),
+                (false, None, Some(simgdb_model::TimeUnit::Time(u))) => vcd::Time::Trace { unit: u.clone() },
+                (false, None, _) => return Err("this trace has no time stamps; use --index-time".into()),
+            };
+            let r = engine.range(range.from, range.to).map_err(|e| e.to_string())?;
+            let targets: Vec<simgdb_engine::Target> = marks.iter().map(|m| simgdb_engine::Target::parse(m)).collect();
+            let (rows, names) = engine.track(r, &targets).map_err(|e| e.to_string())?;
+            let pc_bits = 64 - (engine.isa().address_limit() - 1).leading_zeros();
+            let file = std::fs::File::create(&out).map_err(|e| format!("{}: {e}", out.display()))?;
+            let mut w = std::io::BufWriter::new(file);
+            let comment = format!("SW track of {}", engine.info().trace);
+            let s = vcd::write(&mut w, rows, &marks, &time, pc_bits, &comment).map_err(|e| e.to_string())?;
+            std::io::Write::flush(&mut w).map_err(|e| e.to_string())?;
+            let side = |ext: &str| {
+                let mut p = out.clone().into_os_string();
+                p.push(ext);
+                PathBuf::from(p)
+            };
+            let mut csv = std::fs::File::create(side(".names.csv")).map_err(|e| e.to_string())?;
+            vcd::write_names(&mut csv, &names).map_err(|e| e.to_string())?;
+            let mut filt = std::fs::File::create(side(".gtkw-filter")).map_err(|e| e.to_string())?;
+            vcd::write_gtkwave_filter(&mut filt, &names).map_err(|e| e.to_string())?;
+            eprintln!(
+                "wrote {} ({} instructions; {} share a time stamp with the previous one, {} went backwards)",
+                out.display(),
+                s.samples,
+                s.same_time,
+                s.backwards
+            );
             Ok(())
         }
         Command::Skill => {

@@ -6,7 +6,10 @@
 
 mod condition;
 mod queries;
+mod track;
 mod vars;
+
+pub use track::{TrackNames, TrackRow};
 
 pub use condition::{Direction, Found, Input, Neighbour};
 

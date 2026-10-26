@@ -1,0 +1,127 @@
+//! `simgdb track` writes a VCD whose signals at each truth point agree with
+//! what gdb saw there through QEMU's gdbstub (tests/firmware): the PC, the
+//! exception being handled (IPSR) and the function (gdb's innermost
+//! non-inline frame). Time stamps are the trace's own (ps), or cycles times
+//! the given period.
+
+use std::collections::{BTreeMap, HashMap};
+use std::io::Read;
+use std::path::{Path, PathBuf};
+use std::process::Command;
+
+fn root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/firmware")
+}
+
+fn simgdb(args: &[&str]) -> String {
+    let out = Command::new(env!("CARGO_BIN_EXE_simgdb")).args(args).output().unwrap();
+    assert!(out.status.success(), "simgdb {args:?}: {}", String::from_utf8_lossy(&out.stderr));
+    String::from_utf8_lossy(&out.stderr).into_owned()
+}
+
+/// Signal name -> list of (time, value), from a VCD.
+fn parse_vcd(path: &Path) -> (String, BTreeMap<String, Vec<(u64, u64)>>) {
+    let text = std::fs::read_to_string(path).unwrap();
+    let mut names = HashMap::new();
+    let mut scale = String::new();
+    let mut out: BTreeMap<String, Vec<(u64, u64)>> = BTreeMap::new();
+    let mut now = 0;
+    for line in text.lines() {
+        let w: Vec<&str> = line.split_whitespace().collect();
+        match w.as_slice() {
+            ["$timescale", n, u, "$end"] => scale = format!("{n} {u}"),
+            ["$var", "wire", _, id, name, "$end"] => {
+                names.insert(id.to_string(), name.to_string());
+            }
+            [t] if t.starts_with('#') => now = t[1..].parse().unwrap(),
+            [v, id] if v.starts_with('b') => {
+                out.entry(names[*id].clone()).or_default().push((now, u64::from_str_radix(&v[1..], 2).unwrap()));
+            }
+            [x] if x.len() >= 2 && (x.starts_with('0') || x.starts_with('1')) && names.contains_key(&x[1..]) => {
+                out.entry(names[&x[1..]].clone()).or_default().push((now, (x.as_bytes()[0] - b'0') as u64));
+            }
+            _ => {}
+        }
+    }
+    (scale, out)
+}
+
+fn at(signal: &[(u64, u64)], t: u64) -> u64 {
+    let k = signal.partition_point(|(x, _)| *x <= t);
+    signal[k - 1].1
+}
+
+#[test]
+fn track_matches_gdb() {
+    let mut text = String::new();
+    flate2::read::GzDecoder::new(std::fs::File::open(root().join("traces/state_m4.truth.json.gz")).unwrap())
+        .read_to_string(&mut text)
+        .unwrap();
+    let truth: serde_json::Value = serde_json::from_str(&text).unwrap();
+    for (dialect, extra, unit, scale) in
+        [("fm", vec![], "ps", "1 ps"), ("m4rtl", vec!["--cycle-period", "10ns"], "cycles", "1 ns")]
+    {
+        let dir = tempfile::tempdir().unwrap();
+        let idx = dir.path().join("idx");
+        let vcd = dir.path().join("sw.vcd");
+        let trace = root().join(format!("traces/state_m4.{dialect}.log.gz"));
+        simgdb(&[
+            "index",
+            trace.to_str().unwrap(),
+            "--elf",
+            root().join("state_m4.elf").to_str().unwrap(),
+            "-o",
+            idx.to_str().unwrap(),
+        ]);
+        let mut args = vec!["track", idx.to_str().unwrap(), "-o", vcd.to_str().unwrap(), "--mark", "state.c:111"];
+        args.extend(extra);
+        let msg = simgdb(&args);
+        assert!(msg.contains("4748 instructions"), "{msg}");
+        let (got_scale, sig) = parse_vcd(&vcd);
+        assert_eq!(got_scale, scale, "{dialect}");
+        let names: HashMap<u64, String> = std::fs::read_to_string(dir.path().join("sw.vcd.names.csv"))
+            .unwrap()
+            .lines()
+            .filter_map(|l| {
+                let p: Vec<&str> = l.splitn(3, ',').collect();
+                (p[0] == "function").then(|| (p[1].parse().unwrap(), p[2].to_string()))
+            })
+            .collect();
+        // The time of each point from the index signal itself.
+        let index_at: HashMap<u64, u64> = sig["index"].iter().map(|&(t, i)| (i, t)).collect();
+        let mut checked = 0;
+        for p in truth["points"].as_array().unwrap() {
+            let i = p["index"].as_u64().unwrap();
+            let t = index_at[&i];
+            let ctx = format!("{dialect} ({unit}) index {i}");
+            assert_eq!(at(&sig["pc"], t), p["pc"].as_u64().unwrap(), "{ctx}: pc");
+            let ipsr = p["registers"]["xpsr"].as_u64().unwrap() & 0x1ff;
+            assert_eq!(at(&sig["exception"], t), ipsr, "{ctx}: exception");
+            let bt = p["backtrace"].as_array().unwrap();
+            // Skip inlined code: gdb's innermost frame there is the inline function.
+            if bt.len() > 1 && bt[0]["pc"] == bt[1]["pc"] {
+                continue;
+            }
+            assert_eq!(names[&at(&sig["function"], t)], bt[0]["function"].as_str().unwrap(), "{ctx}: function");
+            checked += 1;
+        }
+        assert!(checked > 60);
+        // The marker is high exactly on the line's instructions.
+        let marks = &sig["mark_state_c_111"];
+        assert!(marks.iter().filter(|(_, v)| *v == 1).count() >= 144);
+    }
+}
+
+#[test]
+fn cycle_traces_need_a_period() {
+    let dir = tempfile::tempdir().unwrap();
+    let idx = dir.path().join("idx");
+    let trace = root().join("traces/state_m4.m4rtl.log.gz");
+    simgdb(&["index", trace.to_str().unwrap(), "-o", idx.to_str().unwrap()]);
+    let out = Command::new(env!("CARGO_BIN_EXE_simgdb"))
+        .args(["track", idx.to_str().unwrap(), "-o", dir.path().join("x.vcd").to_str().unwrap()])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    assert!(String::from_utf8_lossy(&out.stderr).contains("--cycle-period"));
+}

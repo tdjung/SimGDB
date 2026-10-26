@@ -1101,6 +1101,7 @@ name = "simgdb-cli"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "flate2",
  "serde",
  "serde_json",
  "simgdb-engine",

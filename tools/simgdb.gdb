@@ -37,3 +37,28 @@ end
 document simgdb-info
 Show what the trace records and what SimGDB cannot see.
 end
+
+define simgdb-where
+  monitor where
+end
+document simgdb-where
+Show where execution is and the call stack built from the trace flow
+(works where gdb's own unwinding cannot, e.g. unknown stack memory).
+end
+
+define simgdb-hits
+  monitor hits $arg0
+end
+document simgdb-hits
+How often a line, function or PC ran and where: simgdb-hits state.c:42 | simgdb-hits main
+end
+
+define simgdb-reset
+  monitor reset
+  maintenance flush register-cache
+  maintenance flush dcache
+  frame
+end
+document simgdb-reset
+Go back to the first point of the trace.
+end

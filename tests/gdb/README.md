@@ -46,3 +46,16 @@ QEMU=/path/to/qemu-system-arm GDB=arm-none-eabi-gdb python3 tests/gdb/gdb_tests.
 - **인터럽트가 끼어든 명령어의 breakpoint**: 실제 대상(QEMU)은 PC가 그 명령어에 도착한 순간 한 번 멈추고,
   인터럽트 처리 후 실제로 실행할 때 또 멈춥니다. Tarmac에는 실행만 기록되므로 SimGDB는 실행 때 한 번만 멈춥니다.
   시나리오의 breakpoint는 이 실행에서 그런 일이 없는 주소에 둡니다.
+
+## IDE 방식 세션 (`ide_session.py`)
+
+VS Code 디버그 확장(cortex-debug, cppdbg)이 gdb에 보내는 것과 같은 MI 명령 순서로 SimGDB에 붙어 봅니다:
+extended-remote 연결, `monitor halt`, 함수·줄 breakpoint, continue/next/step/finish, 역방향 next, 스택, 변수 객체와 자식,
+레지스터, 메모리, `monitor where`/`hits`/`find`/`reset`, 쓰기 거부. 값은 같은 인덱스의 `simgdb query`와 대조합니다.
+
+```bash
+python3 tests/gdb/ide_session.py --simgdb target/release/simgdb --gdb arm-none-eabi-gdb --core m4 --dialect m4rtl
+```
+
+2 gdb × 2 코어 × 3 방언 모두 통과합니다. 예외 frame 저장이 trace에 없는 방언(fm, es)에서는 핸들러의 스택이
+`<signal handler called>`에서 멈추는 것이 정상입니다(쌓인 frame이 "모름").

@@ -8,6 +8,7 @@ rust-version.workspace = true
 
 [dependencies]
 simgdb-engine.workspace = true
+simgdb-store.workspace = true
 simgdb-isa.workspace = true
 simgdb-model.workspace = true
 gdbstub = "0.7"

@@ -121,6 +121,8 @@ pub struct Session {
     index: u64,
     breakpoints: BTreeSet<u64>,
     resume: Option<Resume>,
+    /// Bookmarks shared with MCP clients (absent if it could not be opened).
+    annotations: Option<simgdb_store::annotations::Annotations>,
 }
 
 #[derive(Debug)]
@@ -134,7 +136,13 @@ impl Session {
         let xml: &'static str = Box::leak(engine.isa().target_xml(never).into_boxed_str());
         let count = engine.isa().registers().len();
         let _ = LAYOUT.set(Layout { xml, count });
-        Session { engine, index: 0, breakpoints: BTreeSet::new(), resume: None }
+        Session { engine, index: 0, breakpoints: BTreeSet::new(), resume: None, annotations: None }
+    }
+
+    /// Use this bookmark store for `monitor bookmark`.
+    pub fn with_annotations(mut self, a: simgdb_store::annotations::Annotations) -> Session {
+        self.annotations = Some(a);
+        self
     }
 
     /// Last point GDB can stop at (the PC is known there).
@@ -377,15 +385,24 @@ SimGDB monitor commands:
   monitor goto index <index>   same
   monitor goto time <t>        move to the first instruction at or after trace time t
   monitor info                 dataset capabilities and limitations
-After `goto`, refresh GDB's view: `maintenance flush register-cache` and
-`frame` (or use simgdb-goto from tools/simgdb.gdb).";
+  monitor info source          where the current values come from (registers, location)
+  monitor info source <var|addr> [len]   bytes with source and the trace line that set them
+  monitor where                location and call stack from the trace flow
+  monitor hits <file:line|function|pc> [n]   how often it ran; first n entry points
+  monitor find <condition>     next point where the condition holds (see docs/USAGE.md)
+  monitor find -back <condition>   previous such point
+  monitor bookmark <note>      bookmark the current point (shared with AI clients)
+  monitor bookmarks            list bookmarks
+  monitor reset                go to the first point (for IDEs); `monitor halt` does nothing
+After `goto`, `find` or `reset`, refresh GDB's view: `maintenance flush register-cache` and
+`frame` (or use the simgdb-* commands from tools/simgdb.gdb).";
 
 impl MonitorCmd for Session {
     fn handle_monitor_cmd(&mut self, cmd: &[u8], mut out: ConsoleOutput<'_>) -> Result<(), Self::Error> {
         let cmd = String::from_utf8_lossy(cmd);
         let words: Vec<&str> = cmd.split_whitespace().collect();
         match words.as_slice() {
-            ["time"] | ["where"] => outputln!(out, "{}", self.describe()),
+            ["time"] => outputln!(out, "{}", self.describe()),
             ["goto", rest @ ..] => {
                 let target = match rest {
                     [n] | ["index", n] => parse_number(n).ok_or_else(|| format!("not a number: {n}")),
@@ -427,6 +444,162 @@ impl MonitorCmd for Session {
                 for l in &info.limitations {
                     outputln!(out, "limitation: {l}");
                 }
+            }
+            ["info", "source"] => {
+                let regs = self.engine.registers(self.index).map_err(|e| Error::Engine(e.to_string()))?;
+                let mut by: std::collections::BTreeMap<String, Vec<&str>> = Default::default();
+                for r in &regs {
+                    let key = match (r.value.value, r.value.known_mask) {
+                        (_, Some(_)) => "partly known".to_string(),
+                        (Some(_), None) => format!("{:?}", r.value.source).to_lowercase(),
+                        (None, _) => "unknown".to_string(),
+                    };
+                    by.entry(key).or_default().push(r.name);
+                }
+                outputln!(out, "{}", self.describe());
+                for (k, names) in by {
+                    outputln!(out, "registers from {k}: {}", names.join(" "));
+                }
+                let c = &self.engine.info().capabilities;
+                outputln!(
+                    out,
+                    "memory: last trace record of each byte; else the ELF image; else a later read (inferred); else unknown{}",
+                    if c.exception_stacking_writes {
+                        ""
+                    } else {
+                        " (exception frames are unknown: no stacking stores)"
+                    }
+                );
+            }
+            ["info", "source", what, rest @ ..] => {
+                let (addr, len) = match self.engine.variable(what) {
+                    Ok(p) => (p.addr, p.size.unwrap_or(4)),
+                    Err(_) => match parse_number(what) {
+                        Some(a) => (a, 4),
+                        None => {
+                            outputln!(out, "not a variable or address: {what}");
+                            return Ok(());
+                        }
+                    },
+                };
+                let len = rest.first().and_then(|l| parse_number(l)).unwrap_or(len).min(256);
+                let bytes = self.engine.memory(addr, len, self.index).map_err(|e| Error::Engine(e.to_string()))?;
+                for (k, b) in bytes.iter().enumerate() {
+                    let v = b.value.map(|v| format!("{v:02x}")).unwrap_or_else(|| "??".into());
+                    let ev = b
+                        .evidence
+                        .first()
+                        .map(|e| {
+                            let mut s = String::new();
+                            if let Some(i) = e.index {
+                                s += &format!(" index {i}");
+                            }
+                            if let Some(l) = e.line {
+                                s += &format!(" line {l}");
+                            }
+                            if let Some(n) = &e.note {
+                                s += &format!(" ({n})");
+                            }
+                            s
+                        })
+                        .unwrap_or_default();
+                    outputln!(out, "{:#010x}: {v} {:?}{ev}", addr + k as u64, b.source);
+                }
+            }
+            ["where"] | ["locate"] => {
+                let loc = self.engine.locate(self.index).map_err(|e| Error::Engine(e.to_string()))?;
+                outputln!(out, "{}", self.describe());
+                for (k, f) in loc.call_stack.iter().enumerate() {
+                    let at = match &f.source {
+                        Some(s) => {
+                            format!("{} ({}:{})", s.function, s.file.rsplit('/').next().unwrap_or(&s.file), s.line)
+                        }
+                        None => f.pc.map(|p| format!("{p:#x}")).unwrap_or_else(|| "?".into()),
+                    };
+                    outputln!(
+                        out,
+                        "#{k} {at} [{}{}]",
+                        f.kind,
+                        f.exception.map(|n| format!(" {n}")).unwrap_or_default()
+                    );
+                }
+            }
+            ["hits", target, rest @ ..] => {
+                let n = rest.first().and_then(|l| parse_number(l)).unwrap_or(10) as usize;
+                let all = self.engine.range(None, None).map_err(|e| Error::Engine(e.to_string()))?;
+                match self.engine.find_executions(&simgdb_engine::Target::parse(target), all, n, 0) {
+                    Ok(x) => {
+                        outputln!(
+                            out,
+                            "{target}: {} instructions executed, {} entries",
+                            x.instructions,
+                            x.entries.total
+                        );
+                        for i in &x.entries.items {
+                            let mark = if *i == self.index { "  <- here" } else { "" };
+                            outputln!(out, "  index {i}{mark}");
+                        }
+                        if x.entries.next_cursor.is_some() {
+                            outputln!(out, "  ... (monitor hits {target} <n> for more)");
+                        }
+                    }
+                    Err(e) => outputln!(out, "{e}"),
+                }
+            }
+            ["find", rest @ ..] if !rest.is_empty() => {
+                let (back, cond) = match rest {
+                    ["-back", c @ ..] => (true, c.join(" ")),
+                    c => (false, c.join(" ")),
+                };
+                let range = if back {
+                    self.engine.range(Some(0), Some(self.index.saturating_sub(1)))
+                } else {
+                    self.engine.range(Some((self.index + 1).min(self.last())), Some(self.last()))
+                }
+                .map_err(|e| Error::Engine(e.to_string()))?;
+                let dir = if back { simgdb_engine::Direction::Backward } else { simgdb_engine::Direction::Forward };
+                match self.engine.find_first(&cond, range, dir) {
+                    Ok(f) => match f.found {
+                        Some(p) => {
+                            outputln!(out, "found at index {} (monitor goto {} to go there)", p.index, p.index);
+                            if let Some(w) = &f.source {
+                                outputln!(
+                                    out,
+                                    "  in {} ({}:{})",
+                                    w.function,
+                                    w.file.rsplit('/').next().unwrap_or(&w.file),
+                                    w.line
+                                );
+                            }
+                        }
+                        None => outputln!(out, "not found ({} points checked, {} undecided)", f.evaluated, f.undecided),
+                    },
+                    Err(e) => outputln!(out, "{e}"),
+                }
+            }
+            ["bookmark", note @ ..] if !note.is_empty() => match &self.annotations {
+                Some(a) => match a.add_bookmark(self.index, &note.join(" "), "gdb") {
+                    Ok(b) => outputln!(out, "bookmark {} at index {}", b.id, b.index),
+                    Err(e) => outputln!(out, "{e}"),
+                },
+                None => outputln!(out, "bookmarks are not available (no annotations database)"),
+            },
+            ["bookmarks"] => match &self.annotations {
+                Some(a) => match a.bookmarks(0, u64::MAX) {
+                    Ok(list) if list.is_empty() => outputln!(out, "no bookmarks"),
+                    Ok(list) => {
+                        for b in list {
+                            outputln!(out, "index {}: {} ({})", b.index, b.note, b.author);
+                        }
+                    }
+                    Err(e) => outputln!(out, "{e}"),
+                },
+                None => outputln!(out, "bookmarks are not available (no annotations database)"),
+            },
+            ["halt"] => outputln!(out, "SimGDB is a recording: it is always halted"),
+            ["reset", ..] => {
+                self.index = 0;
+                outputln!(out, "{}", self.describe());
             }
             [] | ["help"] => outputln!(out, "{HELP}"),
             _ => outputln!(out, "unknown command: {cmd}\n{HELP}"),

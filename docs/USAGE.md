@@ -32,6 +32,55 @@ arm-none-eabi-gdb firmware.elf -ex "target remote :3333" -ex "source tools/simgd
 | `simgdb-goto N` | 명령어 index N으로 이동 |
 | `simgdb-goto-time T` | trace 시간 T 이후 첫 명령어로 이동 |
 | `simgdb-info` | trace가 기록한 것과 SimGDB가 볼 수 없는 것 |
+| `simgdb-where` | trace 흐름으로 만든 위치와 call stack(gdb가 스택 메모리를 몰라 `bt`가 끊길 때도 동작) |
+| `simgdb-hits state.c:42` | 그 줄·함수·PC가 실행된 횟수와 시점 |
+| `simgdb-reset` | trace 처음으로 |
+| `monitor find <조건>` / `monitor find -back <조건>` | 조건이 참인 다음/이전 시점(§3의 조건식). `simgdb-goto`로 이동 |
+| `monitor info source [변수\|주소]` | 지금 값들의 출처(trace, ELF, 모름)와 그 값을 만든 trace 줄 |
+| `monitor bookmark <메모>`, `monitor bookmarks` | 시점 표시(AI 클라이언트와 공유) |
+
+### VS Code
+
+SimGDB는 이미 실행 중인 gdb 서버처럼 붙습니다(펌웨어를 내려받거나 리셋하지 않음). 먼저 `simgdb serve`를 실행해 둡니다.
+
+cortex-debug:
+
+```json
+{
+  "name": "SimGDB",
+  "type": "cortex-debug",
+  "request": "attach",
+  "servertype": "external",
+  "gdbTarget": "localhost:3333",
+  "executable": "${workspaceFolder}/build/firmware.elf",
+  "gdbPath": "arm-none-eabi-gdb",
+  "overrideAttachCommands": ["-interpreter-exec console \"monitor halt\""]
+}
+```
+
+Microsoft C/C++(cppdbg):
+
+```json
+{
+  "name": "SimGDB",
+  "type": "cppdbg",
+  "request": "launch",
+  "program": "${workspaceFolder}/build/firmware.elf",
+  "cwd": "${workspaceFolder}",
+  "MIMode": "gdb",
+  "miDebuggerPath": "arm-none-eabi-gdb",
+  "miDebuggerServerAddress": "localhost:3333",
+  "stopAtEntry": true
+}
+```
+
+- breakpoint, 계속, step over/into/out, call stack, 변수·watch, 레지스터, 메모리 보기가 됩니다.
+- 거꾸로 가기 버튼은 확장에 따라 없을 수 있습니다. 디버그 콘솔에서 gdb 명령으로 합니다
+  (cortex-debug: `reverse-next`, cppdbg: `-exec reverse-next`). `monitor …` 명령도 같은 방식입니다.
+- `launch`로 펌웨어를 내려받는 설정(`-target-download`, `load`)은 쓰기라서 거부됩니다. 위처럼 attach 방식을 씁니다.
+- 이 저장소에서는 VS Code 확장이 gdb에 보내는 것과 같은 MI 명령 순서(extended-remote 연결, `monitor halt`, breakpoint,
+  continue/next/step/finish, 역방향 next, 스택, 변수 객체, 레지스터, 메모리, `monitor reset`)를 실제 gdb로 시험합니다
+  (`tests/gdb/ide_session.py`). VS Code 자체로는 폐쇄망에서 확인해 주세요(`CHECK.md` §5).
 
 ### 실제 보드와 다른 점
 
@@ -123,7 +172,31 @@ mem32(0x200000dc) != 0 || !(reg("sp") >= 0x2000ff00)
   성립하지 않았다면 그 명령어가 조건을 참으로 만든 것입니다. `undecided_ranges`는 판단하지 못한 구간입니다(예: 시작 직후 초기화 전).
 - 임의 코드는 실행하지 않습니다. 위 문법 밖의 식은 오류입니다.
 
-## 4. AI 클라이언트 (MCP)
+## 4. SW 트랙 (waveform 뷰어에서 HW와 함께 보기)
+
+```bash
+simgdb track trace.idx -o sw.vcd --mark state.c:111 --mark HardFault_Handler
+simgdb track es.idx -o sw.vcd --cycle-period 10ns      # 시간이 cycle인 trace
+```
+
+VCD의 `sw` scope에 신호가 생깁니다.
+
+| 신호 | 뜻 |
+|---|---|
+| `pc` | PC |
+| `function`, `file`, `line` | 소스 위치. function과 file은 번호이고 이름은 `sw.vcd.names.csv`에 있음 |
+| `depth` | trace 흐름으로 센 호출 깊이 |
+| `exception` | 처리 중인 예외 번호(0 = 없음) |
+| `index` | 명령어 index(`simgdb-goto`에 그대로 씀) |
+| `mark_…` | `--mark`로 준 줄·함수·PC를 실행하는 동안 1 |
+
+- 시간 축은 trace에 기록된 시간 그대로입니다(ps, ns 등). cycle로 기록된 trace는 `--cycle-period`로 주기를 줘야 하고,
+  주지 않으면 거부합니다(조용히 바꾸지 않음). 주파수가 바뀌는 구간은 아직 다루지 않습니다. `--index-time`은 명령어 index를 시간으로 씁니다.
+- 같은 시간에 명령어가 여럿이면 VCD에는 마지막 값만 보입니다(끝에 개수를 알려 줌).
+- GTKWave에서는 `function` 신호에 `sw.vcd.gtkw-filter`를 Translate Filter File로 걸면 함수 이름으로 보입니다.
+  Verdi(nWave)에서는 번호로 보이며, 이름은 `.names.csv`를 참고합니다.
+
+## 5. AI 클라이언트 (MCP)
 
 ```bash
 simgdb mcp trace.idx                       # stdio MCP 서버

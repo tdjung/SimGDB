@@ -92,7 +92,8 @@ fn packets() {
         },
     )
     .unwrap();
-    let mut session = simgdb_gdb::Session::new(Engine::open(dir.path()).unwrap());
+    let notes = simgdb_store::annotations::Annotations::open(&dir.path().join("annotations.sqlite")).unwrap();
+    let mut session = simgdb_gdb::Session::new(Engine::open(dir.path()).unwrap()).with_annotations(notes);
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let addr = listener.local_addr().unwrap();
     let server = std::thread::spawn(move || {
@@ -148,6 +149,27 @@ fn packets() {
     // monitor goto moves the session.
     let out = c.monitor("goto 100");
     assert!(out.contains("index 100 of 4748"), "{out}");
+
+    // Queries from GDB (answers checked against tests/queries in the engine tests).
+    let hits = c.monitor("hits mix 2");
+    assert!(hits.contains("708 instructions executed, 118 entries") && hits.contains("index 1034"), "{hits}");
+    let found = c.monitor("find var(\"ticks\") == 5");
+    assert!(found.contains("found at index 1397"), "{found}");
+    let back = c.monitor("find -back pc == sym(\"Reset_Handler\")");
+    assert!(back.contains("found at index 0"), "{back}");
+    c.monitor("goto 1080");
+    let at = c.monitor("where");
+    assert!(at.contains("#0 SysTick_Handler") && at.contains("#1 build_list") && at.contains("[exception 15]"), "{at}");
+    let src = c.monitor("info source");
+    assert!(src.contains("registers from trace:") && src.contains("pc"), "{src}");
+    let bytes = c.monitor("info source ticks");
+    assert_eq!(bytes.lines().count(), 4, "{bytes}");
+    assert!(bytes.contains("Trace index"), "{bytes}");
+    assert!(c.monitor("bookmark first SysTick").contains("at index 1080"));
+    assert!(c.monitor("bookmarks").contains("index 1080: first SysTick (gdb)"));
+    assert!(c.monitor("halt").contains("always halted"));
+    assert!(c.monitor("reset halt").contains("index 0 of"));
+    c.monitor("goto 100");
     // Continuing past the last hit stops at the end of the history.
     assert_eq!(c.send("z0,240,2"), "OK");
     let end = c.send("vCont;c");
