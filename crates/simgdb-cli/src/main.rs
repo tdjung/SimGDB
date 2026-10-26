@@ -44,6 +44,9 @@ enum Command {
         /// Stop at the first line that does not parse.
         #[arg(long)]
         strict: bool,
+        /// Memory for each index sort before it spills to disk (MiB); the index directory needs room for the spill.
+        #[arg(long, default_value_t = 384)]
+        sort_memory_mb: usize,
     },
     /// Dataset information: size, time unit, capabilities, limitations.
     Info { index: PathBuf },
@@ -256,12 +259,22 @@ fn resolve(engine: &Engine, at: At) -> Result<u64, String> {
 
 fn run(cli: Cli) -> Result<(), String> {
     match cli.command {
-        Command::Index { trace, elf, out, isa, core, checkpoint_interval, report, mask, strict } => {
+        Command::Index { trace, elf, out, isa, core, checkpoint_interval, report, mask, strict, sort_memory_mb } => {
             let isa = simgdb_isa::by_name(&isa).ok_or_else(|| format!("unknown ISA {isa}"))?;
             let started = std::time::Instant::now();
             let meta = build(
                 isa.as_ref(),
-                &IndexOptions { trace, elf, out: out.clone(), core, checkpoint_interval, mask_samples: mask, strict },
+                &IndexOptions {
+                    trace,
+                    elf,
+                    out: out.clone(),
+                    core,
+                    checkpoint_interval,
+                    mask_samples: mask,
+                    strict,
+                    sort_records: sort_memory_mb.max(1) * (1 << 20) / 24,
+                    ..Default::default()
+                },
             )
             .map_err(|e| e.to_string())?;
             let r = &meta.report;

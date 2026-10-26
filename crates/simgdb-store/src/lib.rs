@@ -22,6 +22,7 @@
 pub mod annotations;
 pub mod calls;
 mod index;
+pub mod sort;
 pub mod sources;
 mod table;
 

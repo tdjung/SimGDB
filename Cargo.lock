@@ -1199,6 +1199,7 @@ dependencies = [
  "simgdb-isa",
  "simgdb-model",
  "simgdb-tarmac",
+ "tempfile",
  "thiserror",
 ]
 

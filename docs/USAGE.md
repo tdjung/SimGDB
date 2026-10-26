@@ -15,6 +15,8 @@ simgdb index trace.log --elf firmware.elf -o trace.idx --report > report.json
   - `capabilities`: 이 trace로 할 수 있는 것(메모리 값, 소스 줄 등).
   - `exception_frames_unplaced`, `exceptions_inferred`: 예외 처리에서 추정이 들어간 횟수.
 - 멀티코어 trace는 `--core N`으로 한 코어씩 만듭니다.
+- 메모리: 인덱서는 trace 길이와 관계없이 수백 MB 안에서 동작합니다. 정렬 메모리는 `--sort-memory-mb`(기본 384)로 조절하고,
+  그만큼 디스크에 임시 파일을 씁니다. 인덱스 크기는 대략 trace의 1.5배이고, 만드는 동안 메모리 색인 크기만큼의 여유가 더 필요합니다.
 
 ## 2. gdb / VS Code
 
