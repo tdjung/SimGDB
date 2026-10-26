@@ -127,10 +127,6 @@ impl Isa for RiscV32 {
         1 << 32
     }
 
-    fn little_endian(&self) -> bool {
-        true
-    }
-
     fn exception_number(&self, _state: &RegState) -> Option<u32> {
         // mcause is a CSR, not in this register file yet.
         None

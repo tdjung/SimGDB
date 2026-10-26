@@ -50,6 +50,9 @@ enum Command {
         /// Memory for each index sort before it spills to disk (MiB); the index directory needs room for the spill.
         #[arg(long, default_value_t = 384)]
         sort_memory_mb: usize,
+        /// Data byte order: little or big (BE8). Default: the ELF header, else little.
+        #[arg(long, value_parser = parse_endian)]
+        endian: Option<simgdb_isa::Endian>,
     },
     /// Dataset information: size, time unit, capabilities, limitations.
     Info { index: PathBuf },
@@ -267,6 +270,10 @@ fn resolve(engine: &Engine, at: At) -> Result<u64, String> {
     }
 }
 
+fn parse_endian(s: &str) -> Result<simgdb_isa::Endian, String> {
+    simgdb_isa::Endian::parse(s).ok_or_else(|| format!("{s}: expected little or big"))
+}
+
 fn run(cli: Cli) -> Result<(), String> {
     match cli.command {
         Command::Index {
@@ -281,6 +288,7 @@ fn run(cli: Cli) -> Result<(), String> {
             strict,
             config,
             sort_memory_mb,
+            endian,
         } => {
             let config = match config {
                 Some(p) => Some(simgdb_store::config::SiteConfig::load(&p).map_err(|e| e.to_string())?),
@@ -300,6 +308,7 @@ fn run(cli: Cli) -> Result<(), String> {
                     strict,
                     sort_records: sort_memory_mb.max(1) * (1 << 20) / 24,
                     config,
+                    endian,
                     ..Default::default()
                 },
             )
@@ -312,6 +321,16 @@ fn run(cli: Cli) -> Result<(), String> {
                 started.elapsed().as_secs_f64(),
                 out.display()
             );
+            if meta.endian == simgdb_isa::Endian::Big || r.endian_conflict.is_some() {
+                eprintln!(
+                    "data byte order: {} (from {})",
+                    meta.endian.name(),
+                    r.endian_source.as_deref().unwrap_or("?")
+                );
+            }
+            if let Some(c) = &r.endian_conflict {
+                eprintln!("warning: {c}");
+            }
             if r.parse_errors.count > 0 || !r.unrecognised.is_empty() {
                 eprintln!(
                     "warning: {} lines did not parse, {} record types not recognised (see --report)",

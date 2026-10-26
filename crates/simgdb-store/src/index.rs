@@ -5,7 +5,7 @@ use std::io::BufRead;
 use std::path::{Path, PathBuf};
 
 use simgdb_elf::Elf;
-use simgdb_isa::{Isa, RegState, RegWrite, TraceRegName};
+use simgdb_isa::{Endian, Isa, RegState, RegWrite, TraceRegName};
 use simgdb_tarmac::{Event, Parser, Record};
 
 use crate::calls::Calls;
@@ -33,6 +33,8 @@ pub struct IndexOptions {
     pub sort_records: usize,
     /// Site configuration (notation, register aliases, memory regions, time map).
     pub config: Option<crate::config::SiteConfig>,
+    /// Data byte order; overrides the configuration and the ELF header.
+    pub endian: Option<simgdb_isa::Endian>,
 }
 
 impl Default for IndexOptions {
@@ -48,6 +50,7 @@ impl Default for IndexOptions {
             batch_rows: crate::table::BATCH,
             sort_records: 16 << 20,
             config: None,
+            endian: None,
         }
     }
 }
@@ -246,6 +249,26 @@ struct PendingEntry {
     placed_below: bool,
 }
 
+/// Data byte order, where it came from, and a note when an explicit choice
+/// disagrees with the ELF header: the option, else the configuration, else
+/// the ELF header, else the ISA default.
+fn data_endian(isa: &dyn Isa, opts: &IndexOptions, elf: Option<&Elf>) -> (Endian, &'static str, Option<String>) {
+    let from_elf = elf.map(|e| if e.big_endian { Endian::Big } else { Endian::Little });
+    let explicit = match (opts.endian, opts.config.as_ref().and_then(|c| c.memory.endian)) {
+        (Some(e), _) => Some((e, "option")),
+        (None, Some(e)) => Some((e, "config")),
+        _ => None,
+    };
+    match (explicit, from_elf) {
+        (Some((e, src)), Some(f)) if e != f => {
+            (e, src, Some(format!("{src} says {} but the ELF header says {}; using {}", e.name(), f.name(), e.name())))
+        }
+        (Some((e, src)), _) => (e, src, None),
+        (None, Some(f)) => (f, "elf", None),
+        (None, None) => (isa.default_endian(), "isa default", None),
+    }
+}
+
 pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
     let elf = match &opts.elf {
         Some(p) => Some(Elf::load(p)?),
@@ -254,6 +277,7 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
     if opts.checkpoint_interval == 0 {
         return Err(StoreError::Trace("checkpoint interval must be at least 1".into()));
     }
+    let (endian, endian_source, endian_conflict) = data_endian(isa, opts, elf.as_ref());
     std::fs::create_dir_all(&opts.out).map_err(|e| StoreError::io(&opts.out, e))?;
     let reader = simgdb_tarmac::open(&opts.trace).map_err(|e| StoreError::io(&opts.trace, e))?;
     let nregs = isa.registers().len();
@@ -409,6 +433,9 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
             }
             Record::Memory(accesses) => {
                 for a in accesses {
+                    // A number written in the trace is in the core's data
+                    // byte order; the bytes are stored by address.
+                    let a = if a.logical && endian.at(isa, a.addr) == Endian::Big { a.reversed() } else { a };
                     if a.addr.checked_add(a.size as u64).is_none_or(|end| end > limit) {
                         report.parse_errors.count += 1;
                         if report.parse_errors.samples.len() < SAMPLES {
@@ -519,8 +546,11 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
     };
 
     report.sources = sources;
+    report.endian_source = Some(endian_source.to_string());
+    report.endian_conflict = endian_conflict;
     let meta = Meta {
         format_version: FORMAT_VERSION,
+        endian,
         isa: isa.name().to_string(),
         run: 0,
         core: core.unwrap_or(0),

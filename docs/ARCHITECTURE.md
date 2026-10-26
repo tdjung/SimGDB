@@ -60,7 +60,8 @@ Step 3까지 고려한 구조입니다. 구현은 단계별로 하지만 §2의 
 7. **주석 저장소**: bookmark와 메모를 데이터셋 옆 파일에 저장. 사람(VS Code)과 AI가 공유.
 8. **호출 로그**: MCP 도구 호출과 결과 요약을 남깁니다(평가와 skill 개선용).
 9. **ISA 정의 계층**: 레지스터 목록·크기·GDB target XML, 명령어 분류기(분기, 흐름 끊김, 조건부, IT 블록/압축 명령어),
-   툴체인 이름. 엔진과 앞단은 ISA를 직접 알지 않습니다.
+   툴체인 이름, 기본 데이터 byte 순서와 늘 little-endian인 영역(Arm PPB). 엔진과 앞단은 ISA를 직접 알지 않습니다.
+   데이터 byte 순서(little/big)는 run의 속성입니다(ELF 헤더, 옵션 또는 설정으로 정해 메타데이터에 저장).
 10. **읽기 전용**: GDB의 쓰기 명령(`G`, `P`, `M`, `X`)은 오류로 응답. Step 3에서 실행 도구가 생기면 별도 권한으로 분리.
 11. **AI 사용 방식 기준 설계(D15)**: 개발자와 AI는 접근 방식이 다릅니다.
 
@@ -94,7 +95,7 @@ Step 3까지 고려한 구조입니다. 구현은 단계별로 하지만 §2의 
 |---|---|---|---|
 | `instructions` | index, sim_time, pc, encoding, flags(ccfail, exception 진입 등), 원본 줄 번호 | core별 | 열 파일 |
 | `reg_writes` | index, reg, value | Tarmac `R` 레코드 | 열 파일 |
-| `mem_accesses` | index, kind(read/write), addr, size, value, master | Tarmac `LD`/`ST`/`MR`/`MW`…, Step 2는 bus 트랜잭션(master 포함) | 열 파일 |
+| `mem_accesses` | index, kind(read/write), addr, size, value, master | Tarmac `LD`/`ST`/`MR`/`MW`…, Step 2는 bus 트랜잭션(master 포함). value는 주소 순서 바이트(byte k = `value >> 8k`): 숫자로 적힌 trace 값은 인덱싱 때 데이터 byte 순서로 나눔 | 열 파일 |
 | `exceptions` | index, kind(entry/return), number | | 열 파일 |
 | `checkpoints` | index, 레지스터 전체(값 + 알려짐 여부) | 간격 설정 가능. 메모리는 쓰기 이력으로 복원 | 열 파일 |
 | 역색인 | pc → indexes, addr → write indexes | 정렬 배열 + 이진 탐색 | 열 파일 |
@@ -104,7 +105,7 @@ Step 3까지 고려한 구조입니다. 구현은 단계별로 하지만 §2의 
 | `sources` (공유) | pc → file, line, function, line 0 배치 방식, inline frame(`frames`), 이름 표(`strings`) | ELF 기준, line 0 규칙 적용 | 열 파일 |
 | `variables` (공유) | 고정 주소 변수 이름 → 주소, 크기, 타입(타입은 트리) | 엔진 DWARF(§2.12) | JSON(`variables.json`, 작고 통째로 읽음) |
 | `symbols` (공유) | ELF 심볼 이름, 주소, 크기, 함수 여부 | `sym("…")`, 함수 진입 주소 | JSON(`symbols.json`) |
-| 메타데이터 | ISA, core, ELF 경로·해시, 시간 단위·변환 표, 공급자 버전, capability, 진단 요약 | | SQLite |
+| 메타데이터 | ISA, core, 데이터 byte 순서(와 출처), ELF 경로·해시, 시간 단위·변환 표, 공급자 버전, capability, 진단 요약 | | SQLite |
 | 주석·호출 로그·작업 | bookmark, 메모, MCP 호출 로그, 비동기 작업 상태 | 사람과 AI가 동시에 씀 | SQLite |
 
 ELF와 소스 귀속은 run 사이에 공유합니다(같은 ELF면 한 번만).

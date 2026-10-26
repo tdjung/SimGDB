@@ -30,7 +30,7 @@ fn index(core: &str, dir: &std::path::Path) -> Engine {
 
 #[test]
 fn places_match_gdb() {
-    for core in ["m4", "m35p"] {
+    for core in ["m4", "m35p", "m4be"] {
         let dir = tempfile::tempdir().unwrap();
         let engine = index(core, dir.path());
         let text = std::fs::read_to_string(root().join(format!("variables/expected/state_{core}.json"))).unwrap();
@@ -62,7 +62,8 @@ fn places_match_gdb() {
 
 #[test]
 fn values_match_gdb_memory() {
-    for core in ["m4", "m35p"] {
+    for core in ["m4", "m35p", "m4be"] {
+        let big = core.ends_with("be");
         let dir = tempfile::tempdir().unwrap();
         let engine = index(core, dir.path());
         let mut text = String::new();
@@ -99,8 +100,17 @@ fn values_match_gdb_memory() {
                     Some(raw) if raw.known_mask.is_none() && raw.value.is_some() => {
                         known += 1;
                         assert_eq!(v.hex, want, "{core} index {index}: {name}");
-                        let le = (0..want.len() / 2).rev().map(|k| &want[2 * k..2 * k + 2]).collect::<String>();
-                        assert_eq!(raw.value.unwrap(), u64::from_str_radix(&le, 16).unwrap(), "{core} {index} {name}");
+                        // gdb's bytes by address, read in the core's byte order.
+                        let number = if big {
+                            want.clone()
+                        } else {
+                            (0..want.len() / 2).rev().map(|k| &want[2 * k..2 * k + 2]).collect::<String>()
+                        };
+                        assert_eq!(
+                            raw.value.unwrap(),
+                            u64::from_str_radix(&number, 16).unwrap(),
+                            "{core} {index} {name}"
+                        );
                     }
                     _ => unknown += 1,
                 }

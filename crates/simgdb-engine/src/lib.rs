@@ -64,6 +64,8 @@ pub struct Info {
     pub isa: String,
     pub trace: String,
     pub elf: Option<String>,
+    /// Data byte order.
+    pub endian: simgdb_isa::Endian,
     pub instructions: u64,
     /// The last valid point (state after the last instruction).
     pub end: u64,
@@ -84,6 +86,11 @@ impl Engine {
     /// The time map from the site configuration, if any.
     pub fn time_map(&self) -> Option<&simgdb_model::TimeMap> {
         self.ds.meta.config.as_ref().and_then(|c| c.time.as_ref())
+    }
+
+    /// Data byte order of the traced system.
+    pub fn endian(&self) -> simgdb_isa::Endian {
+        self.ds.meta.endian
     }
 
     pub fn isa(&self) -> &dyn Isa {
@@ -134,6 +141,7 @@ impl Engine {
             isa: m.isa.clone(),
             trace: m.trace.clone(),
             elf: m.elf.clone(),
+            endian: m.endian,
             instructions: m.instructions,
             end: self.end(),
             time_unit: c.time_unit.clone(),
@@ -628,7 +636,7 @@ impl Engine {
         let (state, _) = self.replay(entry);
         if let Some((slot, len)) = self.isa.exception_return_slot(&state) {
             let bytes = self.memory(slot, len, entry).unwrap_or_default();
-            let v = self.combine(&bytes);
+            let v = self.combine(slot, &bytes);
             if let (Some(pc), None) = (v.value, v.known_mask) {
                 return (Some(pc & !1), "stacked");
             }

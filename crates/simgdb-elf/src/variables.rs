@@ -331,7 +331,7 @@ fn parse_index(s: &str) -> Result<u64, String> {
     .map_err(|_| format!("bad index {s}"))
 }
 
-type R<'a> = gimli::EndianSlice<'a, gimli::LittleEndian>;
+type R<'a> = gimli::EndianSlice<'a, gimli::RunTimeEndian>;
 
 struct Reader_<'a, 'd> {
     dwarf: &'d gimli::Dwarf<R<'a>>,
@@ -628,7 +628,7 @@ pub fn variables_with_problems(path: &Path) -> Result<(Variables, Vec<String>), 
     let mut problems = crate::source::Problems::default();
     let bytes = std::fs::read(path).map_err(|e| ElfError::Io(path.display().to_string(), e))?;
     let file = object::File::parse(&*bytes)?;
-    let little = file.is_little_endian();
+    let endian = if file.is_little_endian() { gimli::RunTimeEndian::Little } else { gimli::RunTimeEndian::Big };
     // `.zdebug_*` (GNU-style compressed) holds the same as `.debug_*`.
     let sections: HashMap<String, std::borrow::Cow<[u8]>> = file
         .sections()
@@ -642,13 +642,9 @@ pub fn variables_with_problems(path: &Path) -> Result<(Variables, Vec<String>), 
         })
         .collect();
     let empty: &[u8] = &[];
-    if !little {
-        problems.add("big-endian ELF: variables are not read".into());
-        return Ok((Variables::default(), problems.list()));
-    }
     let load = |id: gimli::SectionId| -> Result<R<'_>, gimli::Error> {
         let data = sections.get(id.name()).map(|d| d.as_ref()).unwrap_or(empty);
-        Ok(gimli::EndianSlice::new(data, gimli::LittleEndian))
+        Ok(gimli::EndianSlice::new(data, endian))
     };
     let dwarf = match gimli::Dwarf::load(load) {
         Ok(d) => d,

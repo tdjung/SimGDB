@@ -17,10 +17,13 @@ simgdb index trace.log --elf firmware.elf -o trace.idx --report > report.json
   - `sources.problems`: ELF 디버그 정보 중 읽지 못한 부분. 인덱싱은 계속되고, 읽은 부분만 씁니다
     (못 읽은 곳의 함수 이름은 심볼 표에서 가져옴).
 - 멀티코어 trace는 `--core N`으로 한 코어씩 만듭니다.
+- **바이트 순서**: ELF 헤더를 따릅니다(big-endian/BE8 ELF면 인덱싱할 때 `data byte order: big (from elf)`가 나옴).
+  ELF 없이 만들거나 ELF와 다르게 해야 하면 `--endian big|little`(또는 설정의 `[memory] endian`). `simgdb info`의 `endian`으로 확인합니다.
+  gdb는 자신이 읽은 ELF로 byte 순서를 정하므로, gdb·VS Code에도 같은 ELF를 줍니다(`set endian`은 필요 없음).
 - **현장 설정 파일**(`--config simgdb.toml`, 예: `dist/simgdb.toml.example`): 실행 파일을 다시 만들지 않고 바꿀 수 있는 것들입니다.
   - `[tarmac]` `record_aliases`(현장 레코드 이름 → 아는 이름), `ignore`(무시할 레코드 종류)
   - `[registers]` `aliases`(trace 레지스터 이름 → SimGDB 이름)
-  - `[memory]` `volatile`(주변장치처럼 값을 믿을 수 없는 영역)
+  - `[memory]` `volatile`(주변장치처럼 값을 믿을 수 없는 영역), `endian`(`"little"`/`"big"`, ELF 헤더 대신)
   - `[time]` cycle → 절대 시간 표(구간별 주기). 있으면 시점마다 `time`(출처 `time_map`)이 붙고 `track`도 이 표를 씁니다.
   보고서의 `unrecognised`, `unmodelled_registers`에 나온 이름은 대부분 여기서 해결됩니다. 설정은 인덱스에 함께 저장됩니다.
 - 메모리: 인덱서는 trace 길이와 관계없이 수백 MB 안에서 동작합니다. 정렬 메모리는 `--sort-memory-mb`(기본 384)로 조절하고,

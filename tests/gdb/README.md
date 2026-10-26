@@ -35,7 +35,9 @@ cargo build --release -p simgdb-cli
 GDB=arm-none-eabi-gdb python3 tests/gdb/gdb_tests.py check --core m4 --dialect m4rtl --simgdb target/release/simgdb
 ```
 
-정답 다시 만들기(QEMU 10.1 이상 필요):
+`--core`는 `m4`, `m35p`, `m4be`(같은 m4 펌웨어의 big-endian/BE8 빌드)입니다.
+
+정답 다시 만들기(QEMU 10.1 이상 필요, `m4be`는 `tests/firmware/qemu/qemu-m-bigend.patch`를 적용한 QEMU):
 
 ```bash
 QEMU=/path/to/qemu-system-arm GDB=arm-none-eabi-gdb python3 tests/gdb/gdb_tests.py expected --core m4

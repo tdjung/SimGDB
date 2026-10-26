@@ -427,7 +427,7 @@ impl Engine {
             Operand::Reg(r, _) => regs.get(*r).map(|v| V::Int(v as i128)).unwrap_or(V::Unknown),
             Operand::Var(place, _) => self.variable_int(place, index)?.map(V::Int).unwrap_or(V::Unknown),
             Operand::Mem(addr, size) => {
-                let v = self.combine(&self.memory(*addr, *size, index)?);
+                let v = self.combine(*addr, &self.memory(*addr, *size, index)?);
                 match (v.value, v.known_mask) {
                     (Some(x), None) => V::Int(x as i128),
                     _ => V::Unknown,

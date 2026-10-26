@@ -67,10 +67,34 @@ pub struct MemAccess {
     pub addr: u64,
     /// 1..=8 bytes.
     pub size: u8,
-    /// Little-endian logical value: byte k of the value is at `addr + k`.
+    /// Bytes by address: byte k (`value >> 8k`) is at `addr + k`, read as
+    /// a little-endian number.
     pub value: u64,
     /// Bit k set = byte k known.
     pub known: u8,
+    /// The trace wrote the data as a number in the core's data byte order
+    /// (`MR4`/`MW4` …), and the bytes above assume little-endian. A
+    /// big-endian core keeps the most significant byte at `addr`, so the
+    /// indexer reverses them. False when the trace gives bytes by address
+    /// (Cortex-M RTL `___D` lines in memory order, `LD`/`ST` diagrams), where
+    /// the byte order of the core does not matter.
+    pub logical: bool,
+}
+
+impl MemAccess {
+    /// The same access with its bytes in reverse address order (a number
+    /// written in the trace, read as big-endian data).
+    pub fn reversed(self) -> MemAccess {
+        let n = self.size as u32;
+        let (mut value, mut known) = (0u64, 0u8);
+        for k in 0..n {
+            value |= ((self.value >> (8 * k)) & 0xff) << (8 * (n - 1 - k));
+            if self.known & (1 << k) != 0 {
+                known |= 1 << (n - 1 - k);
+            }
+        }
+        MemAccess { value, known, ..self }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -445,7 +469,7 @@ impl Parser {
                 off += 1;
                 continue;
             };
-            let mut acc = MemAccess { write, addr: base + off as u64, size: 0, value: 0, known: 0 };
+            let mut acc = MemAccess { write, addr: base + off as u64, size: 0, value: 0, known: 0, logical: false };
             let mut cur = Some(first);
             while let Some(byte) = cur {
                 let k = acc.size as usize;
@@ -600,7 +624,14 @@ fn memory(kind: &str, rest: &[Tok<'_>]) -> Result<Record, ParseError> {
             }
             known_bytes = kb;
         }
-        Ok(MemAccess { write, addr, size: size as u8, value: value & mask(size), known: known_bytes })
+        Ok(MemAccess {
+            write,
+            addr,
+            size: size as u8,
+            value: value & mask(size),
+            known: known_bytes,
+            logical: !memory_order,
+        })
     };
     match size {
         1..=8 => Ok(Record::Memory(vec![one(addr, size, last)?])),

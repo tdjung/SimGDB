@@ -33,9 +33,9 @@ LAYOUT_PATHS = [
 
 def main():
     gdb = os.environ.get("GDB", "gdb-multiarch")
-    targets = [(FIRMWARE / "state_{}.elf".format(c), "state_{}".format(c), PATHS) for c in ("m4", "m35p")]
-    targets += [(ROOT / "elf" / "layout_dwarf{}.elf".format(v), "layout_dwarf{}".format(v), LAYOUT_PATHS)
-                for v in (2, 4, 5)]
+    targets = [(FIRMWARE / "state_{}.elf".format(c), "state_{}".format(c), PATHS) for c in ("m4", "m35p", "m4be")]
+    targets += [(ROOT / "elf" / "layout_{}.elf".format(v), "layout_{}".format(v), LAYOUT_PATHS)
+                for v in ("dwarf2", "dwarf4", "dwarf5", "dwarf4_be")]
     for elf, stem, paths in targets:
         args = [gdb, "-q", "-nx", "-batch", str(elf)]
         for p in paths:

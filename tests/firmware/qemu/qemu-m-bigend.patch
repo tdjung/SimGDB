@@ -1,0 +1,251 @@
+diff --git a/hw/arm/armv7m.c b/hw/arm/armv7m.c
+index 7fa1b37..452df83 100644
+--- a/hw/arm/armv7m.c
++++ b/hw/arm/armv7m.c
+@@ -171,7 +171,7 @@ static MemTxResult v7m_sysreg_ns_read(void *opaque, hwaddr addr,
+     }
+ }
+ 
+-static const MemoryRegionOps v7m_sysreg_ns_ops = {
++static MemoryRegionOps v7m_sysreg_ns_ops = {
+     .read_with_attrs = v7m_sysreg_ns_read,
+     .write_with_attrs = v7m_sysreg_ns_write,
+     .endianness = DEVICE_LITTLE_ENDIAN,
+@@ -203,7 +203,7 @@ static MemTxResult v7m_systick_read(void *opaque, hwaddr addr,
+                                        size_memop(size) | MO_LE, attrs);
+ }
+ 
+-static const MemoryRegionOps v7m_systick_ops = {
++static MemoryRegionOps v7m_systick_ops = {
+     .read_with_attrs = v7m_systick_read,
+     .write_with_attrs = v7m_systick_write,
+     .endianness = DEVICE_LITTLE_ENDIAN,
+@@ -238,7 +238,7 @@ static MemTxResult ppb_default_write(void *opaque, hwaddr addr,
+     return MEMTX_OK;
+ }
+ 
+-static const MemoryRegionOps ppb_default_ops = {
++static MemoryRegionOps ppb_default_ops = {
+     .read_with_attrs = ppb_default_read,
+     .write_with_attrs = ppb_default_write,
+     .endianness = DEVICE_NATIVE_ENDIAN,
+@@ -279,6 +279,15 @@ static void armv7m_instance_init(Object *obj)
+ 
+ static void armv7m_realize(DeviceState *dev, Error **errp)
+ {
++    if (getenv("QEMU_ARM_M_BIGEND")) {
++        /*
++         * SimGDB test patch: PPB accesses are always little-endian, so the
++         * core's big-endian access reaches these registers unswapped.
++         */
++        v7m_sysreg_ns_ops.endianness = DEVICE_BIG_ENDIAN;
++        v7m_systick_ops.endianness = DEVICE_BIG_ENDIAN;
++        ppb_default_ops.endianness = DEVICE_BIG_ENDIAN;
++    }
+     ARMv7MState *s = ARMV7M(dev);
+     SysBusDevice *sbd;
+     Error *err = NULL;
+@@ -620,7 +629,8 @@ void armv7m_load_kernel(ARMCPU *cpu, const char *kernel_filename,
+     if (kernel_filename) {
+         image_size = load_elf_as(kernel_filename, NULL, NULL, NULL,
+                                  &entry, NULL, NULL,
+-                                 NULL, ELFDATA2LSB, EM_ARM, 1, 0, as);
++                                 NULL, getenv("QEMU_ARM_M_BIGEND") ? ELFDATA2MSB : ELFDATA2LSB,
++                                 EM_ARM, 1, 0, as);
+         if (image_size < 0) {
+             image_size = load_image_targphys_as(kernel_filename, mem_base,
+                                                 mem_size, as, NULL);
+diff --git a/hw/intc/armv7m_nvic.c b/hw/intc/armv7m_nvic.c
+index 7c78961..6d0ccd9 100644
+--- a/hw/intc/armv7m_nvic.c
++++ b/hw/intc/armv7m_nvic.c
+@@ -2464,7 +2464,7 @@ static MemTxResult nvic_sysreg_write(void *opaque, hwaddr addr,
+     return MEMTX_OK;
+ }
+ 
+-static const MemoryRegionOps nvic_sysreg_ops = {
++static MemoryRegionOps nvic_sysreg_ops = {
+     .read_with_attrs = nvic_sysreg_read,
+     .write_with_attrs = nvic_sysreg_write,
+     .endianness = DEVICE_NATIVE_ENDIAN,
+@@ -2672,6 +2672,10 @@ static void nvic_systick_trigger(void *opaque, int n, int level)
+ 
+ static void armv7m_nvic_realize(DeviceState *dev, Error **errp)
+ {
++    if (getenv("QEMU_ARM_M_BIGEND")) {
++        /* SimGDB test patch: PPB accesses are always little-endian. */
++        nvic_sysreg_ops.endianness = DEVICE_BIG_ENDIAN;
++    }
+     NVICState *s = NVIC(dev);
+ 
+     /* The armv7m container object will have set our CPU pointer */
+diff --git a/include/gdbstub/helpers.h b/include/gdbstub/helpers.h
+index b685afa..5fb012e 100644
+--- a/include/gdbstub/helpers.h
++++ b/include/gdbstub/helpers.h
+@@ -43,9 +43,23 @@ static inline int gdb_get_reg16(GByteArray *buf, uint16_t val)
+     return 2;
+ }
+ 
++/*
++ * SimGDB test patch: QEMU_ARM_M_BIGEND=1 emulates an M-profile core with
++ * AIRCR.ENDIANNESS = 1 (BE8 data). The gdbstub then sends registers in that
++ * byte order, as a hardware debug probe on such a core would.
++ */
++static inline bool simgdb_arm_m_bigend(void)
++{
++    static int v = -1;
++    if (v < 0) {
++        v = getenv("QEMU_ARM_M_BIGEND") != NULL;
++    }
++    return v;
++}
++
+ static inline int gdb_get_reg32(GByteArray *buf, uint32_t val)
+ {
+-    if (target_big_endian()) {
++    if (target_big_endian() || simgdb_arm_m_bigend()) {
+         cpu_to_be32s(&val);
+     } else {
+         cpu_to_le32s(&val);
+@@ -56,7 +70,7 @@ static inline int gdb_get_reg32(GByteArray *buf, uint32_t val)
+ 
+ static inline int gdb_get_reg64(GByteArray *buf, uint64_t val)
+ {
+-    if (target_big_endian()) {
++    if (target_big_endian() || simgdb_arm_m_bigend()) {
+         cpu_to_be64s(&val);
+     } else {
+         cpu_to_le64s(&val);
+diff --git a/semihosting/arm-compat-semi.c b/semihosting/arm-compat-semi.c
+index c5a07cb..ec910b5 100644
+--- a/semihosting/arm-compat-semi.c
++++ b/semihosting/arm-compat-semi.c
+@@ -196,6 +196,9 @@ static LayoutInfo common_semi_find_bases(CPUState *cs)
+         if (get_user_u32(arg ## n, args + (n) * 4)) {   \
+             goto do_fault;                              \
+         }                                               \
++        if (getenv("QEMU_ARM_M_BIGEND")) {              \
++            arg ## n = bswap32(arg ## n);               \
++        }                                               \
+     }                                                   \
+ } while (0)
+ 
+diff --git a/target/arm/cpu.c b/target/arm/cpu.c
+index 39292fb..9da7b41 100644
+--- a/target/arm/cpu.c
++++ b/target/arm/cpu.c
+@@ -448,22 +448,28 @@ static void arm_cpu_reset_hold(Object *obj, ResetType type)
+             /* Address zero is covered by ROM which hasn't yet been
+              * copied into physical memory.
+              */
+-            initial_msp = ldl_p(rom);
+-            initial_pc = ldl_p(rom + 4);
++            initial_msp = getenv("QEMU_ARM_M_BIGEND") ? ldl_be_p(rom) : ldl_p(rom);
++            initial_pc = getenv("QEMU_ARM_M_BIGEND") ? ldl_be_p(rom + 4) : ldl_p(rom + 4);
+         } else {
+             /* Address zero not covered by a ROM blob, or the ROM blob
+              * is in non-modifiable memory and this is a second reset after
+              * it got copied into memory. In the latter case, rom_ptr
+              * will return a NULL pointer and we should use ldl_phys instead.
+              */
+-            initial_msp = ldl_phys(cs->as, vecbase);
+-            initial_pc = ldl_phys(cs->as, vecbase + 4);
++            initial_msp = getenv("QEMU_ARM_M_BIGEND") ? ldl_be_phys(cs->as, vecbase)
++                                                      : ldl_phys(cs->as, vecbase);
++            initial_pc = getenv("QEMU_ARM_M_BIGEND") ? ldl_be_phys(cs->as, vecbase + 4)
++                                                     : ldl_phys(cs->as, vecbase + 4);
+         }
+ 
+         qemu_log_mask(CPU_LOG_INT,
+                       "Loaded reset SP 0x%x PC 0x%x from vector table\n",
+                       initial_msp, initial_pc);
+ 
++        if (getenv("QEMU_ARM_M_BIGEND")) {
++            /* Data accesses big-endian (BE8); hflags follow CPSR.E. */
++            env->uncached_cpsr |= CPSR_E;
++        }
+         env->regs[13] = initial_msp & 0xFFFFFFFC;
+         env->regs[15] = initial_pc & ~1;
+         env->thumb = initial_pc & 1;
+diff --git a/target/arm/tcg/m_helper.c b/target/arm/tcg/m_helper.c
+index 3fb24c7..6cd60fc 100644
+--- a/target/arm/tcg/m_helper.c
++++ b/target/arm/tcg/m_helper.c
+@@ -255,7 +255,8 @@ static bool v7m_stack_write(ARMCPU *cpu, uint32_t addr, uint32_t value,
+         }
+         goto pend_fault;
+     }
+-    address_space_stl_le(arm_addressspace(cs, res.f.attrs), res.f.phys_addr,
++    (getenv("QEMU_ARM_M_BIGEND") ? address_space_stl_be : address_space_stl_le)(
++        arm_addressspace(cs, res.f.attrs), res.f.phys_addr,
+                          value, res.f.attrs, &txres);
+     if (txres != MEMTX_OK) {
+         /* BusFault trying to write the data */
+@@ -330,7 +331,8 @@ static bool v7m_stack_read(ARMCPU *cpu, uint32_t *dest, uint32_t addr,
+         goto pend_fault;
+     }
+ 
+-    value = address_space_ldl(arm_addressspace(cs, res.f.attrs),
++    value = (getenv("QEMU_ARM_M_BIGEND") ? address_space_ldl_be : address_space_ldl_le)(
++        arm_addressspace(cs, res.f.attrs),
+                               res.f.phys_addr, res.f.attrs, &txres);
+     if (txres != MEMTX_OK) {
+         /* BusFault trying to read the data */
+@@ -634,7 +636,7 @@ void HELPER(v7m_blxns)(CPUARMState *env, uint32_t dest)
+ 
+     /* Note that these stores can throw exceptions on MPU faults */
+     ARMMMUIdx mmu_idx = arm_mmu_idx(env);
+-    MemOpIdx oi = make_memop_idx(MO_TEUL | MO_ALIGN,
++    MemOpIdx oi = make_memop_idx((getenv("QEMU_ARM_M_BIGEND") ? MO_BEUL : MO_LEUL) | MO_ALIGN,
+                                  arm_to_core_mmu_idx(mmu_idx));
+     cpu_stl_mmu(env, sp, nextinst, oi, GETPC());
+     cpu_stl_mmu(env, sp + 4, saved_psr, oi, GETPC());
+@@ -702,7 +704,8 @@ static bool arm_v7m_load_vector(ARMCPU *cpu, int exc, bool targets_secure,
+         }
+     }
+ 
+-    vector_entry = address_space_ldl(arm_addressspace(cs, attrs), addr,
++    vector_entry = (getenv("QEMU_ARM_M_BIGEND") ? address_space_ldl_be : address_space_ldl_le)(
++        arm_addressspace(cs, attrs), addr,
+                                      attrs, &result);
+     if (result != MEMTX_OK) {
+         /*
+@@ -1053,7 +1056,7 @@ void HELPER(v7m_vlstm)(CPUARMState *env, uint32_t fptr)
+     bool lspact = env->v7m.fpccr[s] & R_V7M_FPCCR_LSPACT_MASK;
+     uintptr_t ra = GETPC();
+     ARMMMUIdx mmu_idx = arm_mmu_idx(env);
+-    MemOpIdx oi = make_memop_idx(MO_TEUL | MO_ALIGN,
++    MemOpIdx oi = make_memop_idx((getenv("QEMU_ARM_M_BIGEND") ? MO_BEUL : MO_LEUL) | MO_ALIGN,
+                                  arm_to_core_mmu_idx(mmu_idx));
+ 
+     assert(env->v7m.secure);
+@@ -1129,7 +1132,7 @@ void HELPER(v7m_vlldm)(CPUARMState *env, uint32_t fptr)
+     ARMCPU *cpu = env_archcpu(env);
+     uintptr_t ra = GETPC();
+     ARMMMUIdx mmu_idx = arm_mmu_idx(env);
+-    MemOpIdx oi = make_memop_idx(MO_TEUL | MO_ALIGN,
++    MemOpIdx oi = make_memop_idx((getenv("QEMU_ARM_M_BIGEND") ? MO_BEUL : MO_LEUL) | MO_ALIGN,
+                                  arm_to_core_mmu_idx(mmu_idx));
+ 
+     /* fptr is the value of Rn, the frame pointer we load the FP regs from */
+@@ -1947,7 +1950,8 @@ static bool do_v7m_function_return(ARMCPU *cpu)
+          * do them as secure, so work out what MMU index that is.
+          */
+         mmu_idx = arm_v7m_mmu_idx_for_secstate(env, true);
+-        oi = make_memop_idx(MO_LEUL | MO_ALIGN, arm_to_core_mmu_idx(mmu_idx));
++        oi = make_memop_idx((getenv("QEMU_ARM_M_BIGEND") ? MO_BEUL : MO_LEUL) | MO_ALIGN,
++                            arm_to_core_mmu_idx(mmu_idx));
+         newpc = cpu_ldl_mmu(env, frameptr, oi, 0);
+         newpsr = cpu_ldl_mmu(env, frameptr + 4, oi, 0);
+ 
+@@ -2072,7 +2076,8 @@ static bool v7m_read_sg_stack_word(ARMCPU *cpu, ARMMMUIdx mmu_idx,
+         }
+         return false;
+     }
+-    value = address_space_ldl(arm_addressspace(cs, res.f.attrs),
++    value = (getenv("QEMU_ARM_M_BIGEND") ? address_space_ldl_be : address_space_ldl_le)(
++        arm_addressspace(cs, res.f.attrs),
+                               res.f.phys_addr, res.f.attrs, &txres);
+     if (txres != MEMTX_OK) {
+         /* BusFault trying to read the data */

@@ -59,7 +59,14 @@ Step 0의 실제 Tarmac 조사 결과에 따라 갱신합니다.
   핸들러 모드이고 예외 번호(IPSR)가 돌아갈 곳과 다른 것으로 알아내 예외 frame을 엽니다(보고서 `exceptions_inferred`).
   xPSR이 trace에 없으면 알아낼 수 없어 그 핸들러는 끊긴 코드의 일부로 보입니다.
 - **변수**: 고정 주소 변수(전역, 파일 static, 함수 static)만 엔진이 읽습니다. 지역변수, 포인터 따라가기, bit-field는
-  gdb에서 봅니다. Big-endian(BE8) 펌웨어는 아직 지원하지 않습니다.
+  gdb에서 봅니다.
+- **바이트 순서(endian)**: little과 big(Arm BE8) 모두 지원합니다. 기본은 ELF 헤더를 따르고, `--endian` 또는 설정
+  `[memory] endian`으로 바꿉니다(ELF와 다르면 보고서 `endian_conflict`). Arm의 PPB(`0xE0000000`–`0xE00FFFFF`, SysTick·NVIC 등)는
+  BE8 코어에서도 little-endian으로 다룹니다. Arm BE32(구형, M-profile 아님)는 지원하지 않습니다.
+  - Trace가 메모리 데이터를 **숫자로** 적는 형식(`MR4`/`MW4` …)은 byte 순서에 따라 해석이 달라집니다.
+    **주소 순서로** 적는 형식(Cortex-M RTL `MNR4___D`, `LD`/`ST` 그림)은 byte 순서와 관계없습니다.
+  - BE 검증: 같은 시험 펌웨어를 BE8로 빌드해, M-profile big-endian을 넣은 QEMU(`tests/firmware/qemu/qemu-m-bigend.patch`)로
+    실행한 trace와 gdbstub 정답으로 시험합니다. 실제 BE Cortex-M 하드웨어 trace로는 아직 확인하지 않았습니다.
 - **조건 검색**: trace가 보여 주지 않는 값이 들어간 비교는 "모름"이며 참으로 치지 않습니다. 결과의 `first_undecided`로
   판단하지 못한 시점을 알려 줍니다.
 - **소스 줄 진입(`executions file:line`)**: 같은 줄이 line table에서 다른 줄과 번갈아 나오면(최적화 코드) 진입이 여러 번으로 셉니다.

@@ -34,6 +34,10 @@ struct Tally {
 }
 
 fn check(core: &str, dialect: &str) -> Tally {
+    check_with(core, dialect, None)
+}
+
+fn check_with(core: &str, dialect: &str, endian: Option<simgdb_isa::Endian>) -> Tally {
     let dir = tempfile::tempdir().unwrap();
     let isa = simgdb_isa::by_name("arm-m").unwrap();
     build(
@@ -43,6 +47,7 @@ fn check(core: &str, dialect: &str) -> Tally {
             elf: Some(firmware().join(format!("state_{core}.elf"))),
             out: dir.path().to_path_buf(),
             checkpoint_interval: 256,
+            endian,
             ..Default::default()
         },
     )
@@ -104,7 +109,9 @@ fn reconstruction_matches_gdbstub() {
         "| core | trace dialect | registers known | memory bytes: trace / elf_initial / inferred / unknown | mismatches |"
     );
     println!("|---|---|---:|---|---:|");
-    for core in ["m4", "m35p"] {
+    // m4be: the m4 firmware built big-endian (BE8), run on QEMU patched for
+    // big-endian M-profile data (tests/firmware/qemu/qemu-m-bigend.patch).
+    for core in ["m4", "m35p", "m4be"] {
         for dialect in ["fm", "m4rtl", "es"] {
             let t = check(core, dialect);
             let total = t.reg_known + t.reg_unknown;
@@ -127,4 +134,19 @@ fn reconstruction_matches_gdbstub() {
         }
     }
     assert!(failures.is_empty(), "values differ from gdb:\n{}", failures.join("\n"));
+}
+
+/// The comparison above can tell the byte orders apart: the big-endian run
+/// read as little-endian data (forced) disagrees with gdb where the trace
+/// writes data as numbers (`MR4`/`MW4`), while the default (from the ELF
+/// header) agrees. Cortex-M RTL `___D` lines and `LD`/`ST` diagrams give
+/// bytes by address, so the core's byte order does not change them.
+#[test]
+fn big_endian_trace_read_as_little_endian_differs() {
+    let wrong = check_with("m4be", "fm", Some(simgdb_isa::Endian::Little));
+    assert!(wrong.mismatches.len() > 10, "fm: {} mismatches", wrong.mismatches.len());
+    for dialect in ["m4rtl", "es"] {
+        let t = check_with("m4be", dialect, Some(simgdb_isa::Endian::Little));
+        assert!(t.mismatches.is_empty(), "{dialect}: {:?}", t.mismatches);
+    }
 }

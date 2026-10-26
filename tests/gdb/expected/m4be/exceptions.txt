@@ -1,0 +1,105 @@
+Reset_Handler () at startup.c:11
+11	    while (dst < &__data_end) *dst++ = *src++;
+Breakpoint 1 at 0x240: file state.c, line 111.
+
+Breakpoint 1, SysTick_Handler () at state.c:111
+111	    uint32_t t = ++ticks;
+=== exc_a
+r0             0x52c836e3          1388852963
+r1             0x19                25
+r2             0x20000050          536870992
+r3             0x0                 0
+r4             0x20000038          536870968
+r5             0x340               832
+r6             0x20000018          536870936
+r7             0x12                18
+r8             0x12345678          305419896
+r9             0x2000000a          536870922
+r10            0x20000020          536870944
+r11            0x6                 6
+r12            0x0                 0
+sp             0x2000ff80          0x2000ff80
+lr             0xfffffff9          -7
+pc             0x240               0x240 <SysTick_Handler>
+xpsr           0x8100000f          -2130706417
+msp            0x2000ff80          536936320
+psp            0x0                 0
+control        0x0                 0
+#0  SysTick_Handler () at state.c:111
+#1  <signal handler called>
+#2  0x0000011e in build_list (n=6) at state.c:62
+#3  0x00000292 in work (round=0) at state.c:139
+#4  0x000002d6 in main () at state.c:157
+No arguments.
+t = <optimized out>
+=== /
+
+Breakpoint 1, SysTick_Handler () at state.c:111
+111	    uint32_t t = ++ticks;
+
+Breakpoint 1, SysTick_Handler () at state.c:111
+111	    uint32_t t = ++ticks;
+=== exc_b
+r0             0x0                 0
+r1             0x2                 2
+r2             0x523               1315
+r3             0x20000080          536871040
+r4             0x0                 0
+r5             0x0                 0
+r6             0x0                 0
+r7             0x0                 0
+r8             0x0                 0
+r9             0x0                 0
+r10            0x0                 0
+r11            0x0                 0
+r12            0x514               1300
+sp             0x2000ffb0          0x2000ffb0
+lr             0xfffffff9          -7
+pc             0x240               0x240 <SysTick_Handler>
+xpsr           0x6100000f          1627389967
+msp            0x2000ffb0          536936368
+psp            0x0                 0
+control        0x0                 0
+#0  SysTick_Handler () at state.c:111
+#1  <signal handler called>
+#2  0x00000190 in walk_list () at state.c:74
+#3  0x00000296 in work (round=0) at state.c:140
+#4  0x000002d6 in main () at state.c:157
+No arguments.
+t = <optimized out>
+=== /
+$1 = 2
+$2 = {0x0, 0xb06bd070, 0xb06bd0b3, 0x0, 0x0, 0x0, 0x0, 0x0}
+Breakpoint 2 at 0x214: file state.c, line 105.
+
+Breakpoint 2, SVC_Handler () at state.c:105
+105	    svc_calls++;
+=== exc_c
+r0             0x88e715be          -1998121538
+r1             0xdeadbeef          -559038737
+r2             0x338               824
+r3             0x88e715be          -1998121538
+r4             0x0                 0
+r5             0x1037              4151
+r6             0x0                 0
+r7             0x0                 0
+r8             0x0                 0
+r9             0x0                 0
+r10            0x0                 0
+r11            0x0                 0
+r12            0xc8                200
+sp             0x2000ffb0          0x2000ffb0
+lr             0xfffffff9          -7
+pc             0x214               0x214 <SVC_Handler>
+xpsr           0x6100000b          1627389963
+msp            0x2000ffb0          536936368
+psp            0x0                 0
+control        0x0                 0
+#0  SVC_Handler () at state.c:105
+#1  <signal handler called>
+#2  work (round=0) at state.c:145
+#3  0x000002d6 in main () at state.c:157
+No arguments.
+No locals.
+=== /
+$3 = 0

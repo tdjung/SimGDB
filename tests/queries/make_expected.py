@@ -37,6 +37,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parent
 FIRMWARE = ROOT.parent / "firmware"
 sys.path.insert(0, str(FIRMWARE / "qemu"))
+import make_traces  # noqa: E402
 from make_traces import read_canonical, word, REGS  # noqa: E402
 
 
@@ -100,6 +101,8 @@ class Run:
     def __init__(self, core):
         self.core = core
         self.elf = FIRMWARE / "state_{}.elf".format(core)
+        # Data byte order of the run (word(), byte_order()): the ELF header.
+        make_traces.BIG_ENDIAN = self.elf.read_bytes()[5] == 2
         with gzip.open(FIRMWARE / "traces" / "state_{}.canonical.log.gz".format(core), "rt") as f:
             tmp = Path(tempfile.mkdtemp()) / "c.log"
             tmp.write_text(f.read())
@@ -119,6 +122,10 @@ class Run:
         ipsr = [insn.before["xpsr"] & 0x1FF for insn in self.insns]
         for j in range(1, self.n):
             prev = self.insns[j - 1]
+            if prev.exc and stack and self.exception_return(prev):
+                # The handler returned and the next exception was taken
+                # straight away (tail-chaining): the first one returned here.
+                stack.pop()["return"] = j
             if prev.exc:
                 e = {"entry": j, "number": ipsr[j], "return": None,
                      "interrupted_pc": word(prev.exc["frame"], 6), "inferred": False}
@@ -136,6 +143,17 @@ class Run:
                 out.append(e)
                 stack.append(e)
         return out
+
+    def exception_return(self, insn):
+        """The instruction branched to an EXC_RETURN value (0xFxxxxxxx):
+        `bx lr`, or `pop`/`ldm` loading pc."""
+        mnem = self.mnem.get(insn.pc, "")
+        if mnem == "bx":
+            return insn.before["lr"] >> 28 == 0xF
+        if mnem.startswith(("pop", "ldm")):
+            loads = [v for rw, _, size, v in insn.mem if rw == "R" and size == 4]
+            return bool(loads) and loads[-1] >> 28 == 0xF
+        return False
 
     def calls(self):
         """Executed bl/blx: callee, entry point, return point."""
@@ -159,6 +177,12 @@ class Run:
                 if self.insns[j].pc == ret and self.insns[j].before["sp"] == sp:
                     back = j
                     break
+                # An exception taken right as the callee returned: the
+                # stacked return address is the call's, on the call's stack.
+                prev = self.insns[j - 1]
+                if prev.exc and word(prev.exc["frame"], 6) == ret and pre_entry_sp(prev.exc) == sp:
+                    back = j
+                    break
             if back is None:
                 # The callee switched stacks (use_process_stack): first return
                 # to the address with the other stack selected.
@@ -176,9 +200,15 @@ class Run:
         yield 0, mem
         for i, insn in enumerate(self.insns):
             for rw, addr, size, value in insn.mem:
-                for k in range(size):
-                    mem[addr + k] = (value >> (8 * k)) & 0xFF
+                for k, byte in enumerate(value.to_bytes(size, make_traces.order(addr))):
+                    mem[addr + k] = byte
             yield i + 1, mem
+
+
+def pre_entry_sp(exc):
+    """Stack pointer before an exception entry: above the 32-byte frame and
+    its alignment pad (stacked xPSR bit 9)."""
+    return exc["frame_addr"] + 32 + (4 if word(exc["frame"], 7) & (1 << 9) else 0)
 
 
 def line_key(file, line):
@@ -189,7 +219,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--converter", type=Path, required=True)
     args = ap.parse_args()
-    for core in ("m4", "m35p"):
+    for core in ("m4", "m35p", "m4be"):
         run = Run(core)
         insns = run.insns
         counts = converter_counts(args.converter, core)
@@ -246,7 +276,7 @@ def main():
                 hit = None
                 for (i, a, size, value) in writes:
                     if i < point and a <= addr < a + size:
-                        hit = (i, (value >> (8 * (addr - a))) & 0xFF)
+                        hit = (i, value.to_bytes(size, make_traces.order(a))[addr - a])
                 last_write.append({"addr": addr, "point": point,
                                    "written_by": hit[0] if hit else None, "byte": hit[1] if hit else None})
         writes_to = []
@@ -280,7 +310,7 @@ def main():
             addr = run.objects[name][0] + off
             if any(addr + k not in mem for k in range(size)):
                 return None
-            v = sum(mem[addr + k] << (8 * k) for k in range(size))
+            v = int.from_bytes(bytes(mem[addr + k] for k in range(size)), make_traces.order(addr))
             if signed and v >= 1 << (8 * size - 1):
                 v -= 1 << (8 * size)
             return v

@@ -41,6 +41,15 @@ python3 selftest/tests/gdb/ide_session.py --simgdb bin/simgdb --gdb arm-none-eab
 
 기대 결과: `m4 m4rtl ide session: ok (16 checks)`. 실패하면 마지막 출력(`AssertionError` 줄)을 전달해 주세요.
 
+**big-endian(BE8) 펌웨어**라면 같은 점검을 big-endian 시험 펌웨어(`m4be`)로도 합니다.
+
+```bash
+python3 selftest/tests/gdb/gdb_tests.py check --core m4be --dialect m4rtl --simgdb bin/simgdb --gdb arm-none-eabi-gdb
+python3 selftest/tests/gdb/ide_session.py --simgdb bin/simgdb --gdb arm-none-eabi-gdb --core m4be --dialect m4rtl
+```
+
+기대 결과: 위와 같이 모두 `ok`.
+
 ## 3. 실제 trace 인덱싱과 진단 보고서
 
 ```bash
@@ -51,6 +60,8 @@ du -sh real.idx
 기대 결과:
 
 - 화면에 `indexed N instructions from M lines in T s`. N이 실제 명령어 수와 맞는지 확인해 주세요.
+- big-endian(BE8) ELF면 이어서 `data byte order: big (from elf)`가 나옵니다(`report.json`의 `endian_source`).
+  ELF가 big-endian인데 이 줄이 없으면 알려 주세요.
 - `report.json`에서 다음을 확인합니다.
   - `parse_errors.count`가 0입니다. 0이 아니면 `samples`에 해석하지 못한 줄이 있습니다.
   - `unrecognised`가 비어 있습니다. 비어 있지 않으면 거기 나온 레코드 종류를 아직 모르는 것입니다.
@@ -113,6 +124,8 @@ set var <전역변수> = 1
 
 기대 결과:
 
+- `simgdb serve` 터미널의 `gdb connected …, pc 0x…`와 gdb가 처음 보여 주는 PC가 같습니다(big-endian 펌웨어에서
+  바이트가 뒤집힌 PC가 보이면 byte 순서 문제입니다. `simgdb info real.idx`의 `endian`과 함께 알려 주세요).
 - `simgdb-info`가 trace 정보와 limitation 목록을 출력합니다.
 - `continue`가 `Breakpoint 1, main () …`에서 멈춥니다.
 - `bt`와 `info registers`가 나옵니다. trace가 아직 쓰지 않은 레지스터는 `<unavailable>`입니다.
@@ -143,6 +156,8 @@ bin/simgdb query real.idx locate --at I
 `USAGE.md` §2의 launch.json(cortex-debug 또는 cppdbg)으로 `bin/simgdb serve real.idx`에 붙습니다.
 
 기대 결과: 처음 시점에서 멈춰 있고, breakpoint, 계속, step over/into/out, call stack, 변수, 레지스터 보기가 됩니다.
+`set endian`은 필요 없습니다(전에 임시로 넣었다면 지웁니다). "Failed to find thread 1 for break event"가 나오면 PSP를 쓰는
+펌웨어의 PSP를 아직 쓰기 전 구간입니다. `serve`에 `--no-psp-unwind`를 붙여 다시 해 보세요(USAGE §2).
 디버그 콘솔에서 `reverse-next`(cppdbg는 `-exec reverse-next`)로 한 줄 거꾸로 갑니다. 안 되는 동작이 있으면 확장 이름·버전과
 디버그 콘솔 출력을 알려 주세요.
 

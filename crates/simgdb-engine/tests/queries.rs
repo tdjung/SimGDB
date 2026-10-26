@@ -10,7 +10,8 @@ use serde_json::Value as Json;
 use simgdb_engine::{Engine, Target};
 use simgdb_store::{IndexOptions, build};
 
-const CORES: [&str; 2] = ["m4", "m35p"];
+/// m4be: the m4 firmware built big-endian (BE8).
+const CORES: [&str; 3] = ["m4", "m35p", "m4be"];
 const DIALECTS: [&str; 3] = ["fm", "m4rtl", "es"];
 
 fn root() -> PathBuf {
@@ -157,7 +158,10 @@ fn last_writes_match_the_run() {
                     let rec = &got.writes[k];
                     assert_eq!(rec.written_by, by, "{ctx}");
                     assert_eq!(rec.visible_from, by + 1, "{ctx}");
-                    let byte = (rec.value.unwrap() >> (8 * (addr - rec.addr))) & 0xff;
+                    // The write's value is a number in the data byte order.
+                    let k = (addr - rec.addr) as usize;
+                    let shift = e.endian().shift(k, rec.size as usize);
+                    let byte = (rec.value.unwrap() >> shift) & 0xff;
                     assert_eq!(byte, w["byte"].as_u64().unwrap(), "{ctx}");
                 }
                 (g, w) => panic!("{ctx}: {g:?} vs {w:?}"),
@@ -168,14 +172,21 @@ fn last_writes_match_the_run() {
             // The oracle's range is the writing instructions from..to (exclusive).
             let r = simgdb_engine::Range { from: r.from, to: r.to - 1 };
             let got = e.writes_to(w["addr"].as_u64().unwrap(), w["len"].as_u64().unwrap(), r, 100_000, 0).unwrap();
-            let got: Vec<(u64, u64, u32, u64)> =
-                got.writes.items.iter().map(|x| (x.written_by, x.addr, x.size, x.value.unwrap())).collect();
-            let want: Vec<(u64, u64, u32, u64)> = w["writes"]
+            // Compared byte by byte: a trace may show one access as two
+            // records (an `ST` diagram ends at a 16-byte line).
+            let bytes = |by: u64, addr: u64, size: u32, value: u64| -> Vec<(u64, u64, u8)> {
+                (0..size as usize)
+                    .map(|k| (by, addr + k as u64, (value >> e.endian().shift(k, size as usize)) as u8))
+                    .collect()
+            };
+            let mut got: Vec<(u64, u64, u8)> =
+                got.writes.items.iter().flat_map(|x| bytes(x.written_by, x.addr, x.size, x.value.unwrap())).collect();
+            let mut want: Vec<(u64, u64, u8)> = w["writes"]
                 .as_array()
                 .unwrap()
                 .iter()
-                .map(|x| {
-                    (
+                .flat_map(|x| {
+                    bytes(
                         x["index"].as_u64().unwrap(),
                         x["addr"].as_u64().unwrap(),
                         x["size"].as_u64().unwrap() as u32,
@@ -183,6 +194,8 @@ fn last_writes_match_the_run() {
                     )
                 })
                 .collect();
+            got.sort();
+            want.sort();
             assert!(!want.is_empty());
             assert_eq!(got, want, "{core} {dialect} writes_to {}", w["name"]);
         }

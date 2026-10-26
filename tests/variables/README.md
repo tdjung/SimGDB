@@ -17,4 +17,7 @@ DWARF 2/3은 구조체 멤버 위치를 식(`DW_OP_plus_uconst`)으로 적으므
 ```bash
 for v in 2 4 5; do arm-none-eabi-gcc -mcpu=cortex-m4 -mthumb -O1 -gdwarf-$v -ffreestanding -nostdlib -Wl,--build-id=none \
   -Wl,-Ttext=0x1000 -Wl,-Tdata=0x20000000 tests/variables/src/layout.c -o tests/variables/elf/layout_dwarf$v.elf; done
+# big-endian (BE8): DWARF을 big-endian으로 읽는지
+arm-none-eabi-gcc -mcpu=cortex-m4 -mthumb -mbig-endian -O1 -gdwarf-4 -ffreestanding -nostdlib -Wl,--build-id=none \
+  -Wl,-Ttext=0x1000 -Wl,-Tdata=0x20000000 tests/variables/src/layout.c -o tests/variables/elf/layout_dwarf4_be.elf
 ```

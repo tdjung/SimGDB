@@ -12,8 +12,10 @@ use simgdb_elf::variables::variables;
 #[test]
 fn layouts_match_gdb_for_each_dwarf_version() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/variables");
-    for v in [2, 4, 5] {
+    // dwarf4_be: the same source built big-endian (BE8).
+    for v in ["2", "4", "5", "4_be"] {
         let vars = variables(&root.join(format!("elf/layout_dwarf{v}.elf"))).unwrap();
+        assert!(!vars.variables.is_empty(), "DWARF {v}: no variables");
         let text = std::fs::read_to_string(root.join(format!("expected/layout_dwarf{v}.json"))).unwrap();
         let want: serde_json::Map<String, Value> = serde_json::from_str(&text).unwrap();
         for (path, w) in &want {

@@ -10,7 +10,7 @@ pub mod thumb;
 
 pub use thumb::Flow;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// Index into `Isa::registers()`.
 pub type RegId = u16;
@@ -78,6 +78,59 @@ impl RegState {
     }
 }
 
+/// Byte order of data in memory. Instruction fetches follow the ISA (Arm
+/// BE8 and RISC-V code is little-endian either way); this is for data.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Endian {
+    #[default]
+    Little,
+    Big,
+}
+
+impl Endian {
+    pub fn parse(s: &str) -> Option<Endian> {
+        match s.to_ascii_lowercase().as_str() {
+            "little" | "le" => Some(Endian::Little),
+            "big" | "be" | "be8" => Some(Endian::Big),
+            _ => None,
+        }
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Endian::Little => "little",
+            Endian::Big => "big",
+        }
+    }
+
+    /// Byte order of a data access at `addr` on `isa`.
+    pub fn at(self, isa: &dyn Isa, addr: u64) -> Endian {
+        if self == Endian::Big && isa.little_endian_regions().iter().any(|&(lo, hi)| addr >= lo && addr < hi) {
+            Endian::Little
+        } else {
+            self
+        }
+    }
+
+    /// `bytes` (by address, at most 8) as a number.
+    pub fn value(self, bytes: &[u8]) -> u64 {
+        let it = bytes.iter().map(|&b| b as u64);
+        match self {
+            Endian::Little => it.rev().fold(0, |a, b| (a << 8) | b),
+            Endian::Big => it.fold(0, |a, b| (a << 8) | b),
+        }
+    }
+
+    /// Shift of the byte at offset `k` of an `n`-byte number.
+    pub fn shift(self, k: usize, n: usize) -> u32 {
+        8 * match self {
+            Endian::Little => k,
+            Endian::Big => n - 1 - k,
+        } as u32
+    }
+}
+
 pub trait Isa: Send + Sync {
     fn name(&self) -> &'static str;
     fn registers(&self) -> &'static [RegDef];
@@ -117,8 +170,15 @@ pub trait Isa: Send + Sync {
     fn exception_return_slot(&self, after_entry: &RegState) -> Option<(u64, u64)>;
     /// Addresses are below this limit (e.g. 2^32 for a 32-bit ISA).
     fn address_limit(&self) -> u64;
-    /// Byte order of data in memory.
-    fn little_endian(&self) -> bool;
+    /// Data byte order when neither the ELF nor the user says.
+    fn default_endian(&self) -> Endian {
+        Endian::Little
+    }
+    /// Address ranges `[lo, hi)` whose data accesses are little-endian
+    /// whatever the core's data byte order (Arm M-profile: the PPB).
+    fn little_endian_regions(&self) -> &'static [(u64, u64)] {
+        &[]
+    }
     /// Exception being handled in this register state (0: none, thread
     /// mode), if the state shows it.
     fn exception_number(&self, state: &RegState) -> Option<u32>;

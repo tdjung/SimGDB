@@ -1,0 +1,142 @@
+{
+ "banner": {
+  "addr": 536870932,
+  "size": 4,
+  "type": "const char *"
+ },
+ "bytes": {
+  "addr": 536871092,
+  "size": 24,
+  "type": "uint8_t [24]"
+ },
+ "bytes[23]": {
+  "addr": 536871115,
+  "size": 1,
+  "type": "uint8_t"
+ },
+ "head": {
+  "addr": 536870936,
+  "size": 4,
+  "type": "struct record *"
+ },
+ "ops": {
+  "addr": 856,
+  "size": 8,
+  "type": "const op_fn [2]"
+ },
+ "ops[1]": {
+  "addr": 860,
+  "size": 4,
+  "type": "const op_fn"
+ },
+ "pool": {
+  "addr": 536870944,
+  "size": 144,
+  "type": "struct record [6]"
+ },
+ "pool[0].kind": {
+  "addr": 536870944,
+  "size": 1,
+  "type": "uint8_t"
+ },
+ "pool[1].next": {
+  "addr": 536870984,
+  "size": 4,
+  "type": "struct record *"
+ },
+ "pool[2]": {
+  "addr": 536870992,
+  "size": 24,
+  "type": "struct record"
+ },
+ "pool[2].value": {
+  "addr": 536870996,
+  "size": 4,
+  "type": "uint32_t"
+ },
+ "pool[3].len": {
+  "addr": 536871018,
+  "size": 2,
+  "type": "uint16_t"
+ },
+ "pool[5].stamp": {
+  "addr": 536871072,
+  "size": 8,
+  "type": "uint64_t"
+ },
+ "primes": {
+  "addr": 536870916,
+  "size": 16,
+  "type": "uint16_t [8]"
+ },
+ "primes[7]": {
+  "addr": 536870930,
+  "size": 2,
+  "type": "uint16_t"
+ },
+ "psp_stack": {
+  "addr": 536871168,
+  "size": 1024,
+  "type": "uint32_t [256]"
+ },
+ "psp_stack[255]": {
+  "addr": 536872188,
+  "size": 4,
+  "type": "uint32_t"
+ },
+ "result": {
+  "addr": 536872192,
+  "size": 4,
+  "type": "volatile uint32_t"
+ },
+ "ring": {
+  "addr": 536871132,
+  "size": 32,
+  "type": "volatile uint32_t [8]"
+ },
+ "ring[3]": {
+  "addr": 536871144,
+  "size": 4,
+  "type": "volatile uint32_t"
+ },
+ "seed": {
+  "addr": 536870912,
+  "size": 4,
+  "type": "uint32_t"
+ },
+ "svc_calls": {
+  "addr": 536871128,
+  "size": 4,
+  "type": "volatile uint32_t"
+ },
+ "table": {
+  "addr": 824,
+  "size": 32,
+  "type": "const uint32_t [8]"
+ },
+ "table[3]": {
+  "addr": 836,
+  "size": 4,
+  "type": "const uint32_t"
+ },
+ "ticks": {
+  "addr": 536871088,
+  "size": 4,
+  "type": "volatile uint32_t"
+ },
+ "vectors": {
+  "addr": 0,
+  "size": 64,
+  "type": "const void *[16]"
+ },
+ "vectors[15]": {
+  "addr": 60,
+  "size": 4,
+  "type": "const void *"
+ },
+ "wide": {
+  "addr": 536871120,
+  "size": 8,
+  "type": "uint64_t"
+ }
+}

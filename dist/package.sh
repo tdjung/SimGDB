@@ -16,7 +16,8 @@ cp tools/simgdb.gdb "$out/$name/tools/"
 cp tests/firmware/state_*.elf "$out/$name/selftest/tests/firmware/"
 cp tests/firmware/traces/state_*.fm.log.gz tests/firmware/traces/state_*.m4rtl.log.gz \
   tests/firmware/traces/state_*.es.log.gz "$out/$name/selftest/tests/firmware/traces/"
-cp -r tests/gdb/scenarios tests/gdb/expected tests/gdb/gdb_tests.py tests/gdb/ide_session.py tests/gdb/README.md \
+cp -r tests/gdb/scenarios tests/gdb/expected tests/gdb/gdb_tests.py tests/gdb/ide_session.py tests/gdb/stack_scan.py \
+  tests/gdb/README.md \
   "$out/$name/selftest/tests/gdb/"
 cp dist/CHECK.md dist/simgdb.toml.example docs/USAGE.md docs/LIMITATIONS.md "$out/$name/"
 cp tests/ai_eval/mcp_call.py "$out/$name/tools/"

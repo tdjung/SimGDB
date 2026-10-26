@@ -1,0 +1,197 @@
+Reset_Handler () at startup.c:11
+11	    while (dst < &__data_end) *dst++ = *src++;
+Breakpoint 1 at 0xa8: file state.c, line 44.
+
+Breakpoint 1, mix (a=305419896, b=16909060) at state.c:44
+44	    a ^= b + 0x9e3779b9u + (a << 6) + (a >> 2);
+=== rev_1
+r0             0x12345678          305419896
+r1             0x1020304           16909060
+r2             0x20000020          536870944
+r3             0x0                 0
+r4             0x0                 0
+r5             0x33c               828
+r6             0x20000018          536870936
+r7             0x12                18
+r8             0x12345678          305419896
+r9             0x20000006          536870918
+r10            0x6                 6
+r11            0x0                 0
+r12            0x0                 0
+sp             0x2000ffa0          0x2000ffa0
+lr             0x131               305
+pc             0xa8                0xa8 <mix>
+xpsr           0x1000000           16777216
+msp            0x2000ffa0          536936352
+psp            0x0                 0
+control        0x0                 0
+#0  mix (a=305419896, b=16909060) at state.c:44
+#1  0x00000130 in build_list (n=6) at state.c:63
+#2  0x00000292 in work (round=0) at state.c:139
+#3  0x000002d6 in main () at state.c:157
+a = 305419896
+b = 16909060
+No locals.
+=== /
+
+Breakpoint 1, mix (a=305419896, b=287454020) at state.c:44
+44	    a ^= b + 0x9e3779b9u + (a << 6) + (a >> 2);
+=== rev_2
+r0             0x12345678          305419896
+r1             0x11223344          287454020
+r2             0x20000038          536870968
+r3             0x0                 0
+r4             0x20000020          536870944
+r5             0x340               832
+r6             0x20000018          536870936
+r7             0x12                18
+r8             0x12345678          305419896
+r9             0x20000008          536870920
+r10            0x0                 0
+r11            0x3                 3
+r12            0x0                 0
+sp             0x2000ffa0          0x2000ffa0
+lr             0x131               305
+pc             0xa8                0xa8 <mix>
+xpsr           0x1000000           16777216
+msp            0x2000ffa0          536936352
+psp            0x0                 0
+control        0x0                 0
+#0  mix (a=305419896, b=287454020) at state.c:44
+#1  0x00000130 in build_list (n=6) at state.c:63
+#2  0x00000292 in work (round=0) at state.c:139
+#3  0x000002d6 in main () at state.c:157
+a = 305419896
+b = 287454020
+No locals.
+=== /
+
+Breakpoint 1, mix (a=1, b=305419896) at state.c:44
+44	    a ^= b + 0x9e3779b9u + (a << 6) + (a >> 2);
+=== rev_3
+r0             0x1                 1
+r1             0x12345678          305419896
+r2             0x1                 1
+r3             0x20000000          536870912
+r4             0x20000018          536870936
+r5             0x340               832
+r6             0x20000018          536870936
+r7             0x12                18
+r8             0x12345678          305419896
+r9             0x2000000a          536870922
+r10            0x20000020          536870944
+r11            0x6                 6
+r12            0x0                 0
+sp             0x2000ff78          0x2000ff78
+lr             0x25b               603
+pc             0xa8                0xa8 <mix>
+xpsr           0x100000f           16777231
+msp            0x2000ff78          536936312
+psp            0x0                 0
+control        0x0                 0
+#0  mix (a=1, b=305419896) at state.c:44
+#1  0x0000025a in SysTick_Handler () at state.c:112
+#2  <signal handler called>
+#3  0x0000011e in build_list (n=6) at state.c:62
+#4  0x00000292 in work (round=0) at state.c:139
+#5  0x000002d6 in main () at state.c:157
+a = 1
+b = 305419896
+No locals.
+=== /
+0x000000aa	44	    a ^= b + 0x9e3779b9u + (a << 6) + (a >> 2);
+=== rev_s1
+r0             0x1                 1
+r1             0x12345678          305419896
+r2             0x1                 1
+r3             0x9e3779b9          -1640531527
+r4             0x20000018          536870936
+r5             0x340               832
+r6             0x20000018          536870936
+r7             0x12                18
+r8             0x12345678          305419896
+r9             0x2000000a          536870922
+r10            0x20000020          536870944
+r11            0x6                 6
+r12            0x0                 0
+sp             0x2000ff78          0x2000ff78
+lr             0x25b               603
+pc             0xaa                0xaa <mix+2>
+xpsr           0x100000f           16777231
+msp            0x2000ff78          536936312
+psp            0x0                 0
+control        0x0                 0
+#0  0x000000aa in mix (a=1, b=305419896) at state.c:44
+#1  0x0000025a in SysTick_Handler () at state.c:112
+#2  <signal handler called>
+#3  0x0000011e in build_list (n=6) at state.c:62
+#4  0x00000292 in work (round=0) at state.c:139
+#5  0x000002d6 in main () at state.c:157
+a = 1
+b = 305419896
+No locals.
+=== /
+0x000000ac	44	    a ^= b + 0x9e3779b9u + (a << 6) + (a >> 2);
+=== rev_s2
+r0             0x1                 1
+r1             0x12345678          305419896
+r2             0x1                 1
+r3             0xb06bd031          -1335111631
+r4             0x20000018          536870936
+r5             0x340               832
+r6             0x20000018          536870936
+r7             0x12                18
+r8             0x12345678          305419896
+r9             0x2000000a          536870922
+r10            0x20000020          536870944
+r11            0x6                 6
+r12            0x0                 0
+sp             0x2000ff78          0x2000ff78
+lr             0x25b               603
+pc             0xac                0xac <mix+4>
+xpsr           0x100000f           16777231
+msp            0x2000ff78          536936312
+psp            0x0                 0
+control        0x0                 0
+#0  0x000000ac in mix (a=1, b=305419896) at state.c:44
+#1  0x0000025a in SysTick_Handler () at state.c:112
+#2  <signal handler called>
+#3  0x0000011e in build_list (n=6) at state.c:62
+#4  0x00000292 in work (round=0) at state.c:139
+#5  0x000002d6 in main () at state.c:157
+a = 1
+b = 305419896
+No locals.
+=== /
+0x000000b0	44	    a ^= b + 0x9e3779b9u + (a << 6) + (a >> 2);
+=== rev_s3
+r0             0x1                 1
+r1             0x12345678          305419896
+r2             0x1                 1
+r3             0xb06bd071          -1335111567
+r4             0x20000018          536870936
+r5             0x340               832
+r6             0x20000018          536870936
+r7             0x12                18
+r8             0x12345678          305419896
+r9             0x2000000a          536870922
+r10            0x20000020          536870944
+r11            0x6                 6
+r12            0x0                 0
+sp             0x2000ff78          0x2000ff78
+lr             0x25b               603
+pc             0xb0                0xb0 <mix+8>
+xpsr           0x100000f           16777231
+msp            0x2000ff78          536936312
+psp            0x0                 0
+control        0x0                 0
+#0  0x000000b0 in mix (a=1, b=305419896) at state.c:44
+#1  0x0000025a in SysTick_Handler () at state.c:112
+#2  <signal handler called>
+#3  0x0000011e in build_list (n=6) at state.c:62
+#4  0x00000292 in work (round=0) at state.c:139
+#5  0x000002d6 in main () at state.c:157
+a = 1
+b = 305419896
+No locals.
+=== /

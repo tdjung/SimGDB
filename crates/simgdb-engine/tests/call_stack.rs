@@ -42,7 +42,8 @@ fn line_rows(elf: &std::path::Path) -> BTreeMap<u64, BTreeSet<u64>> {
         Ok(file.section_by_name(id.name()).map(|s| s.uncompressed_data().unwrap()).unwrap_or_default())
     };
     let sections = gimli::DwarfSections::load(load).unwrap();
-    let dwarf = sections.borrow(|s| gimli::EndianSlice::new(s, gimli::LittleEndian));
+    let endian = if file.is_little_endian() { gimli::RunTimeEndian::Little } else { gimli::RunTimeEndian::Big };
+    let dwarf = sections.borrow(|s| gimli::EndianSlice::new(s, endian));
     let mut out: BTreeMap<u64, BTreeSet<u64>> = BTreeMap::new();
     let mut units = dwarf.units();
     while let Some(header) = units.next().unwrap() {
@@ -164,7 +165,7 @@ fn check(core: &str, dialect: &str) -> (usize, usize) {
 
 #[test]
 fn call_stacks_match_gdb() {
-    for core in ["m4", "m35p"] {
+    for core in ["m4", "m35p", "m4be"] {
         for dialect in ["fm", "m4rtl", "es"] {
             let (points, deepest) = check(core, dialect);
             eprintln!("{core} {dialect}: {points} points, deepest {deepest} frames");

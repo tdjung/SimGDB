@@ -1,0 +1,6207 @@
+{
+ "call_list": [
+  {
+   "call": 990,
+   "call_pc": 134,
+   "callee": "main",
+   "caller": "Reset_Handler",
+   "entry": 991,
+   "return": null
+  },
+  {
+   "call": 1003,
+   "call_pc": 722,
+   "callee": "work",
+   "caller": "main",
+   "entry": 1004,
+   "return": 1678
+  },
+  {
+   "call": 1007,
+   "call_pc": 654,
+   "callee": "build_list",
+   "caller": "work",
+   "entry": 1008,
+   "return": 1225
+  },
+  {
+   "call": 1033,
+   "call_pc": 300,
+   "callee": "mix",
+   "caller": "build_list",
+   "entry": 1034,
+   "return": 1040
+  },
+  {
+   "call": 1059,
+   "call_pc": 300,
+   "callee": "mix",
+   "caller": "build_list",
+   "entry": 1060,
+   "return": 1066
+  },
+  {
+   "call": 1088,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 1089,
+   "return": 1095
+  },
+  {
+   "call": 1103,
+   "call_pc": 300,
+   "callee": "mix",
+   "caller": "build_list",
+   "entry": 1104,
+   "return": 1110
+  },
+  {
+   "call": 1129,
+   "call_pc": 300,
+   "callee": "mix",
+   "caller": "build_list",
+   "entry": 1130,
+   "return": 1136
+  },
+  {
+   "call": 1155,
+   "call_pc": 300,
+   "callee": "mix",
+   "caller": "build_list",
+   "entry": 1156,
+   "return": 1180
+  },
+  {
+   "call": 1165,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 1166,
+   "return": 1172
+  },
+  {
+   "call": 1199,
+   "call_pc": 300,
+   "callee": "mix",
+   "caller": "build_list",
+   "entry": 1200,
+   "return": 1206
+  },
+  {
+   "call": 1225,
+   "call_pc": 658,
+   "callee": "walk_list",
+   "caller": "work",
+   "entry": 1226,
+   "return": 1303
+  },
+  {
+   "call": 1243,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 1244,
+   "return": 1250
+  },
+  {
+   "call": 1305,
+   "call_pc": 666,
+   "callee": "fill_bytes",
+   "caller": "work",
+   "entry": 1306,
+   "return": 1489
+  },
+  {
+   "call": 1320,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 1321,
+   "return": 1327
+  },
+  {
+   "call": 1398,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 1399,
+   "return": 1405
+  },
+  {
+   "call": 1475,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 1476,
+   "return": 1482
+  },
+  {
+   "call": 1492,
+   "call_pc": 676,
+   "callee": "depth",
+   "caller": "work",
+   "entry": 1493,
+   "return": 1584
+  },
+  {
+   "call": 1499,
+   "call_pc": 200,
+   "callee": "mix",
+   "caller": "depth",
+   "entry": 1500,
+   "return": 1506
+  },
+  {
+   "call": 1512,
+   "call_pc": 200,
+   "callee": "mix",
+   "caller": "depth",
+   "entry": 1513,
+   "return": 1519
+  },
+  {
+   "call": 1525,
+   "call_pc": 200,
+   "callee": "mix",
+   "caller": "depth",
+   "entry": 1526,
+   "return": 1532
+  },
+  {
+   "call": 1538,
+   "call_pc": 200,
+   "callee": "mix",
+   "caller": "depth",
+   "entry": 1539,
+   "return": 1545
+  },
+  {
+   "call": 1553,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 1554,
+   "return": 1560
+  },
+  {
+   "call": 1569,
+   "call_pc": 200,
+   "callee": "mix",
+   "caller": "depth",
+   "entry": 1570,
+   "return": 1576
+  },
+  {
+   "call": 1586,
+   "call_pc": 684,
+   "callee": "apply_ops",
+   "caller": "work",
+   "entry": 1587,
+   "return": 1665
+  },
+  {
+   "call": 1595,
+   "call_pc": 496,
+   "callee": "op_add",
+   "caller": "apply_ops",
+   "entry": 1596,
+   "return": 1598
+  },
+  {
+   "call": 1609,
+   "call_pc": 496,
+   "callee": "op_xor",
+   "caller": "apply_ops",
+   "entry": 1610,
+   "return": 1612
+  },
+  {
+   "call": 1630,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 1631,
+   "return": 1637
+  },
+  {
+   "call": 1641,
+   "call_pc": 496,
+   "callee": "op_add",
+   "caller": "apply_ops",
+   "entry": 1642,
+   "return": 1644
+  },
+  {
+   "call": 1655,
+   "call_pc": 496,
+   "callee": "op_xor",
+   "caller": "apply_ops",
+   "entry": 1656,
+   "return": 1658
+  },
+  {
+   "call": 1680,
+   "call_pc": 730,
+   "callee": "mix",
+   "caller": "main",
+   "entry": 1681,
+   "return": 1687
+  },
+  {
+   "call": 1692,
+   "call_pc": 722,
+   "callee": "work",
+   "caller": "main",
+   "entry": 1693,
+   "return": 2416
+  },
+  {
+   "call": 1696,
+   "call_pc": 654,
+   "callee": "build_list",
+   "caller": "work",
+   "entry": 1697,
+   "return": 1932
+  },
+  {
+   "call": 1708,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 1709,
+   "return": 1715
+  },
+  {
+   "call": 1740,
+   "call_pc": 300,
+   "callee": "mix",
+   "caller": "build_list",
+   "entry": 1741,
+   "return": 1747
+  },
+  {
+   "call": 1766,
+   "call_pc": 300,
+   "callee": "mix",
+   "caller": "build_list",
+   "entry": 1767,
+   "return": 1773
+  },
+  {
+   "call": 1785,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 1786,
+   "return": 1792
+  },
+  {
+   "call": 1810,
+   "call_pc": 300,
+   "callee": "mix",
+   "caller": "build_list",
+   "entry": 1811,
+   "return": 1817
+  },
+  {
+   "call": 1836,
+   "call_pc": 300,
+   "callee": "mix",
+   "caller": "build_list",
+   "entry": 1837,
+   "return": 1843
+  },
+  {
+   "call": 1863,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 1864,
+   "return": 1870
+  },
+  {
+   "call": 1880,
+   "call_pc": 300,
+   "callee": "mix",
+   "caller": "build_list",
+   "entry": 1881,
+   "return": 1887
+  },
+  {
+   "call": 1906,
+   "call_pc": 300,
+   "callee": "mix",
+   "caller": "build_list",
+   "entry": 1907,
+   "return": 1913
+  },
+  {
+   "call": 1940,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 1941,
+   "return": 1947
+  },
+  {
+   "call": 1950,
+   "call_pc": 658,
+   "callee": "walk_list",
+   "caller": "work",
+   "entry": 1951,
+   "return": 2010
+  },
+  {
+   "call": 2018,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 2019,
+   "return": 2025
+  },
+  {
+   "call": 2030,
+   "call_pc": 666,
+   "callee": "fill_bytes",
+   "caller": "work",
+   "entry": 2031,
+   "return": 2196
+  },
+  {
+   "call": 2095,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 2096,
+   "return": 2102
+  },
+  {
+   "call": 2173,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 2174,
+   "return": 2180
+  },
+  {
+   "call": 2199,
+   "call_pc": 676,
+   "callee": "depth",
+   "caller": "work",
+   "entry": 2200,
+   "return": 2304
+  },
+  {
+   "call": 2206,
+   "call_pc": 200,
+   "callee": "mix",
+   "caller": "depth",
+   "entry": 2207,
+   "return": 2213
+  },
+  {
+   "call": 2219,
+   "call_pc": 200,
+   "callee": "mix",
+   "caller": "depth",
+   "entry": 2220,
+   "return": 2226
+  },
+  {
+   "call": 2232,
+   "call_pc": 200,
+   "callee": "mix",
+   "caller": "depth",
+   "entry": 2233,
+   "return": 2239
+  },
+  {
+   "call": 2250,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 2251,
+   "return": 2257
+  },
+  {
+   "call": 2263,
+   "call_pc": 200,
+   "callee": "mix",
+   "caller": "depth",
+   "entry": 2264,
+   "return": 2270
+  },
+  {
+   "call": 2276,
+   "call_pc": 200,
+   "callee": "mix",
+   "caller": "depth",
+   "entry": 2277,
+   "return": 2283
+  },
+  {
+   "call": 2289,
+   "call_pc": 200,
+   "callee": "mix",
+   "caller": "depth",
+   "entry": 2290,
+   "return": 2296
+  },
+  {
+   "call": 2306,
+   "call_pc": 684,
+   "callee": "apply_ops",
+   "caller": "work",
+   "entry": 2307,
+   "return": 2385
+  },
+  {
+   "call": 2315,
+   "call_pc": 496,
+   "callee": "op_add",
+   "caller": "apply_ops",
+   "entry": 2316,
+   "return": 2318
+  },
+  {
+   "call": 2328,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 2329,
+   "return": 2335
+  },
+  {
+   "call": 2347,
+   "call_pc": 496,
+   "callee": "op_xor",
+   "caller": "apply_ops",
+   "entry": 2348,
+   "return": 2350
+  },
+  {
+   "call": 2361,
+   "call_pc": 496,
+   "callee": "op_add",
+   "caller": "apply_ops",
+   "entry": 2362,
+   "return": 2364
+  },
+  {
+   "call": 2375,
+   "call_pc": 496,
+   "callee": "op_xor",
+   "caller": "apply_ops",
+   "entry": 2376,
+   "return": 2378
+  },
+  {
+   "call": 2405,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 2406,
+   "return": 2412
+  },
+  {
+   "call": 2418,
+   "call_pc": 730,
+   "callee": "mix",
+   "caller": "main",
+   "entry": 2419,
+   "return": 2425
+  },
+  {
+   "call": 2430,
+   "call_pc": 722,
+   "callee": "work",
+   "caller": "main",
+   "entry": 2431,
+   "return": 3149
+  },
+  {
+   "call": 2434,
+   "call_pc": 654,
+   "callee": "build_list",
+   "caller": "work",
+   "entry": 2435,
+   "return": 2670
+  },
+  {
+   "call": 2460,
+   "call_pc": 300,
+   "callee": "mix",
+   "caller": "build_list",
+   "entry": 2461,
+   "return": 2467
+  },
+  {
+   "call": 2483,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 2484,
+   "return": 2490
+  },
+  {
+   "call": 2504,
+   "call_pc": 300,
+   "callee": "mix",
+   "caller": "build_list",
+   "entry": 2505,
+   "return": 2511
+  },
+  {
+   "call": 2530,
+   "call_pc": 300,
+   "callee": "mix",
+   "caller": "build_list",
+   "entry": 2531,
+   "return": 2537
+  },
+  {
+   "call": 2560,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 2561,
+   "return": 2567
+  },
+  {
+   "call": 2574,
+   "call_pc": 300,
+   "callee": "mix",
+   "caller": "build_list",
+   "entry": 2575,
+   "return": 2581
+  },
+  {
+   "call": 2600,
+   "call_pc": 300,
+   "callee": "mix",
+   "caller": "build_list",
+   "entry": 2601,
+   "return": 2607
+  },
+  {
+   "call": 2626,
+   "call_pc": 300,
+   "callee": "mix",
+   "caller": "build_list",
+   "entry": 2627,
+   "return": 2651
+  },
+  {
+   "call": 2638,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 2639,
+   "return": 2645
+  },
+  {
+   "call": 2670,
+   "call_pc": 658,
+   "callee": "walk_list",
+   "caller": "work",
+   "entry": 2671,
+   "return": 2748
+  },
+  {
+   "call": 2715,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 2716,
+   "return": 2722
+  },
+  {
+   "call": 2750,
+   "call_pc": 666,
+   "callee": "fill_bytes",
+   "caller": "work",
+   "entry": 2751,
+   "return": 2916
+  },
+  {
+   "call": 2793,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 2794,
+   "return": 2800
+  },
+  {
+   "call": 2870,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 2871,
+   "return": 2877
+  },
+  {
+   "call": 2919,
+   "call_pc": 676,
+   "callee": "depth",
+   "caller": "work",
+   "entry": 2920,
+   "return": 3055
+  },
+  {
+   "call": 2926,
+   "call_pc": 200,
+   "callee": "mix",
+   "caller": "depth",
+   "entry": 2927,
+   "return": 2933
+  },
+  {
+   "call": 2939,
+   "call_pc": 200,
+   "callee": "mix",
+   "caller": "depth",
+   "entry": 2940,
+   "return": 2964
+  },
+  {
+   "call": 2948,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 2949,
+   "return": 2955
+  },
+  {
+   "call": 2970,
+   "call_pc": 200,
+   "callee": "mix",
+   "caller": "depth",
+   "entry": 2971,
+   "return": 2977
+  },
+  {
+   "call": 2983,
+   "call_pc": 200,
+   "callee": "mix",
+   "caller": "depth",
+   "entry": 2984,
+   "return": 2990
+  },
+  {
+   "call": 2996,
+   "call_pc": 200,
+   "callee": "mix",
+   "caller": "depth",
+   "entry": 2997,
+   "return": 3003
+  },
+  {
+   "call": 3009,
+   "call_pc": 200,
+   "callee": "mix",
+   "caller": "depth",
+   "entry": 3010,
+   "return": 3016
+  },
+  {
+   "call": 3025,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 3026,
+   "return": 3032
+  },
+  {
+   "call": 3040,
+   "call_pc": 200,
+   "callee": "mix",
+   "caller": "depth",
+   "entry": 3041,
+   "return": 3047
+  },
+  {
+   "call": 3057,
+   "call_pc": 684,
+   "callee": "apply_ops",
+   "caller": "work",
+   "entry": 3058,
+   "return": 3136
+  },
+  {
+   "call": 3066,
+   "call_pc": 496,
+   "callee": "op_add",
+   "caller": "apply_ops",
+   "entry": 3067,
+   "return": 3069
+  },
+  {
+   "call": 3080,
+   "call_pc": 496,
+   "callee": "op_xor",
+   "caller": "apply_ops",
+   "entry": 3081,
+   "return": 3083
+  },
+  {
+   "call": 3094,
+   "call_pc": 496,
+   "callee": "op_add",
+   "caller": "apply_ops",
+   "entry": 3095,
+   "return": 3115
+  },
+  {
+   "call": 3103,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 3104,
+   "return": 3110
+  },
+  {
+   "call": 3126,
+   "call_pc": 496,
+   "callee": "op_xor",
+   "caller": "apply_ops",
+   "entry": 3127,
+   "return": 3129
+  },
+  {
+   "call": 3151,
+   "call_pc": 730,
+   "callee": "mix",
+   "caller": "main",
+   "entry": 3152,
+   "return": 3158
+  },
+  {
+   "call": 3162,
+   "call_pc": 742,
+   "callee": "use_process_stack",
+   "caller": "main",
+   "entry": 3163,
+   "return": 3170
+  },
+  {
+   "call": 3171,
+   "call_pc": 748,
+   "callee": "work",
+   "caller": "main",
+   "entry": 3172,
+   "return": 3921
+  },
+  {
+   "call": 3180,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 3181,
+   "return": 3187
+  },
+  {
+   "call": 3193,
+   "call_pc": 654,
+   "callee": "build_list",
+   "caller": "work",
+   "entry": 3194,
+   "return": 3429
+  },
+  {
+   "call": 3219,
+   "call_pc": 300,
+   "callee": "mix",
+   "caller": "build_list",
+   "entry": 3220,
+   "return": 3226
+  },
+  {
+   "call": 3245,
+   "call_pc": 300,
+   "callee": "mix",
+   "caller": "build_list",
+   "entry": 3246,
+   "return": 3270
+  },
+  {
+   "call": 3258,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 3259,
+   "return": 3265
+  },
+  {
+   "call": 3289,
+   "call_pc": 300,
+   "callee": "mix",
+   "caller": "build_list",
+   "entry": 3290,
+   "return": 3296
+  },
+  {
+   "call": 3315,
+   "call_pc": 300,
+   "callee": "mix",
+   "caller": "build_list",
+   "entry": 3316,
+   "return": 3322
+  },
+  {
+   "call": 3335,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 3336,
+   "return": 3342
+  },
+  {
+   "call": 3359,
+   "call_pc": 300,
+   "callee": "mix",
+   "caller": "build_list",
+   "entry": 3360,
+   "return": 3366
+  },
+  {
+   "call": 3385,
+   "call_pc": 300,
+   "callee": "mix",
+   "caller": "build_list",
+   "entry": 3386,
+   "return": 3392
+  },
+  {
+   "call": 3413,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 3414,
+   "return": 3420
+  },
+  {
+   "call": 3429,
+   "call_pc": 658,
+   "callee": "walk_list",
+   "caller": "work",
+   "entry": 3430,
+   "return": 3507
+  },
+  {
+   "call": 3490,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 3491,
+   "return": 3497
+  },
+  {
+   "call": 3509,
+   "call_pc": 666,
+   "callee": "fill_bytes",
+   "caller": "work",
+   "entry": 3510,
+   "return": 3675
+  },
+  {
+   "call": 3568,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 3569,
+   "return": 3575
+  },
+  {
+   "call": 3645,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 3646,
+   "return": 3652
+  },
+  {
+   "call": 3678,
+   "call_pc": 676,
+   "callee": "depth",
+   "caller": "work",
+   "entry": 3679,
+   "return": 3827
+  },
+  {
+   "call": 3685,
+   "call_pc": 200,
+   "callee": "mix",
+   "caller": "depth",
+   "entry": 3686,
+   "return": 3692
+  },
+  {
+   "call": 3698,
+   "call_pc": 200,
+   "callee": "mix",
+   "caller": "depth",
+   "entry": 3699,
+   "return": 3705
+  },
+  {
+   "call": 3711,
+   "call_pc": 200,
+   "callee": "mix",
+   "caller": "depth",
+   "entry": 3712,
+   "return": 3736
+  },
+  {
+   "call": 3723,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 3724,
+   "return": 3730
+  },
+  {
+   "call": 3742,
+   "call_pc": 200,
+   "callee": "mix",
+   "caller": "depth",
+   "entry": 3743,
+   "return": 3749
+  },
+  {
+   "call": 3755,
+   "call_pc": 200,
+   "callee": "mix",
+   "caller": "depth",
+   "entry": 3756,
+   "return": 3762
+  },
+  {
+   "call": 3768,
+   "call_pc": 200,
+   "callee": "mix",
+   "caller": "depth",
+   "entry": 3769,
+   "return": 3775
+  },
+  {
+   "call": 3781,
+   "call_pc": 200,
+   "callee": "mix",
+   "caller": "depth",
+   "entry": 3782,
+   "return": 3788
+  },
+  {
+   "call": 3800,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 3801,
+   "return": 3807
+  },
+  {
+   "call": 3812,
+   "call_pc": 200,
+   "callee": "mix",
+   "caller": "depth",
+   "entry": 3813,
+   "return": 3819
+  },
+  {
+   "call": 3829,
+   "call_pc": 684,
+   "callee": "apply_ops",
+   "caller": "work",
+   "entry": 3830,
+   "return": 3908
+  },
+  {
+   "call": 3838,
+   "call_pc": 496,
+   "callee": "op_add",
+   "caller": "apply_ops",
+   "entry": 3839,
+   "return": 3841
+  },
+  {
+   "call": 3852,
+   "call_pc": 496,
+   "callee": "op_xor",
+   "caller": "apply_ops",
+   "entry": 3853,
+   "return": 3855
+  },
+  {
+   "call": 3866,
+   "call_pc": 496,
+   "callee": "op_add",
+   "caller": "apply_ops",
+   "entry": 3867,
+   "return": 3869
+  },
+  {
+   "call": 3878,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 3879,
+   "return": 3885
+  },
+  {
+   "call": 3898,
+   "call_pc": 496,
+   "callee": "op_xor",
+   "caller": "apply_ops",
+   "entry": 3899,
+   "return": 3901
+  },
+  {
+   "call": 3923,
+   "call_pc": 756,
+   "callee": "mix",
+   "caller": "main",
+   "entry": 3924,
+   "return": 3930
+  },
+  {
+   "call": 3932,
+   "call_pc": 764,
+   "callee": "work",
+   "caller": "main",
+   "entry": 3933,
+   "return": 4695
+  },
+  {
+   "call": 3936,
+   "call_pc": 654,
+   "callee": "build_list",
+   "caller": "work",
+   "entry": 3937,
+   "return": 4172
+  },
+  {
+   "call": 3955,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 3956,
+   "return": 3962
+  },
+  {
+   "call": 3980,
+   "call_pc": 300,
+   "callee": "mix",
+   "caller": "build_list",
+   "entry": 3981,
+   "return": 3987
+  },
+  {
+   "call": 4006,
+   "call_pc": 300,
+   "callee": "mix",
+   "caller": "build_list",
+   "entry": 4007,
+   "return": 4013
+  },
+  {
+   "call": 4033,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 4034,
+   "return": 4040
+  },
+  {
+   "call": 4050,
+   "call_pc": 300,
+   "callee": "mix",
+   "caller": "build_list",
+   "entry": 4051,
+   "return": 4057
+  },
+  {
+   "call": 4076,
+   "call_pc": 300,
+   "callee": "mix",
+   "caller": "build_list",
+   "entry": 4077,
+   "return": 4083
+  },
+  {
+   "call": 4110,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 4111,
+   "return": 4117
+  },
+  {
+   "call": 4120,
+   "call_pc": 300,
+   "callee": "mix",
+   "caller": "build_list",
+   "entry": 4121,
+   "return": 4127
+  },
+  {
+   "call": 4146,
+   "call_pc": 300,
+   "callee": "mix",
+   "caller": "build_list",
+   "entry": 4147,
+   "return": 4153
+  },
+  {
+   "call": 4172,
+   "call_pc": 658,
+   "callee": "walk_list",
+   "caller": "work",
+   "entry": 4173,
+   "return": 4250
+  },
+  {
+   "call": 4188,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 4189,
+   "return": 4195
+  },
+  {
+   "call": 4252,
+   "call_pc": 666,
+   "callee": "fill_bytes",
+   "caller": "work",
+   "entry": 4253,
+   "return": 4436
+  },
+  {
+   "call": 4265,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 4266,
+   "return": 4272
+  },
+  {
+   "call": 4343,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 4344,
+   "return": 4350
+  },
+  {
+   "call": 4420,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 4421,
+   "return": 4427
+  },
+  {
+   "call": 4439,
+   "call_pc": 676,
+   "callee": "depth",
+   "caller": "work",
+   "entry": 4440,
+   "return": 4601
+  },
+  {
+   "call": 4446,
+   "call_pc": 200,
+   "callee": "mix",
+   "caller": "depth",
+   "entry": 4447,
+   "return": 4453
+  },
+  {
+   "call": 4459,
+   "call_pc": 200,
+   "callee": "mix",
+   "caller": "depth",
+   "entry": 4460,
+   "return": 4466
+  },
+  {
+   "call": 4472,
+   "call_pc": 200,
+   "callee": "mix",
+   "caller": "depth",
+   "entry": 4473,
+   "return": 4479
+  },
+  {
+   "call": 4485,
+   "call_pc": 200,
+   "callee": "mix",
+   "caller": "depth",
+   "entry": 4486,
+   "return": 4510
+  },
+  {
+   "call": 4498,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 4499,
+   "return": 4505
+  },
+  {
+   "call": 4516,
+   "call_pc": 200,
+   "callee": "mix",
+   "caller": "depth",
+   "entry": 4517,
+   "return": 4523
+  },
+  {
+   "call": 4529,
+   "call_pc": 200,
+   "callee": "mix",
+   "caller": "depth",
+   "entry": 4530,
+   "return": 4536
+  },
+  {
+   "call": 4542,
+   "call_pc": 200,
+   "callee": "mix",
+   "caller": "depth",
+   "entry": 4543,
+   "return": 4549
+  },
+  {
+   "call": 4555,
+   "call_pc": 200,
+   "callee": "mix",
+   "caller": "depth",
+   "entry": 4556,
+   "return": 4562
+  },
+  {
+   "call": 4575,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 4576,
+   "return": 4582
+  },
+  {
+   "call": 4586,
+   "call_pc": 200,
+   "callee": "mix",
+   "caller": "depth",
+   "entry": 4587,
+   "return": 4593
+  },
+  {
+   "call": 4603,
+   "call_pc": 684,
+   "callee": "apply_ops",
+   "caller": "work",
+   "entry": 4604,
+   "return": 4682
+  },
+  {
+   "call": 4612,
+   "call_pc": 496,
+   "callee": "op_add",
+   "caller": "apply_ops",
+   "entry": 4613,
+   "return": 4615
+  },
+  {
+   "call": 4626,
+   "call_pc": 496,
+   "callee": "op_xor",
+   "caller": "apply_ops",
+   "entry": 4627,
+   "return": 4629
+  },
+  {
+   "call": 4640,
+   "call_pc": 496,
+   "callee": "op_add",
+   "caller": "apply_ops",
+   "entry": 4641,
+   "return": 4643
+  },
+  {
+   "call": 4653,
+   "call_pc": 598,
+   "callee": "mix",
+   "caller": "SysTick_Handler",
+   "entry": 4654,
+   "return": 4660
+  },
+  {
+   "call": 4672,
+   "call_pc": 496,
+   "callee": "op_xor",
+   "caller": "apply_ops",
+   "entry": 4673,
+   "return": 4675
+  },
+  {
+   "call": 4697,
+   "call_pc": 772,
+   "callee": "mix",
+   "caller": "main",
+   "entry": 4698,
+   "return": 4704
+  }
+ ],
+ "calls": {
+  "apply_ops": {
+   "calls": 5,
+   "inclusive": 390,
+   "returned": 5
+  },
+  "build_list": {
+   "calls": 5,
+   "inclusive": 1157,
+   "returned": 5
+  },
+  "depth": {
+   "calls": 5,
+   "inclusive": 639,
+   "returned": 5
+  },
+  "fill_bytes": {
+   "calls": 5,
+   "inclusive": 861,
+   "returned": 5
+  },
+  "main": {
+   "calls": 1,
+   "inclusive": 0,
+   "returned": 0
+  },
+  "mix": {
+   "calls": 117,
+   "inclusive": 810,
+   "returned": 117
+  },
+  "op_add": {
+   "calls": 10,
+   "inclusive": 38,
+   "returned": 10
+  },
+  "op_xor": {
+   "calls": 10,
+   "inclusive": 20,
+   "returned": 10
+  },
+  "use_process_stack": {
+   "calls": 1,
+   "inclusive": 7,
+   "returned": 1
+  },
+  "walk_list": {
+   "calls": 5,
+   "inclusive": 367,
+   "returned": 5
+  },
+  "work": {
+   "calls": 5,
+   "inclusive": 3626,
+   "returned": 5
+  }
+ },
+ "diff": [
+  {
+   "a": 943,
+   "b": 1571,
+   "bytes": [
+    536870936,
+    536870939,
+    536870947,
+    536870948,
+    536870949,
+    536870950,
+    536870951,
+    536870952,
+    536870953,
+    536870954,
+    536870955,
+    536870968,
+    536870970,
+    536870971,
+    536870972,
+    536870973,
+    536870974,
+    536870975,
+    536870976,
+    536870977,
+    536870978,
+    536870979,
+    536870984,
+    536870987,
+    536870992,
+    536870994,
+    536870995,
+    536870996,
+    536870997,
+    536870998,
+    536870999,
+    536871000,
+    536871001,
+    536871002,
+    536871003,
+    536871007,
+    536871008,
+    536871011,
+    536871016,
+    536871018,
+    536871019,
+    536871020,
+    536871021,
+    536871022,
+    536871023,
+    536871024,
+    536871025,
+    536871026,
+    536871027,
+    536871031,
+    536871032,
+    536871035,
+    536871040,
+    536871042,
+    536871043,
+    536871044,
+    536871045,
+    536871046,
+    536871047,
+    536871048,
+    536871049,
+    536871050,
+    536871051,
+    536871055,
+    536871056,
+    536871059,
+    536871064,
+    536871066,
+    536871067,
+    536871068,
+    536871069,
+    536871070,
+    536871071,
+    536871072,
+    536871073,
+    536871074,
+    536871075,
+    536871079,
+    536871080,
+    536871083,
+    536871091,
+    536871093,
+    536871094,
+    536871095,
+    536871096,
+    536871097,
+    536871098,
+    536871099,
+    536871100,
+    536871101,
+    536871102,
+    536871103,
+    536871104,
+    536871105,
+    536871106,
+    536871107,
+    536871108,
+    536871109,
+    536871110,
+    536871111,
+    536871112,
+    536871113,
+    536871114,
+    536871115,
+    536871120,
+    536871121,
+    536871122,
+    536871123,
+    536871124,
+    536871125,
+    536871126,
+    536871127,
+    536871136,
+    536871137,
+    536871138,
+    536871139,
+    536871140,
+    536871141,
+    536871142,
+    536871143,
+    536871144,
+    536871145,
+    536871146,
+    536871147,
+    536871148,
+    536871149,
+    536871150,
+    536871151,
+    536871152,
+    536871153,
+    536871154,
+    536871155,
+    536871156,
+    536871157,
+    536871158,
+    536871159,
+    536871160,
+    536871161,
+    536871162,
+    536871163
+   ],
+   "oracle_unknown": [
+    536872192,
+    536872193,
+    536872194,
+    536872195
+   ],
+   "registers": [
+    "lr",
+    "msp",
+    "r0",
+    "r1",
+    "r12",
+    "r2",
+    "r3",
+    "r4",
+    "r5",
+    "sp",
+    "xpsr"
+   ]
+  },
+  {
+   "a": 1571,
+   "b": 2357,
+   "bytes": [
+    536870959,
+    536870983,
+    536871007,
+    536871031,
+    536871055,
+    536871079,
+    536871091,
+    536871092,
+    536871093,
+    536871094,
+    536871095,
+    536871096,
+    536871097,
+    536871100,
+    536871101,
+    536871102,
+    536871103,
+    536871104,
+    536871105,
+    536871106,
+    536871107,
+    536871108,
+    536871109,
+    536871110,
+    536871111,
+    536871112,
+    536871113,
+    536871114,
+    536871115,
+    536871131,
+    536871132,
+    536871133,
+    536871134,
+    536871135,
+    536871138,
+    536871139,
+    536871142,
+    536871143,
+    536871146,
+    536871147,
+    536871150,
+    536871151,
+    536871154,
+    536871155,
+    536871158,
+    536871159,
+    536871162,
+    536871163
+   ],
+   "oracle_unknown": [],
+   "registers": [
+    "lr",
+    "r0",
+    "r1",
+    "r2",
+    "r3",
+    "r4",
+    "r5",
+    "r6",
+    "xpsr"
+   ]
+  },
+  {
+   "a": 2357,
+   "b": 3143,
+   "bytes": [
+    536870959,
+    536870983,
+    536871007,
+    536871031,
+    536871055,
+    536871079,
+    536871091,
+    536871092,
+    536871093,
+    536871094,
+    536871095,
+    536871096,
+    536871097,
+    536871100,
+    536871101,
+    536871102,
+    536871103,
+    536871104,
+    536871105,
+    536871106,
+    536871107,
+    536871108,
+    536871109,
+    536871110,
+    536871111,
+    536871112,
+    536871113,
+    536871114,
+    536871115,
+    536871131,
+    536871134,
+    536871135,
+    536871138,
+    536871139,
+    536871142,
+    536871143,
+    536871146,
+    536871147,
+    536871150,
+    536871151,
+    536871154,
+    536871155,
+    536871158,
+    536871159,
+    536871162,
+    536871163
+   ],
+   "oracle_unknown": [],
+   "registers": [
+    "lr",
+    "msp",
+    "r0",
+    "r1",
+    "r2",
+    "r3",
+    "r5",
+    "r6",
+    "sp",
+    "xpsr"
+   ]
+  },
+  {
+   "a": 3143,
+   "b": 4714,
+   "bytes": [
+    536870959,
+    536870983,
+    536871007,
+    536871031,
+    536871055,
+    536871079,
+    536871091,
+    536871092,
+    536871093,
+    536871094,
+    536871095,
+    536871096,
+    536871097,
+    536871100,
+    536871101,
+    536871102,
+    536871103,
+    536871104,
+    536871105,
+    536871106,
+    536871107,
+    536871108,
+    536871109,
+    536871110,
+    536871111,
+    536871112,
+    536871113,
+    536871114,
+    536871115,
+    536871131,
+    536871134,
+    536871135,
+    536871138,
+    536871139,
+    536871142,
+    536871143,
+    536871146,
+    536871147,
+    536871150,
+    536871151,
+    536871152,
+    536871153,
+    536871154,
+    536871155,
+    536871158,
+    536871159,
+    536871162,
+    536871163,
+    536872193,
+    536872195
+   ],
+   "oracle_unknown": [],
+   "registers": [
+    "control",
+    "lr",
+    "msp",
+    "psp",
+    "r0",
+    "r1",
+    "r2",
+    "r3",
+    "r4",
+    "r5",
+    "sp",
+    "xpsr"
+   ]
+  }
+ ],
+ "diff_regions": [
+  [
+   536870912,
+   4
+  ],
+  [
+   536870916,
+   16
+  ],
+  [
+   536871088,
+   4
+  ],
+  [
+   536871128,
+   4
+  ],
+  [
+   536871132,
+   32
+  ],
+  [
+   536870944,
+   144
+  ],
+  [
+   536870936,
+   4
+  ],
+  [
+   536871092,
+   24
+  ],
+  [
+   536871120,
+   8
+  ],
+  [
+   536872192,
+   4
+  ]
+ ],
+ "exceptions": [
+  {
+   "entry": 1080,
+   "inferred": false,
+   "interrupted_pc": 286,
+   "number": 15,
+   "return": 1098
+  },
+  {
+   "entry": 1157,
+   "inferred": false,
+   "interrupted_pc": 170,
+   "number": 15,
+   "return": 1175
+  },
+  {
+   "entry": 1235,
+   "inferred": false,
+   "interrupted_pc": 400,
+   "number": 15,
+   "return": 1253
+  },
+  {
+   "entry": 1312,
+   "inferred": false,
+   "interrupted_pc": 436,
+   "number": 15,
+   "return": 1330
+  },
+  {
+   "entry": 1390,
+   "inferred": false,
+   "interrupted_pc": 436,
+   "number": 15,
+   "return": 1408
+  },
+  {
+   "entry": 1467,
+   "inferred": false,
+   "interrupted_pc": 446,
+   "number": 15,
+   "return": 1485
+  },
+  {
+   "entry": 1545,
+   "inferred": false,
+   "interrupted_pc": 204,
+   "number": 15,
+   "return": 1563
+  },
+  {
+   "entry": 1622,
+   "inferred": false,
+   "interrupted_pc": 494,
+   "number": 15,
+   "return": 1640
+  },
+  {
+   "entry": 1666,
+   "inferred": false,
+   "interrupted_pc": 690,
+   "number": 11,
+   "return": 1677
+  },
+  {
+   "entry": 1700,
+   "inferred": false,
+   "interrupted_pc": 232,
+   "number": 15,
+   "return": 1718
+  },
+  {
+   "entry": 1777,
+   "inferred": false,
+   "interrupted_pc": 316,
+   "number": 15,
+   "return": 1795
+  },
+  {
+   "entry": 1855,
+   "inferred": false,
+   "interrupted_pc": 278,
+   "number": 15,
+   "return": 1873
+  },
+  {
+   "entry": 1932,
+   "inferred": false,
+   "interrupted_pc": 658,
+   "number": 15,
+   "return": 1950
+  },
+  {
+   "entry": 2010,
+   "inferred": false,
+   "interrupted_pc": 662,
+   "number": 15,
+   "return": 2028
+  },
+  {
+   "entry": 2087,
+   "inferred": false,
+   "interrupted_pc": 436,
+   "number": 15,
+   "return": 2105
+  },
+  {
+   "entry": 2165,
+   "inferred": false,
+   "interrupted_pc": 436,
+   "number": 15,
+   "return": 2183
+  },
+  {
+   "entry": 2242,
+   "inferred": false,
+   "interrupted_pc": 210,
+   "number": 15,
+   "return": 2260
+  },
+  {
+   "entry": 2320,
+   "inferred": false,
+   "interrupted_pc": 504,
+   "number": 15,
+   "return": 2338
+  },
+  {
+   "entry": 2386,
+   "inferred": false,
+   "interrupted_pc": 690,
+   "number": 11,
+   "return": 2397
+  },
+  {
+   "entry": 2397,
+   "inferred": false,
+   "interrupted_pc": 690,
+   "number": 15,
+   "return": 2415
+  },
+  {
+   "entry": 2475,
+   "inferred": false,
+   "interrupted_pc": 330,
+   "number": 15,
+   "return": 2493
+  },
+  {
+   "entry": 2552,
+   "inferred": false,
+   "interrupted_pc": 290,
+   "number": 15,
+   "return": 2570
+  },
+  {
+   "entry": 2630,
+   "inferred": false,
+   "interrupted_pc": 176,
+   "number": 15,
+   "return": 2648
+  },
+  {
+   "entry": 2707,
+   "inferred": false,
+   "interrupted_pc": 400,
+   "number": 15,
+   "return": 2725
+  },
+  {
+   "entry": 2785,
+   "inferred": false,
+   "interrupted_pc": 432,
+   "number": 15,
+   "return": 2803
+  },
+  {
+   "entry": 2862,
+   "inferred": false,
+   "interrupted_pc": 430,
+   "number": 15,
+   "return": 2880
+  },
+  {
+   "entry": 2940,
+   "inferred": false,
+   "interrupted_pc": 168,
+   "number": 15,
+   "return": 2958
+  },
+  {
+   "entry": 3017,
+   "inferred": false,
+   "interrupted_pc": 206,
+   "number": 15,
+   "return": 3035
+  },
+  {
+   "entry": 3095,
+   "inferred": false,
+   "interrupted_pc": 160,
+   "number": 15,
+   "return": 3113
+  },
+  {
+   "entry": 3137,
+   "inferred": false,
+   "interrupted_pc": 690,
+   "number": 11,
+   "return": 3148
+  },
+  {
+   "entry": 3172,
+   "inferred": false,
+   "interrupted_pc": 648,
+   "number": 15,
+   "return": 3190
+  },
+  {
+   "entry": 3250,
+   "inferred": false,
+   "interrupted_pc": 180,
+   "number": 15,
+   "return": 3268
+  },
+  {
+   "entry": 3327,
+   "inferred": false,
+   "interrupted_pc": 320,
+   "number": 15,
+   "return": 3345
+  },
+  {
+   "entry": 3405,
+   "inferred": false,
+   "interrupted_pc": 344,
+   "number": 15,
+   "return": 3423
+  },
+  {
+   "entry": 3482,
+   "inferred": false,
+   "interrupted_pc": 396,
+   "number": 15,
+   "return": 3500
+  },
+  {
+   "entry": 3560,
+   "inferred": false,
+   "interrupted_pc": 434,
+   "number": 15,
+   "return": 3578
+  },
+  {
+   "entry": 3637,
+   "inferred": false,
+   "interrupted_pc": 432,
+   "number": 15,
+   "return": 3655
+  },
+  {
+   "entry": 3715,
+   "inferred": false,
+   "interrupted_pc": 176,
+   "number": 15,
+   "return": 3733
+  },
+  {
+   "entry": 3792,
+   "inferred": false,
+   "interrupted_pc": 214,
+   "number": 15,
+   "return": 3810
+  },
+  {
+   "entry": 3870,
+   "inferred": false,
+   "interrupted_pc": 500,
+   "number": 15,
+   "return": 3888
+  },
+  {
+   "entry": 3909,
+   "inferred": false,
+   "interrupted_pc": 690,
+   "number": 11,
+   "return": 3920
+  },
+  {
+   "entry": 3947,
+   "inferred": false,
+   "interrupted_pc": 252,
+   "number": 15,
+   "return": 3965
+  },
+  {
+   "entry": 4025,
+   "inferred": false,
+   "interrupted_pc": 278,
+   "number": 15,
+   "return": 4043
+  },
+  {
+   "entry": 4102,
+   "inferred": false,
+   "interrupted_pc": 300,
+   "number": 15,
+   "return": 4120
+  },
+  {
+   "entry": 4180,
+   "inferred": false,
+   "interrupted_pc": 396,
+   "number": 15,
+   "return": 4198
+  },
+  {
+   "entry": 4257,
+   "inferred": false,
+   "interrupted_pc": 432,
+   "number": 15,
+   "return": 4275
+  },
+  {
+   "entry": 4335,
+   "inferred": false,
+   "interrupted_pc": 432,
+   "number": 15,
+   "return": 4353
+  },
+  {
+   "entry": 4412,
+   "inferred": false,
+   "interrupted_pc": 440,
+   "number": 15,
+   "return": 4430
+  },
+  {
+   "entry": 4490,
+   "inferred": false,
+   "interrupted_pc": 180,
+   "number": 15,
+   "return": 4508
+  },
+  {
+   "entry": 4567,
+   "inferred": false,
+   "interrupted_pc": 216,
+   "number": 15,
+   "return": 4585
+  },
+  {
+   "entry": 4645,
+   "inferred": false,
+   "interrupted_pc": 504,
+   "number": 15,
+   "return": 4663
+  },
+  {
+   "entry": 4683,
+   "inferred": false,
+   "interrupted_pc": 690,
+   "number": 11,
+   "return": 4694
+  }
+ ],
+ "find_first": [
+  {
+   "condition": "pc == sym(\"SysTick_Handler\")",
+   "direction": "forward",
+   "found": 1080,
+   "from": 0,
+   "to": 4714
+  },
+  {
+   "condition": "pc == sym(\"SysTick_Handler\")",
+   "direction": "forward",
+   "found": 2397,
+   "from": 2357,
+   "to": 4714
+  },
+  {
+   "condition": "pc == sym(\"SysTick_Handler\")",
+   "direction": "backward",
+   "found": 4645,
+   "from": 0,
+   "to": 4714
+  },
+  {
+   "condition": "pc == sym(\"SysTick_Handler\")",
+   "direction": "backward",
+   "found": 2320,
+   "from": 0,
+   "to": 2357
+  },
+  {
+   "condition": "pc == sym(\"SVC_Handler\") && reg(\"r0\") != 0",
+   "direction": "forward",
+   "found": 1666,
+   "from": 0,
+   "to": 4714
+  },
+  {
+   "condition": "pc == sym(\"SVC_Handler\") && reg(\"r0\") != 0",
+   "direction": "forward",
+   "found": 2386,
+   "from": 2357,
+   "to": 4714
+  },
+  {
+   "condition": "pc == sym(\"SVC_Handler\") && reg(\"r0\") != 0",
+   "direction": "backward",
+   "found": 4683,
+   "from": 0,
+   "to": 4714
+  },
+  {
+   "condition": "pc == sym(\"SVC_Handler\") && reg(\"r0\") != 0",
+   "direction": "backward",
+   "found": 1666,
+   "from": 0,
+   "to": 2357
+  },
+  {
+   "condition": "var(\"ticks\") == 5",
+   "direction": "forward",
+   "found": 1397,
+   "from": 0,
+   "to": 4714
+  },
+  {
+   "condition": "var(\"ticks\") == 5",
+   "direction": "forward",
+   "found": null,
+   "from": 2357,
+   "to": 4714
+  },
+  {
+   "condition": "var(\"ticks\") == 5",
+   "direction": "backward",
+   "found": 1473,
+   "from": 0,
+   "to": 4714
+  },
+  {
+   "condition": "var(\"ticks\") == 5",
+   "direction": "backward",
+   "found": 1473,
+   "from": 0,
+   "to": 2357
+  },
+  {
+   "condition": "var(\"ticks\") >= 3 && func == \"depth\"",
+   "direction": "forward",
+   "found": 1493,
+   "from": 0,
+   "to": 4714
+  },
+  {
+   "condition": "var(\"ticks\") >= 3 && func == \"depth\"",
+   "direction": "forward",
+   "found": 2920,
+   "from": 2357,
+   "to": 4714
+  },
+  {
+   "condition": "var(\"ticks\") >= 3 && func == \"depth\"",
+   "direction": "backward",
+   "found": 4600,
+   "from": 0,
+   "to": 4714
+  },
+  {
+   "condition": "var(\"ticks\") >= 3 && func == \"depth\"",
+   "direction": "backward",
+   "found": 2303,
+   "from": 0,
+   "to": 2357
+  },
+  {
+   "condition": "line == \"state.c:111\" && var(\"ticks\") > 10",
+   "direction": "forward",
+   "found": 1933,
+   "from": 0,
+   "to": 4714
+  },
+  {
+   "condition": "line == \"state.c:111\" && var(\"ticks\") > 10",
+   "direction": "forward",
+   "found": 2398,
+   "from": 2357,
+   "to": 4714
+  },
+  {
+   "condition": "line == \"state.c:111\" && var(\"ticks\") > 10",
+   "direction": "backward",
+   "found": 4651,
+   "from": 0,
+   "to": 4714
+  },
+  {
+   "condition": "line == \"state.c:111\" && var(\"ticks\") > 10",
+   "direction": "backward",
+   "found": 2326,
+   "from": 0,
+   "to": 2357
+  },
+  {
+   "condition": "reg(\"sp\") < 0x2000ff80",
+   "direction": "forward",
+   "found": 1081,
+   "from": 0,
+   "to": 4714
+  },
+  {
+   "condition": "reg(\"sp\") < 0x2000ff80",
+   "direction": "forward",
+   "found": 2476,
+   "from": 2357,
+   "to": 4714
+  },
+  {
+   "condition": "reg(\"sp\") < 0x2000ff80",
+   "direction": "backward",
+   "found": 4714,
+   "from": 0,
+   "to": 4714
+  },
+  {
+   "condition": "reg(\"sp\") < 0x2000ff80",
+   "direction": "backward",
+   "found": 1872,
+   "from": 0,
+   "to": 2357
+  },
+  {
+   "condition": "mem32(0x200000dc) != 0",
+   "direction": "forward",
+   "found": 1639,
+   "from": 0,
+   "to": 4714
+  },
+  {
+   "condition": "mem32(0x200000dc) != 0",
+   "direction": "forward",
+   "found": 2357,
+   "from": 2357,
+   "to": 4714
+  },
+  {
+   "condition": "mem32(0x200000dc) != 0",
+   "direction": "backward",
+   "found": 4714,
+   "from": 0,
+   "to": 4714
+  },
+  {
+   "condition": "mem32(0x200000dc) != 0",
+   "direction": "backward",
+   "found": 2357,
+   "from": 0,
+   "to": 2357
+  },
+  {
+   "condition": "var(\"pool[3].len\") == 700",
+   "direction": "forward",
+   "found": 1127,
+   "from": 0,
+   "to": 4714
+  },
+  {
+   "condition": "var(\"pool[3].len\") == 700",
+   "direction": "forward",
+   "found": 2357,
+   "from": 2357,
+   "to": 4714
+  },
+  {
+   "condition": "var(\"pool[3].len\") == 700",
+   "direction": "backward",
+   "found": 4714,
+   "from": 0,
+   "to": 4714
+  },
+  {
+   "condition": "var(\"pool[3].len\") == 700",
+   "direction": "backward",
+   "found": 2357,
+   "from": 0,
+   "to": 2357
+  },
+  {
+   "condition": "!(reg(\"r0\") == 0) && pc == sym(\"mix\")",
+   "direction": "forward",
+   "found": 1034,
+   "from": 0,
+   "to": 4714
+  },
+  {
+   "condition": "!(reg(\"r0\") == 0) && pc == sym(\"mix\")",
+   "direction": "forward",
+   "found": 2406,
+   "from": 2357,
+   "to": 4714
+  },
+  {
+   "condition": "!(reg(\"r0\") == 0) && pc == sym(\"mix\")",
+   "direction": "backward",
+   "found": 4698,
+   "from": 0,
+   "to": 4714
+  },
+  {
+   "condition": "!(reg(\"r0\") == 0) && pc == sym(\"mix\")",
+   "direction": "backward",
+   "found": 2329,
+   "from": 0,
+   "to": 2357
+  },
+  {
+   "condition": "var(\"head\") == 0 && func == \"build_list\"",
+   "direction": "forward",
+   "found": 1008,
+   "from": 0,
+   "to": 4714
+  },
+  {
+   "condition": "var(\"head\") == 0 && func == \"build_list\"",
+   "direction": "forward",
+   "found": 2441,
+   "from": 2357,
+   "to": 4714
+  },
+  {
+   "condition": "var(\"head\") == 0 && func == \"build_list\"",
+   "direction": "backward",
+   "found": 4169,
+   "from": 0,
+   "to": 4714
+  },
+  {
+   "condition": "var(\"head\") == 0 && func == \"build_list\"",
+   "direction": "backward",
+   "found": 1929,
+   "from": 0,
+   "to": 2357
+  },
+  {
+   "condition": "reg(\"lr\") == 0xfffffff9 || reg(\"lr\") == 0xfffffffd",
+   "direction": "forward",
+   "found": 1080,
+   "from": 0,
+   "to": 4714
+  },
+  {
+   "condition": "reg(\"lr\") == 0xfffffff9 || reg(\"lr\") == 0xfffffffd",
+   "direction": "forward",
+   "found": 2386,
+   "from": 2357,
+   "to": 4714
+  },
+  {
+   "condition": "reg(\"lr\") == 0xfffffff9 || reg(\"lr\") == 0xfffffffd",
+   "direction": "backward",
+   "found": 4693,
+   "from": 0,
+   "to": 4714
+  },
+  {
+   "condition": "reg(\"lr\") == 0xfffffff9 || reg(\"lr\") == 0xfffffffd",
+   "direction": "backward",
+   "found": 2328,
+   "from": 0,
+   "to": 2357
+  },
+  {
+   "condition": "var(\"svc_calls\") == 3",
+   "direction": "forward",
+   "found": 3141,
+   "from": 0,
+   "to": 4714
+  },
+  {
+   "condition": "var(\"svc_calls\") == 3",
+   "direction": "forward",
+   "found": 3141,
+   "from": 2357,
+   "to": 4714
+  },
+  {
+   "condition": "var(\"svc_calls\") == 3",
+   "direction": "backward",
+   "found": 3912,
+   "from": 0,
+   "to": 4714
+  },
+  {
+   "condition": "var(\"svc_calls\") == 3",
+   "direction": "backward",
+   "found": null,
+   "from": 0,
+   "to": 2357
+  }
+ ],
+ "instructions": 4715,
+ "last_write": [
+  {
+   "addr": 536871088,
+   "byte": null,
+   "point": 0,
+   "written_by": null
+  },
+  {
+   "addr": 536871088,
+   "byte": 0,
+   "point": 523,
+   "written_by": 159
+  },
+  {
+   "addr": 536871088,
+   "byte": 0,
+   "point": 1046,
+   "written_by": 159
+  },
+  {
+   "addr": 536871088,
+   "byte": 0,
+   "point": 1569,
+   "written_by": 1551
+  },
+  {
+   "addr": 536871088,
+   "byte": 0,
+   "point": 2092,
+   "written_by": 2016
+  },
+  {
+   "addr": 536871088,
+   "byte": 0,
+   "point": 2615,
+   "written_by": 2558
+  },
+  {
+   "addr": 536871088,
+   "byte": 0,
+   "point": 3138,
+   "written_by": 3101
+  },
+  {
+   "addr": 536871088,
+   "byte": 0,
+   "point": 3661,
+   "written_by": 3643
+  },
+  {
+   "addr": 536871088,
+   "byte": 0,
+   "point": 4184,
+   "written_by": 4108
+  },
+  {
+   "addr": 536871088,
+   "byte": 0,
+   "point": 4707,
+   "written_by": 4651
+  },
+  {
+   "addr": 536871128,
+   "byte": null,
+   "point": 0,
+   "written_by": null
+  },
+  {
+   "addr": 536871128,
+   "byte": 0,
+   "point": 523,
+   "written_by": 189
+  },
+  {
+   "addr": 536871128,
+   "byte": 0,
+   "point": 1046,
+   "written_by": 189
+  },
+  {
+   "addr": 536871128,
+   "byte": 0,
+   "point": 1569,
+   "written_by": 189
+  },
+  {
+   "addr": 536871128,
+   "byte": 0,
+   "point": 2092,
+   "written_by": 1669
+  },
+  {
+   "addr": 536871128,
+   "byte": 0,
+   "point": 2615,
+   "written_by": 2389
+  },
+  {
+   "addr": 536871128,
+   "byte": 0,
+   "point": 3138,
+   "written_by": 2389
+  },
+  {
+   "addr": 536871128,
+   "byte": 0,
+   "point": 3661,
+   "written_by": 3140
+  },
+  {
+   "addr": 536871128,
+   "byte": 0,
+   "point": 4184,
+   "written_by": 3912
+  },
+  {
+   "addr": 536871128,
+   "byte": 0,
+   "point": 4707,
+   "written_by": 4686
+  },
+  {
+   "addr": 536870912,
+   "byte": null,
+   "point": 0,
+   "written_by": null
+  },
+  {
+   "addr": 536870912,
+   "byte": 18,
+   "point": 523,
+   "written_by": 12
+  },
+  {
+   "addr": 536870912,
+   "byte": 18,
+   "point": 1046,
+   "written_by": 12
+  },
+  {
+   "addr": 536870912,
+   "byte": 18,
+   "point": 1569,
+   "written_by": 12
+  },
+  {
+   "addr": 536870912,
+   "byte": 18,
+   "point": 2092,
+   "written_by": 12
+  },
+  {
+   "addr": 536870912,
+   "byte": 18,
+   "point": 2615,
+   "written_by": 12
+  },
+  {
+   "addr": 536870912,
+   "byte": 18,
+   "point": 3138,
+   "written_by": 12
+  },
+  {
+   "addr": 536870912,
+   "byte": 18,
+   "point": 3661,
+   "written_by": 12
+  },
+  {
+   "addr": 536870912,
+   "byte": 18,
+   "point": 4184,
+   "written_by": 12
+  },
+  {
+   "addr": 536870912,
+   "byte": 18,
+   "point": 4707,
+   "written_by": 12
+  },
+  {
+   "addr": 536870936,
+   "byte": null,
+   "point": 0,
+   "written_by": null
+  },
+  {
+   "addr": 536870936,
+   "byte": 0,
+   "point": 523,
+   "written_by": 45
+  },
+  {
+   "addr": 536870936,
+   "byte": 0,
+   "point": 1046,
+   "written_by": 1013
+  },
+  {
+   "addr": 536870936,
+   "byte": 32,
+   "point": 1569,
+   "written_by": 1222
+  },
+  {
+   "addr": 536870936,
+   "byte": 32,
+   "point": 2092,
+   "written_by": 1929
+  },
+  {
+   "addr": 536870936,
+   "byte": 0,
+   "point": 2615,
+   "written_by": 2440
+  },
+  {
+   "addr": 536870936,
+   "byte": 32,
+   "point": 3138,
+   "written_by": 2667
+  },
+  {
+   "addr": 536870936,
+   "byte": 32,
+   "point": 3661,
+   "written_by": 3426
+  },
+  {
+   "addr": 536870936,
+   "byte": 32,
+   "point": 4184,
+   "written_by": 4169
+  },
+  {
+   "addr": 536870936,
+   "byte": 32,
+   "point": 4707,
+   "written_by": 4169
+  },
+  {
+   "addr": 536872192,
+   "byte": null,
+   "point": 0,
+   "written_by": null
+  },
+  {
+   "addr": 536872192,
+   "byte": null,
+   "point": 523,
+   "written_by": null
+  },
+  {
+   "addr": 536872192,
+   "byte": 0,
+   "point": 1046,
+   "written_by": 987
+  },
+  {
+   "addr": 536872192,
+   "byte": 0,
+   "point": 1569,
+   "written_by": 987
+  },
+  {
+   "addr": 536872192,
+   "byte": 0,
+   "point": 2092,
+   "written_by": 987
+  },
+  {
+   "addr": 536872192,
+   "byte": 0,
+   "point": 2615,
+   "written_by": 987
+  },
+  {
+   "addr": 536872192,
+   "byte": 0,
+   "point": 3138,
+   "written_by": 987
+  },
+  {
+   "addr": 536872192,
+   "byte": 0,
+   "point": 3661,
+   "written_by": 987
+  },
+  {
+   "addr": 536872192,
+   "byte": 0,
+   "point": 4184,
+   "written_by": 987
+  },
+  {
+   "addr": 536872192,
+   "byte": 0,
+   "point": 4707,
+   "written_by": 987
+  },
+  {
+   "addr": 536871144,
+   "byte": null,
+   "point": 0,
+   "written_by": null
+  },
+  {
+   "addr": 536871144,
+   "byte": 0,
+   "point": 523,
+   "written_by": 201
+  },
+  {
+   "addr": 536871144,
+   "byte": 0,
+   "point": 1046,
+   "written_by": 201
+  },
+  {
+   "addr": 536871144,
+   "byte": 176,
+   "point": 1569,
+   "written_by": 1251
+  },
+  {
+   "addr": 536871144,
+   "byte": 176,
+   "point": 2092,
+   "written_by": 1871
+  },
+  {
+   "addr": 536871144,
+   "byte": 176,
+   "point": 2615,
+   "written_by": 2491
+  },
+  {
+   "addr": 536871144,
+   "byte": 176,
+   "point": 3138,
+   "written_by": 3111
+  },
+  {
+   "addr": 536871144,
+   "byte": 92,
+   "point": 3661,
+   "written_by": 3146
+  },
+  {
+   "addr": 536871144,
+   "byte": 176,
+   "point": 4184,
+   "written_by": 3731
+  },
+  {
+   "addr": 536871144,
+   "byte": 176,
+   "point": 4707,
+   "written_by": 4351
+  },
+  {
+   "addr": 536870996,
+   "byte": null,
+   "point": 0,
+   "written_by": null
+  },
+  {
+   "addr": 536870996,
+   "byte": 0,
+   "point": 523,
+   "written_by": 90
+  },
+  {
+   "addr": 536870996,
+   "byte": 0,
+   "point": 1046,
+   "written_by": 90
+  },
+  {
+   "addr": 536870996,
+   "byte": 199,
+   "point": 1569,
+   "written_by": 1112
+  },
+  {
+   "addr": 536870996,
+   "byte": 199,
+   "point": 2092,
+   "written_by": 1819
+  },
+  {
+   "addr": 536870996,
+   "byte": 199,
+   "point": 2615,
+   "written_by": 2539
+  },
+  {
+   "addr": 536870996,
+   "byte": 199,
+   "point": 3138,
+   "written_by": 2539
+  },
+  {
+   "addr": 536870996,
+   "byte": 199,
+   "point": 3661,
+   "written_by": 3298
+  },
+  {
+   "addr": 536870996,
+   "byte": 199,
+   "point": 4184,
+   "written_by": 4059
+  },
+  {
+   "addr": 536870996,
+   "byte": 199,
+   "point": 4707,
+   "written_by": 4059
+  },
+  {
+   "addr": 536871099,
+   "byte": null,
+   "point": 0,
+   "written_by": null
+  },
+  {
+   "addr": 536871099,
+   "byte": 0,
+   "point": 523,
+   "written_by": 165
+  },
+  {
+   "addr": 536871099,
+   "byte": 0,
+   "point": 1046,
+   "written_by": 165
+  },
+  {
+   "addr": 536871099,
+   "byte": 239,
+   "point": 1569,
+   "written_by": 1487
+  },
+  {
+   "addr": 536871099,
+   "byte": 50,
+   "point": 2092,
+   "written_by": 2068
+  },
+  {
+   "addr": 536871099,
+   "byte": 239,
+   "point": 2615,
+   "written_by": 2194
+  },
+  {
+   "addr": 536871099,
+   "byte": 239,
+   "point": 3138,
+   "written_by": 2914
+  },
+  {
+   "addr": 536871099,
+   "byte": 52,
+   "point": 3661,
+   "written_by": 3547
+  },
+  {
+   "addr": 536871099,
+   "byte": 239,
+   "point": 4184,
+   "written_by": 3673
+  },
+  {
+   "addr": 536871099,
+   "byte": 239,
+   "point": 4707,
+   "written_by": 4434
+  },
+  {
+   "addr": 536871125,
+   "byte": null,
+   "point": 0,
+   "written_by": null
+  },
+  {
+   "addr": 536871125,
+   "byte": 0,
+   "point": 523,
+   "written_by": 186
+  },
+  {
+   "addr": 536871125,
+   "byte": 0,
+   "point": 1046,
+   "written_by": 186
+  },
+  {
+   "addr": 536871125,
+   "byte": 2,
+   "point": 1569,
+   "written_by": 1486
+  },
+  {
+   "addr": 536871125,
+   "byte": 2,
+   "point": 2092,
+   "written_by": 1486
+  },
+  {
+   "addr": 536871125,
+   "byte": 2,
+   "point": 2615,
+   "written_by": 2193
+  },
+  {
+   "addr": 536871125,
+   "byte": 2,
+   "point": 3138,
+   "written_by": 2913
+  },
+  {
+   "addr": 536871125,
+   "byte": 2,
+   "point": 3661,
+   "written_by": 2913
+  },
+  {
+   "addr": 536871125,
+   "byte": 2,
+   "point": 4184,
+   "written_by": 3672
+  },
+  {
+   "addr": 536871125,
+   "byte": 2,
+   "point": 4707,
+   "written_by": 4433
+  }
+ ],
+ "line_ir": {
+  "startup.c:11": 34,
+  "startup.c:12": 955,
+  "startup.c:13": 1,
+  "startup.c:14": 0,
+  "startup.c:17": 0,
+  "startup.c:9": 1,
+  "state.c:100": 5,
+  "state.c:105": 20,
+  "state.c:106": 30,
+  "state.c:107": 5,
+  "state.c:110": 47,
+  "state.c:111": 188,
+  "state.c:112": 282,
+  "state.c:113": 47,
+  "state.c:117": 3,
+  "state.c:118": 1,
+  "state.c:119": 1,
+  "state.c:120": 1,
+  "state.c:121": 0,
+  "state.c:127": 1,
+  "state.c:128": 5,
+  "state.c:134": 1,
+  "state.c:137": 10,
+  "state.c:139": 10,
+  "state.c:140": 10,
+  "state.c:141": 10,
+  "state.c:142": 25,
+  "state.c:143": 10,
+  "state.c:146": 5,
+  "state.c:149": 2,
+  "state.c:151": 3,
+  "state.c:152": 2,
+  "state.c:153": 2,
+  "state.c:155": 1,
+  "state.c:156": 10,
+  "state.c:157": 18,
+  "state.c:158": 1,
+  "state.c:160": 11,
+  "state.c:161": 2,
+  "state.c:162": 3,
+  "state.c:44": 468,
+  "state.c:46": 234,
+  "state.c:49": 15,
+  "state.c:50": 40,
+  "state.c:51": 85,
+  "state.c:53": 140,
+  "state.c:54": 5,
+  "state.c:57": 10,
+  "state.c:58": 15,
+  "state.c:59": 190,
+  "state.c:60": 30,
+  "state.c:61": 30,
+  "state.c:62": 150,
+  "state.c:63": 170,
+  "state.c:64": 90,
+  "state.c:65": 30,
+  "state.c:68": 10,
+  "state.c:72": 5,
+  "state.c:73": 110,
+  "state.c:74": 180,
+  "state.c:76": 0,
+  "state.c:80": 490,
+  "state.c:81": 120,
+  "state.c:82": 15,
+  "state.c:83": 15,
+  "state.c:84": 5,
+  "state.c:87": 20,
+  "state.c:88": 20,
+  "state.c:92": 20,
+  "state.c:93": 70,
+  "state.c:94": 165,
+  "state.c:96": 5
+ },
+ "line_visits": {
+  "state.c:111": [
+   1081,
+   1083,
+   1085,
+   1158,
+   1160,
+   1162,
+   1236,
+   1238,
+   1240,
+   1313,
+   1315,
+   1317,
+   1391,
+   1393,
+   1395,
+   1468,
+   1470,
+   1472,
+   1546,
+   1548,
+   1550,
+   1623,
+   1625,
+   1627,
+   1701,
+   1703,
+   1705,
+   1778,
+   1780,
+   1782,
+   1856,
+   1858,
+   1860,
+   1933,
+   1935,
+   1937,
+   2011,
+   2013,
+   2015,
+   2088,
+   2090,
+   2092,
+   2166,
+   2168,
+   2170,
+   2243,
+   2245,
+   2247,
+   2321,
+   2323,
+   2325,
+   2398,
+   2400,
+   2402,
+   2476,
+   2478,
+   2480,
+   2553,
+   2555,
+   2557,
+   2631,
+   2633,
+   2635,
+   2708,
+   2710,
+   2712,
+   2786,
+   2788,
+   2790,
+   2863,
+   2865,
+   2867,
+   2941,
+   2943,
+   2945,
+   3018,
+   3020,
+   3022,
+   3096,
+   3098,
+   3100,
+   3173,
+   3175,
+   3177,
+   3251,
+   3253,
+   3255,
+   3328,
+   3330,
+   3332,
+   3406,
+   3408,
+   3410,
+   3483,
+   3485,
+   3487,
+   3561,
+   3563,
+   3565,
+   3638,
+   3640,
+   3642,
+   3716,
+   3718,
+   3720,
+   3793,
+   3795,
+   3797,
+   3871,
+   3873,
+   3875,
+   3948,
+   3950,
+   3952,
+   4026,
+   4028,
+   4030,
+   4103,
+   4105,
+   4107,
+   4181,
+   4183,
+   4185,
+   4258,
+   4260,
+   4262,
+   4336,
+   4338,
+   4340,
+   4413,
+   4415,
+   4417,
+   4491,
+   4493,
+   4495,
+   4568,
+   4570,
+   4572,
+   4646,
+   4648,
+   4650
+  ],
+  "state.c:139": [
+   1006,
+   1695,
+   2433,
+   3192,
+   3935
+  ],
+  "state.c:44": [
+   1034,
+   1060,
+   1089,
+   1104,
+   1130,
+   1156,
+   1166,
+   1200,
+   1244,
+   1321,
+   1399,
+   1476,
+   1500,
+   1513,
+   1526,
+   1539,
+   1554,
+   1570,
+   1631,
+   1681,
+   1709,
+   1741,
+   1767,
+   1786,
+   1811,
+   1837,
+   1864,
+   1881,
+   1907,
+   1941,
+   2019,
+   2096,
+   2174,
+   2207,
+   2220,
+   2233,
+   2251,
+   2264,
+   2277,
+   2290,
+   2329,
+   2406,
+   2419,
+   2461,
+   2484,
+   2505,
+   2531,
+   2561,
+   2575,
+   2601,
+   2627,
+   2639,
+   2716,
+   2794,
+   2871,
+   2927,
+   2949,
+   2958,
+   2971,
+   2984,
+   2997,
+   3010,
+   3026,
+   3041,
+   3104,
+   3152,
+   3181,
+   3220,
+   3246,
+   3259,
+   3290,
+   3316,
+   3336,
+   3360,
+   3386,
+   3414,
+   3491,
+   3569,
+   3646,
+   3686,
+   3699,
+   3712,
+   3724,
+   3743,
+   3756,
+   3769,
+   3782,
+   3801,
+   3813,
+   3879,
+   3924,
+   3956,
+   3981,
+   4007,
+   4034,
+   4051,
+   4077,
+   4111,
+   4121,
+   4147,
+   4189,
+   4266,
+   4344,
+   4421,
+   4447,
+   4460,
+   4473,
+   4486,
+   4499,
+   4517,
+   4530,
+   4543,
+   4556,
+   4576,
+   4587,
+   4654,
+   4698
+  ],
+  "state.c:62": [
+   1025,
+   1027,
+   1051,
+   1053,
+   1077,
+   1079,
+   1121,
+   1123,
+   1147,
+   1149,
+   1191,
+   1193,
+   1732,
+   1734,
+   1758,
+   1760,
+   1802,
+   1804,
+   1828,
+   1830,
+   1854,
+   1874,
+   1898,
+   1900,
+   2452,
+   2454,
+   2496,
+   2498,
+   2522,
+   2524,
+   2548,
+   2550,
+   2592,
+   2594,
+   2618,
+   2620,
+   3211,
+   3213,
+   3237,
+   3239,
+   3281,
+   3283,
+   3307,
+   3309,
+   3351,
+   3353,
+   3377,
+   3379,
+   3972,
+   3974,
+   3998,
+   4000,
+   4024,
+   4044,
+   4068,
+   4070,
+   4094,
+   4096,
+   4138,
+   4140
+  ],
+  "state.c:80": [
+   1306,
+   1309,
+   1332,
+   1337,
+   1342,
+   1347,
+   1352,
+   1357,
+   1362,
+   1367,
+   1372,
+   1377,
+   1382,
+   1387,
+   1410,
+   1415,
+   1420,
+   1425,
+   1430,
+   1435,
+   1440,
+   1445,
+   1450,
+   1455,
+   1460,
+   2031,
+   2034,
+   2039,
+   2044,
+   2049,
+   2054,
+   2059,
+   2064,
+   2069,
+   2074,
+   2079,
+   2084,
+   2107,
+   2112,
+   2117,
+   2122,
+   2127,
+   2132,
+   2137,
+   2142,
+   2147,
+   2152,
+   2157,
+   2162,
+   2185,
+   2751,
+   2754,
+   2759,
+   2764,
+   2769,
+   2774,
+   2779,
+   2784,
+   2807,
+   2812,
+   2817,
+   2822,
+   2827,
+   2832,
+   2837,
+   2842,
+   2847,
+   2852,
+   2857,
+   2880,
+   2885,
+   2890,
+   2895,
+   2900,
+   2905,
+   3510,
+   3513,
+   3518,
+   3523,
+   3528,
+   3533,
+   3538,
+   3543,
+   3548,
+   3553,
+   3558,
+   3581,
+   3586,
+   3591,
+   3596,
+   3601,
+   3606,
+   3611,
+   3616,
+   3621,
+   3626,
+   3631,
+   3636,
+   3659,
+   3664,
+   4253,
+   4256,
+   4279,
+   4284,
+   4289,
+   4294,
+   4299,
+   4304,
+   4309,
+   4314,
+   4319,
+   4324,
+   4329,
+   4334,
+   4357,
+   4362,
+   4367,
+   4372,
+   4377,
+   4382,
+   4387,
+   4392,
+   4397,
+   4402,
+   4407
+  ]
+ },
+ "register_changes": {
+  "r4": [
+   [
+    1043,
+    536870944
+   ],
+   [
+    1069,
+    536870968
+   ],
+   [
+    1081,
+    536870936
+   ],
+   [
+    1095,
+    536870940
+   ],
+   [
+    1097,
+    536870968
+   ],
+   [
+    1113,
+    536870992
+   ],
+   [
+    1139,
+    536871016
+   ],
+   [
+    1158,
+    536870936
+   ],
+   [
+    1172,
+    536870944
+   ],
+   [
+    1174,
+    536871016
+   ],
+   [
+    1183,
+    536871040
+   ],
+   [
+    1209,
+    536871064
+   ],
+   [
+    1224,
+    0
+   ],
+   [
+    1236,
+    536870936
+   ],
+   [
+    1250,
+    536870948
+   ],
+   [
+    1252,
+    0
+   ],
+   [
+    1313,
+    536870936
+   ],
+   [
+    1327,
+    536870952
+   ],
+   [
+    1329,
+    0
+   ],
+   [
+    1391,
+    536870936
+   ],
+   [
+    1405,
+    536870956
+   ],
+   [
+    1407,
+    0
+   ],
+   [
+    1468,
+    536870936
+   ],
+   [
+    1482,
+    536870960
+   ],
+   [
+    1484,
+    0
+   ],
+   [
+    1508,
+    5
+   ],
+   [
+    1521,
+    9
+   ],
+   [
+    1534,
+    12
+   ],
+   [
+    1546,
+    536870936
+   ],
+   [
+    1560,
+    536870964
+   ],
+   [
+    1562,
+    12
+   ],
+   [
+    1565,
+    14
+   ],
+   [
+    1578,
+    15
+   ],
+   [
+    1583,
+    0
+   ],
+   [
+    1598,
+    1
+   ],
+   [
+    1612,
+    2
+   ],
+   [
+    1623,
+    536870936
+   ],
+   [
+    1639,
+    2
+   ],
+   [
+    1644,
+    3
+   ],
+   [
+    1658,
+    4
+   ],
+   [
+    1664,
+    0
+   ],
+   [
+    1687,
+    1
+   ],
+   [
+    1701,
+    536870936
+   ],
+   [
+    1715,
+    536870940
+   ],
+   [
+    1717,
+    1
+   ],
+   [
+    1731,
+    0
+   ],
+   [
+    1750,
+    536870944
+   ],
+   [
+    1776,
+    536870968
+   ],
+   [
+    1778,
+    536870936
+   ],
+   [
+    1792,
+    536870944
+   ],
+   [
+    1794,
+    536870968
+   ],
+   [
+    1820,
+    536870992
+   ],
+   [
+    1846,
+    536871016
+   ],
+   [
+    1856,
+    536870936
+   ],
+   [
+    1870,
+    536870948
+   ],
+   [
+    1872,
+    536871016
+   ],
+   [
+    1890,
+    536871040
+   ],
+   [
+    1916,
+    536871064
+   ],
+   [
+    1931,
+    1
+   ],
+   [
+    1933,
+    536870936
+   ],
+   [
+    1947,
+    536870952
+   ],
+   [
+    1949,
+    1
+   ],
+   [
+    2011,
+    536870936
+   ],
+   [
+    2025,
+    536870956
+   ],
+   [
+    2027,
+    1
+   ],
+   [
+    2088,
+    536870936
+   ],
+   [
+    2102,
+    536870960
+   ],
+   [
+    2104,
+    1
+   ],
+   [
+    2166,
+    536870936
+   ],
+   [
+    2180,
+    536870964
+   ],
+   [
+    2182,
+    1
+   ],
+   [
+    2205,
+    0
+   ],
+   [
+    2215,
+    6
+   ],
+   [
+    2228,
+    11
+   ],
+   [
+    2241,
+    15
+   ],
+   [
+    2243,
+    536870936
+   ],
+   [
+    2259,
+    15
+   ],
+   [
+    2272,
+    18
+   ],
+   [
+    2285,
+    20
+   ],
+   [
+    2298,
+    21
+   ],
+   [
+    2303,
+    1
+   ],
+   [
+    2312,
+    0
+   ],
+   [
+    2318,
+    1
+   ],
+   [
+    2321,
+    536870936
+   ],
+   [
+    2335,
+    536870940
+   ],
+   [
+    2337,
+    1
+   ],
+   [
+    2350,
+    2
+   ],
+   [
+    2364,
+    3
+   ],
+   [
+    2378,
+    4
+   ],
+   [
+    2384,
+    1
+   ],
+   [
+    2398,
+    536870936
+   ],
+   [
+    2412,
+    536870944
+   ],
+   [
+    2414,
+    1
+   ],
+   [
+    2425,
+    2
+   ],
+   [
+    2451,
+    0
+   ],
+   [
+    2470,
+    536870944
+   ],
+   [
+    2476,
+    536870936
+   ],
+   [
+    2490,
+    536870948
+   ],
+   [
+    2492,
+    536870944
+   ],
+   [
+    2514,
+    536870968
+   ],
+   [
+    2540,
+    536870992
+   ],
+   [
+    2553,
+    536870936
+   ],
+   [
+    2567,
+    536870952
+   ],
+   [
+    2569,
+    536870992
+   ],
+   [
+    2584,
+    536871016
+   ],
+   [
+    2610,
+    536871040
+   ],
+   [
+    2631,
+    536870936
+   ],
+   [
+    2645,
+    536870956
+   ],
+   [
+    2647,
+    536871040
+   ],
+   [
+    2654,
+    536871064
+   ],
+   [
+    2669,
+    2
+   ],
+   [
+    2708,
+    536870936
+   ],
+   [
+    2722,
+    536870960
+   ],
+   [
+    2724,
+    2
+   ],
+   [
+    2786,
+    536870936
+   ],
+   [
+    2800,
+    536870964
+   ],
+   [
+    2802,
+    2
+   ],
+   [
+    2863,
+    536870936
+   ],
+   [
+    2879,
+    2
+   ],
+   [
+    2925,
+    0
+   ],
+   [
+    2935,
+    7
+   ],
+   [
+    2941,
+    536870936
+   ],
+   [
+    2955,
+    536870940
+   ],
+   [
+    2957,
+    7
+   ],
+   [
+    2966,
+    13
+   ],
+   [
+    2979,
+    18
+   ],
+   [
+    2992,
+    22
+   ],
+   [
+    3005,
+    25
+   ],
+   [
+    3018,
+    536870936
+   ],
+   [
+    3032,
+    536870944
+   ],
+   [
+    3034,
+    25
+   ],
+   [
+    3036,
+    27
+   ],
+   [
+    3049,
+    28
+   ],
+   [
+    3054,
+    2
+   ],
+   [
+    3063,
+    0
+   ],
+   [
+    3069,
+    1
+   ],
+   [
+    3083,
+    2
+   ],
+   [
+    3096,
+    536870936
+   ],
+   [
+    3110,
+    536870948
+   ],
+   [
+    3112,
+    2
+   ],
+   [
+    3115,
+    3
+   ],
+   [
+    3129,
+    4
+   ],
+   [
+    3135,
+    2
+   ],
+   [
+    3158,
+    3
+   ],
+   [
+    3173,
+    536870936
+   ],
+   [
+    3187,
+    536870952
+   ],
+   [
+    3189,
+    3
+   ],
+   [
+    3210,
+    0
+   ],
+   [
+    3229,
+    536870944
+   ],
+   [
+    3251,
+    536870936
+   ],
+   [
+    3265,
+    536870956
+   ],
+   [
+    3267,
+    536870944
+   ],
+   [
+    3273,
+    536870968
+   ],
+   [
+    3299,
+    536870992
+   ],
+   [
+    3325,
+    536871016
+   ],
+   [
+    3328,
+    536870936
+   ],
+   [
+    3342,
+    536870960
+   ],
+   [
+    3344,
+    536871016
+   ],
+   [
+    3369,
+    536871040
+   ],
+   [
+    3395,
+    536871064
+   ],
+   [
+    3406,
+    536870936
+   ],
+   [
+    3420,
+    536870964
+   ],
+   [
+    3422,
+    536871064
+   ],
+   [
+    3428,
+    3
+   ],
+   [
+    3483,
+    536870936
+   ],
+   [
+    3499,
+    3
+   ],
+   [
+    3561,
+    536870936
+   ],
+   [
+    3575,
+    536870940
+   ],
+   [
+    3577,
+    3
+   ],
+   [
+    3638,
+    536870936
+   ],
+   [
+    3652,
+    536870944
+   ],
+   [
+    3654,
+    3
+   ],
+   [
+    3684,
+    0
+   ],
+   [
+    3694,
+    8
+   ],
+   [
+    3707,
+    15
+   ],
+   [
+    3716,
+    536870936
+   ],
+   [
+    3730,
+    536870948
+   ],
+   [
+    3732,
+    15
+   ],
+   [
+    3738,
+    21
+   ],
+   [
+    3751,
+    26
+   ],
+   [
+    3764,
+    30
+   ],
+   [
+    3777,
+    33
+   ],
+   [
+    3790,
+    35
+   ],
+   [
+    3793,
+    536870936
+   ],
+   [
+    3807,
+    536870952
+   ],
+   [
+    3809,
+    35
+   ],
+   [
+    3821,
+    36
+   ],
+   [
+    3826,
+    3
+   ],
+   [
+    3835,
+    0
+   ],
+   [
+    3841,
+    1
+   ],
+   [
+    3855,
+    2
+   ],
+   [
+    3869,
+    3
+   ],
+   [
+    3871,
+    536870936
+   ],
+   [
+    3885,
+    536870956
+   ],
+   [
+    3887,
+    3
+   ],
+   [
+    3901,
+    4
+   ],
+   [
+    3907,
+    3
+   ],
+   [
+    3930,
+    564528145
+   ],
+   [
+    3934,
+    4
+   ],
+   [
+    3948,
+    536870936
+   ],
+   [
+    3962,
+    536870960
+   ],
+   [
+    3964,
+    4
+   ],
+   [
+    3971,
+    0
+   ],
+   [
+    3990,
+    536870944
+   ],
+   [
+    4016,
+    536870968
+   ],
+   [
+    4026,
+    536870936
+   ],
+   [
+    4040,
+    536870964
+   ],
+   [
+    4042,
+    536870968
+   ],
+   [
+    4060,
+    536870992
+   ],
+   [
+    4086,
+    536871016
+   ],
+   [
+    4103,
+    536870936
+   ],
+   [
+    4119,
+    536871016
+   ],
+   [
+    4130,
+    536871040
+   ],
+   [
+    4156,
+    536871064
+   ],
+   [
+    4171,
+    4
+   ],
+   [
+    4181,
+    536870936
+   ],
+   [
+    4195,
+    536870940
+   ],
+   [
+    4197,
+    4
+   ],
+   [
+    4258,
+    536870936
+   ],
+   [
+    4272,
+    536870944
+   ],
+   [
+    4274,
+    4
+   ],
+   [
+    4336,
+    536870936
+   ],
+   [
+    4350,
+    536870948
+   ],
+   [
+    4352,
+    4
+   ],
+   [
+    4413,
+    536870936
+   ],
+   [
+    4427,
+    536870952
+   ],
+   [
+    4429,
+    4
+   ],
+   [
+    4445,
+    0
+   ],
+   [
+    4455,
+    9
+   ],
+   [
+    4468,
+    17
+   ],
+   [
+    4481,
+    24
+   ],
+   [
+    4491,
+    536870936
+   ],
+   [
+    4505,
+    536870956
+   ],
+   [
+    4507,
+    24
+   ],
+   [
+    4512,
+    30
+   ],
+   [
+    4525,
+    35
+   ],
+   [
+    4538,
+    39
+   ],
+   [
+    4551,
+    42
+   ],
+   [
+    4564,
+    44
+   ],
+   [
+    4568,
+    536870936
+   ],
+   [
+    4582,
+    536870960
+   ],
+   [
+    4584,
+    44
+   ],
+   [
+    4595,
+    45
+   ],
+   [
+    4600,
+    4
+   ],
+   [
+    4609,
+    0
+   ],
+   [
+    4615,
+    1
+   ],
+   [
+    4629,
+    2
+   ],
+   [
+    4643,
+    3
+   ],
+   [
+    4646,
+    536870936
+   ],
+   [
+    4660,
+    536870964
+   ],
+   [
+    4662,
+    3
+   ],
+   [
+    4675,
+    4
+   ],
+   [
+    4694,
+    564528145
+   ]
+  ],
+  "r7": [
+   [
+    1020,
+    18
+   ],
+   [
+    1224,
+    0
+   ],
+   [
+    1727,
+    18
+   ],
+   [
+    1931,
+    0
+   ],
+   [
+    2447,
+    18
+   ],
+   [
+    2669,
+    0
+   ],
+   [
+    3206,
+    18
+   ],
+   [
+    3428,
+    0
+   ],
+   [
+    3967,
+    18
+   ],
+   [
+    4171,
+    0
+   ]
+  ]
+ },
+ "writes_to": [
+  {
+   "addr": 536871132,
+   "from": 0,
+   "len": 32,
+   "name": "ring",
+   "to": 4715,
+   "writes": [
+    {
+     "addr": 536871132,
+     "index": 192,
+     "size": 4,
+     "value": 0
+    },
+    {
+     "addr": 536871136,
+     "index": 195,
+     "size": 4,
+     "value": 0
+    },
+    {
+     "addr": 536871140,
+     "index": 198,
+     "size": 4,
+     "value": 0
+    },
+    {
+     "addr": 536871144,
+     "index": 201,
+     "size": 4,
+     "value": 0
+    },
+    {
+     "addr": 536871148,
+     "index": 204,
+     "size": 4,
+     "value": 0
+    },
+    {
+     "addr": 536871152,
+     "index": 207,
+     "size": 4,
+     "value": 0
+    },
+    {
+     "addr": 536871156,
+     "index": 210,
+     "size": 4,
+     "value": 0
+    },
+    {
+     "addr": 536871160,
+     "index": 213,
+     "size": 4,
+     "value": 0
+    },
+    {
+     "addr": 536871136,
+     "index": 1096,
+     "size": 4,
+     "value": 2959855728
+    },
+    {
+     "addr": 536871140,
+     "index": 1173,
+     "size": 4,
+     "value": 2959855795
+    },
+    {
+     "addr": 536871144,
+     "index": 1251,
+     "size": 4,
+     "value": 2959855858
+    },
+    {
+     "addr": 536871148,
+     "index": 1328,
+     "size": 4,
+     "value": 2959855926
+    },
+    {
+     "addr": 536871152,
+     "index": 1406,
+     "size": 4,
+     "value": 2959855991
+    },
+    {
+     "addr": 536871156,
+     "index": 1483,
+     "size": 4,
+     "value": 2959856052
+    },
+    {
+     "addr": 536871160,
+     "index": 1561,
+     "size": 4,
+     "value": 2959856117
+    },
+    {
+     "addr": 536871132,
+     "index": 1638,
+     "size": 4,
+     "value": 2959856187
+    },
+    {
+     "addr": 536871136,
+     "index": 1675,
+     "size": 4,
+     "value": 1543503873
+    },
+    {
+     "addr": 536871136,
+     "index": 1716,
+     "size": 4,
+     "value": 2959856250
+    },
+    {
+     "addr": 536871140,
+     "index": 1793,
+     "size": 4,
+     "value": 2959856313
+    },
+    {
+     "addr": 536871144,
+     "index": 1871,
+     "size": 4,
+     "value": 2959856376
+    },
+    {
+     "addr": 536871148,
+     "index": 1948,
+     "size": 4,
+     "value": 2959856440
+    },
+    {
+     "addr": 536871152,
+     "index": 2026,
+     "size": 4,
+     "value": 2959856505
+    },
+    {
+     "addr": 536871156,
+     "index": 2103,
+     "size": 4,
+     "value": 2959856570
+    },
+    {
+     "addr": 536871160,
+     "index": 2181,
+     "size": 4,
+     "value": 2959856635
+    },
+    {
+     "addr": 536871132,
+     "index": 2258,
+     "size": 4,
+     "value": 2959856677
+    },
+    {
+     "addr": 536871136,
+     "index": 2336,
+     "size": 4,
+     "value": 2959856740
+    },
+    {
+     "addr": 536871140,
+     "index": 2395,
+     "size": 4,
+     "value": 1543503874
+    },
+    {
+     "addr": 536871140,
+     "index": 2413,
+     "size": 4,
+     "value": 2959856807
+    },
+    {
+     "addr": 536871144,
+     "index": 2491,
+     "size": 4,
+     "value": 2959856870
+    },
+    {
+     "addr": 536871148,
+     "index": 2568,
+     "size": 4,
+     "value": 2959856930
+    },
+    {
+     "addr": 536871152,
+     "index": 2646,
+     "size": 4,
+     "value": 2959856995
+    },
+    {
+     "addr": 536871156,
+     "index": 2723,
+     "size": 4,
+     "value": 2959857056
+    },
+    {
+     "addr": 536871160,
+     "index": 2801,
+     "size": 4,
+     "value": 2959857121
+    },
+    {
+     "addr": 536871132,
+     "index": 2878,
+     "size": 4,
+     "value": 2959857199
+    },
+    {
+     "addr": 536871136,
+     "index": 2956,
+     "size": 4,
+     "value": 2959857262
+    },
+    {
+     "addr": 536871140,
+     "index": 3033,
+     "size": 4,
+     "value": 2959857325
+    },
+    {
+     "addr": 536871144,
+     "index": 3111,
+     "size": 4,
+     "value": 2959857388
+    },
+    {
+     "addr": 536871144,
+     "index": 3146,
+     "size": 4,
+     "value": 1543503875
+    },
+    {
+     "addr": 536871148,
+     "index": 3188,
+     "size": 4,
+     "value": 2959857444
+    },
+    {
+     "addr": 536871152,
+     "index": 3266,
+     "size": 4,
+     "value": 2959857509
+    },
+    {
+     "addr": 536871156,
+     "index": 3343,
+     "size": 4,
+     "value": 2959857574
+    },
+    {
+     "addr": 536871160,
+     "index": 3421,
+     "size": 4,
+     "value": 2959857639
+    },
+    {
+     "addr": 536871132,
+     "index": 3498,
+     "size": 4,
+     "value": 2959857689
+    },
+    {
+     "addr": 536871136,
+     "index": 3576,
+     "size": 4,
+     "value": 2959857752
+    },
+    {
+     "addr": 536871140,
+     "index": 3653,
+     "size": 4,
+     "value": 2959857819
+    },
+    {
+     "addr": 536871144,
+     "index": 3731,
+     "size": 4,
+     "value": 2959857882
+    },
+    {
+     "addr": 536871148,
+     "index": 3808,
+     "size": 4,
+     "value": 2959857950
+    },
+    {
+     "addr": 536871152,
+     "index": 3886,
+     "size": 4,
+     "value": 2959858015
+    },
+    {
+     "addr": 536871148,
+     "index": 3918,
+     "size": 4,
+     "value": 1543503876
+    },
+    {
+     "addr": 536871156,
+     "index": 3963,
+     "size": 4,
+     "value": 2959858076
+    },
+    {
+     "addr": 536871160,
+     "index": 4041,
+     "size": 4,
+     "value": 2959858141
+    },
+    {
+     "addr": 536871132,
+     "index": 4118,
+     "size": 4,
+     "value": 2959858195
+    },
+    {
+     "addr": 536871136,
+     "index": 4196,
+     "size": 4,
+     "value": 2959858258
+    },
+    {
+     "addr": 536871140,
+     "index": 4273,
+     "size": 4,
+     "value": 2959858321
+    },
+    {
+     "addr": 536871144,
+     "index": 4351,
+     "size": 4,
+     "value": 2959858384
+    },
+    {
+     "addr": 536871148,
+     "index": 4428,
+     "size": 4,
+     "value": 2959858448
+    },
+    {
+     "addr": 536871152,
+     "index": 4506,
+     "size": 4,
+     "value": 2959858513
+    },
+    {
+     "addr": 536871156,
+     "index": 4583,
+     "size": 4,
+     "value": 2959858578
+    },
+    {
+     "addr": 536871160,
+     "index": 4661,
+     "size": 4,
+     "value": 2959858643
+    },
+    {
+     "addr": 536871152,
+     "index": 4692,
+     "size": 4,
+     "value": 1543503877
+    }
+   ]
+  },
+  {
+   "addr": 536871088,
+   "from": 1178,
+   "len": 4,
+   "name": "ticks",
+   "to": 3536,
+   "writes": [
+    {
+     "addr": 536871088,
+     "index": 1241,
+     "size": 4,
+     "value": 3
+    },
+    {
+     "addr": 536871088,
+     "index": 1318,
+     "size": 4,
+     "value": 4
+    },
+    {
+     "addr": 536871088,
+     "index": 1396,
+     "size": 4,
+     "value": 5
+    },
+    {
+     "addr": 536871088,
+     "index": 1473,
+     "size": 4,
+     "value": 6
+    },
+    {
+     "addr": 536871088,
+     "index": 1551,
+     "size": 4,
+     "value": 7
+    },
+    {
+     "addr": 536871088,
+     "index": 1628,
+     "size": 4,
+     "value": 8
+    },
+    {
+     "addr": 536871088,
+     "index": 1706,
+     "size": 4,
+     "value": 9
+    },
+    {
+     "addr": 536871088,
+     "index": 1783,
+     "size": 4,
+     "value": 10
+    },
+    {
+     "addr": 536871088,
+     "index": 1861,
+     "size": 4,
+     "value": 11
+    },
+    {
+     "addr": 536871088,
+     "index": 1938,
+     "size": 4,
+     "value": 12
+    },
+    {
+     "addr": 536871088,
+     "index": 2016,
+     "size": 4,
+     "value": 13
+    },
+    {
+     "addr": 536871088,
+     "index": 2093,
+     "size": 4,
+     "value": 14
+    },
+    {
+     "addr": 536871088,
+     "index": 2171,
+     "size": 4,
+     "value": 15
+    },
+    {
+     "addr": 536871088,
+     "index": 2248,
+     "size": 4,
+     "value": 16
+    },
+    {
+     "addr": 536871088,
+     "index": 2326,
+     "size": 4,
+     "value": 17
+    },
+    {
+     "addr": 536871088,
+     "index": 2403,
+     "size": 4,
+     "value": 18
+    },
+    {
+     "addr": 536871088,
+     "index": 2481,
+     "size": 4,
+     "value": 19
+    },
+    {
+     "addr": 536871088,
+     "index": 2558,
+     "size": 4,
+     "value": 20
+    },
+    {
+     "addr": 536871088,
+     "index": 2636,
+     "size": 4,
+     "value": 21
+    },
+    {
+     "addr": 536871088,
+     "index": 2713,
+     "size": 4,
+     "value": 22
+    },
+    {
+     "addr": 536871088,
+     "index": 2791,
+     "size": 4,
+     "value": 23
+    },
+    {
+     "addr": 536871088,
+     "index": 2868,
+     "size": 4,
+     "value": 24
+    },
+    {
+     "addr": 536871088,
+     "index": 2946,
+     "size": 4,
+     "value": 25
+    },
+    {
+     "addr": 536871088,
+     "index": 3023,
+     "size": 4,
+     "value": 26
+    },
+    {
+     "addr": 536871088,
+     "index": 3101,
+     "size": 4,
+     "value": 27
+    },
+    {
+     "addr": 536871088,
+     "index": 3178,
+     "size": 4,
+     "value": 28
+    },
+    {
+     "addr": 536871088,
+     "index": 3256,
+     "size": 4,
+     "value": 29
+    },
+    {
+     "addr": 536871088,
+     "index": 3333,
+     "size": 4,
+     "value": 30
+    },
+    {
+     "addr": 536871088,
+     "index": 3411,
+     "size": 4,
+     "value": 31
+    },
+    {
+     "addr": 536871088,
+     "index": 3488,
+     "size": 4,
+     "value": 32
+    }
+   ]
+  },
+  {
+   "addr": 536870944,
+   "from": 1414,
+   "len": 144,
+   "name": "pool",
+   "to": 2357,
+   "writes": [
+    {
+     "addr": 536870944,
+     "index": 1733,
+     "size": 1,
+     "value": 0
+    },
+    {
+     "addr": 536870946,
+     "index": 1737,
+     "size": 2,
+     "value": 200
+    },
+    {
+     "addr": 536870948,
+     "index": 1749,
+     "size": 8,
+     "value": 2515372692981966371
+    },
+    {
+     "addr": 536870960,
+     "index": 1751,
+     "size": 4,
+     "value": 0
+    },
+    {
+     "addr": 536870956,
+     "index": 1755,
+     "size": 4,
+     "value": 9
+    },
+    {
+     "addr": 536870968,
+     "index": 1759,
+     "size": 1,
+     "value": 3
+    },
+    {
+     "addr": 536870970,
+     "index": 1763,
+     "size": 2,
+     "value": 300
+    },
+    {
+     "addr": 536870972,
+     "index": 1775,
+     "size": 8,
+     "value": 5965078056426551011
+    },
+    {
+     "addr": 536870984,
+     "index": 1795,
+     "size": 4,
+     "value": 536870944
+    },
+    {
+     "addr": 536870980,
+     "index": 1799,
+     "size": 4,
+     "value": 10
+    },
+    {
+     "addr": 536870992,
+     "index": 1803,
+     "size": 1,
+     "value": 6
+    },
+    {
+     "addr": 536870994,
+     "index": 1807,
+     "size": 2,
+     "value": 500
+    },
+    {
+     "addr": 536870996,
+     "index": 1819,
+     "size": 8,
+     "value": 14360717542615123076
+    },
+    {
+     "addr": 536871008,
+     "index": 1821,
+     "size": 4,
+     "value": 536870968
+    },
+    {
+     "addr": 536871004,
+     "index": 1825,
+     "size": 4,
+     "value": 10
+    },
+    {
+     "addr": 536871016,
+     "index": 1829,
+     "size": 1,
+     "value": 9
+    },
+    {
+     "addr": 536871018,
+     "index": 1833,
+     "size": 2,
+     "value": 700
+    },
+    {
+     "addr": 536871020,
+     "index": 1845,
+     "size": 8,
+     "value": 2068201429825468990
+    },
+    {
+     "addr": 536871032,
+     "index": 1847,
+     "size": 4,
+     "value": 536870992
+    },
+    {
+     "addr": 536871028,
+     "index": 1851,
+     "size": 4,
+     "value": 10
+    },
+    {
+     "addr": 536871040,
+     "index": 1873,
+     "size": 1,
+     "value": 12
+    },
+    {
+     "addr": 536871042,
+     "index": 1877,
+     "size": 2,
+     "value": 1100
+    },
+    {
+     "addr": 536871044,
+     "index": 1889,
+     "size": 8,
+     "value": 4462639723603458863
+    },
+    {
+     "addr": 536871056,
+     "index": 1891,
+     "size": 4,
+     "value": 536871016
+    },
+    {
+     "addr": 536871052,
+     "index": 1895,
+     "size": 4,
+     "value": 11
+    },
+    {
+     "addr": 536871064,
+     "index": 1899,
+     "size": 1,
+     "value": 15
+    },
+    {
+     "addr": 536871066,
+     "index": 1903,
+     "size": 2,
+     "value": 1300
+    },
+    {
+     "addr": 536871068,
+     "index": 1915,
+     "size": 8,
+     "value": 4462639659178949408
+    },
+    {
+     "addr": 536871080,
+     "index": 1917,
+     "size": 4,
+     "value": 536871040
+    },
+    {
+     "addr": 536871076,
+     "index": 1921,
+     "size": 4,
+     "value": 11
+    }
+   ]
+  },
+  {
+   "addr": 536871092,
+   "from": 0,
+   "len": 24,
+   "name": "bytes",
+   "to": 4715,
+   "writes": [
+    {
+     "addr": 536871092,
+     "index": 162,
+     "size": 4,
+     "value": 0
+    },
+    {
+     "addr": 536871096,
+     "index": 165,
+     "size": 4,
+     "value": 0
+    },
+    {
+     "addr": 536871100,
+     "index": 168,
+     "size": 4,
+     "value": 0
+    },
+    {
+     "addr": 536871104,
+     "index": 171,
+     "size": 4,
+     "value": 0
+    },
+    {
+     "addr": 536871108,
+     "index": 174,
+     "size": 4,
+     "value": 0
+    },
+    {
+     "addr": 536871112,
+     "index": 177,
+     "size": 4,
+     "value": 0
+    },
+    {
+     "addr": 536871092,
+     "index": 1308,
+     "size": 1,
+     "value": 0
+    },
+    {
+     "addr": 536871093,
+     "index": 1331,
+     "size": 1,
+     "value": 7
+    },
+    {
+     "addr": 536871094,
+     "index": 1336,
+     "size": 1,
+     "value": 14
+    },
+    {
+     "addr": 536871095,
+     "index": 1341,
+     "size": 1,
+     "value": 21
+    },
+    {
+     "addr": 536871096,
+     "index": 1346,
+     "size": 1,
+     "value": 28
+    },
+    {
+     "addr": 536871097,
+     "index": 1351,
+     "size": 1,
+     "value": 35
+    },
+    {
+     "addr": 536871098,
+     "index": 1356,
+     "size": 1,
+     "value": 42
+    },
+    {
+     "addr": 536871099,
+     "index": 1361,
+     "size": 1,
+     "value": 49
+    },
+    {
+     "addr": 536871100,
+     "index": 1366,
+     "size": 1,
+     "value": 56
+    },
+    {
+     "addr": 536871101,
+     "index": 1371,
+     "size": 1,
+     "value": 63
+    },
+    {
+     "addr": 536871102,
+     "index": 1376,
+     "size": 1,
+     "value": 70
+    },
+    {
+     "addr": 536871103,
+     "index": 1381,
+     "size": 1,
+     "value": 77
+    },
+    {
+     "addr": 536871104,
+     "index": 1386,
+     "size": 1,
+     "value": 84
+    },
+    {
+     "addr": 536871105,
+     "index": 1409,
+     "size": 1,
+     "value": 91
+    },
+    {
+     "addr": 536871106,
+     "index": 1414,
+     "size": 1,
+     "value": 98
+    },
+    {
+     "addr": 536871107,
+     "index": 1419,
+     "size": 1,
+     "value": 105
+    },
+    {
+     "addr": 536871108,
+     "index": 1424,
+     "size": 1,
+     "value": 112
+    },
+    {
+     "addr": 536871109,
+     "index": 1429,
+     "size": 1,
+     "value": 119
+    },
+    {
+     "addr": 536871110,
+     "index": 1434,
+     "size": 1,
+     "value": 126
+    },
+    {
+     "addr": 536871111,
+     "index": 1439,
+     "size": 1,
+     "value": 133
+    },
+    {
+     "addr": 536871112,
+     "index": 1444,
+     "size": 1,
+     "value": 140
+    },
+    {
+     "addr": 536871113,
+     "index": 1449,
+     "size": 1,
+     "value": 147
+    },
+    {
+     "addr": 536871114,
+     "index": 1454,
+     "size": 1,
+     "value": 154
+    },
+    {
+     "addr": 536871115,
+     "index": 1459,
+     "size": 1,
+     "value": 161
+    },
+    {
+     "addr": 536871098,
+     "index": 1487,
+     "size": 2,
+     "value": 48879
+    },
+    {
+     "addr": 536871092,
+     "index": 2033,
+     "size": 1,
+     "value": 1
+    },
+    {
+     "addr": 536871093,
+     "index": 2038,
+     "size": 1,
+     "value": 8
+    },
+    {
+     "addr": 536871094,
+     "index": 2043,
+     "size": 1,
+     "value": 15
+    },
+    {
+     "addr": 536871095,
+     "index": 2048,
+     "size": 1,
+     "value": 22
+    },
+    {
+     "addr": 536871096,
+     "index": 2053,
+     "size": 1,
+     "value": 29
+    },
+    {
+     "addr": 536871097,
+     "index": 2058,
+     "size": 1,
+     "value": 36
+    },
+    {
+     "addr": 536871098,
+     "index": 2063,
+     "size": 1,
+     "value": 43
+    },
+    {
+     "addr": 536871099,
+     "index": 2068,
+     "size": 1,
+     "value": 50
+    },
+    {
+     "addr": 536871100,
+     "index": 2073,
+     "size": 1,
+     "value": 57
+    },
+    {
+     "addr": 536871101,
+     "index": 2078,
+     "size": 1,
+     "value": 64
+    },
+    {
+     "addr": 536871102,
+     "index": 2083,
+     "size": 1,
+     "value": 71
+    },
+    {
+     "addr": 536871103,
+     "index": 2106,
+     "size": 1,
+     "value": 78
+    },
+    {
+     "addr": 536871104,
+     "index": 2111,
+     "size": 1,
+     "value": 85
+    },
+    {
+     "addr": 536871105,
+     "index": 2116,
+     "size": 1,
+     "value": 92
+    },
+    {
+     "addr": 536871106,
+     "index": 2121,
+     "size": 1,
+     "value": 99
+    },
+    {
+     "addr": 536871107,
+     "index": 2126,
+     "size": 1,
+     "value": 106
+    },
+    {
+     "addr": 536871108,
+     "index": 2131,
+     "size": 1,
+     "value": 113
+    },
+    {
+     "addr": 536871109,
+     "index": 2136,
+     "size": 1,
+     "value": 120
+    },
+    {
+     "addr": 536871110,
+     "index": 2141,
+     "size": 1,
+     "value": 127
+    },
+    {
+     "addr": 536871111,
+     "index": 2146,
+     "size": 1,
+     "value": 134
+    },
+    {
+     "addr": 536871112,
+     "index": 2151,
+     "size": 1,
+     "value": 141
+    },
+    {
+     "addr": 536871113,
+     "index": 2156,
+     "size": 1,
+     "value": 148
+    },
+    {
+     "addr": 536871114,
+     "index": 2161,
+     "size": 1,
+     "value": 155
+    },
+    {
+     "addr": 536871115,
+     "index": 2184,
+     "size": 1,
+     "value": 162
+    },
+    {
+     "addr": 536871098,
+     "index": 2194,
+     "size": 2,
+     "value": 48879
+    },
+    {
+     "addr": 536871092,
+     "index": 2753,
+     "size": 1,
+     "value": 2
+    },
+    {
+     "addr": 536871093,
+     "index": 2758,
+     "size": 1,
+     "value": 9
+    },
+    {
+     "addr": 536871094,
+     "index": 2763,
+     "size": 1,
+     "value": 16
+    },
+    {
+     "addr": 536871095,
+     "index": 2768,
+     "size": 1,
+     "value": 23
+    },
+    {
+     "addr": 536871096,
+     "index": 2773,
+     "size": 1,
+     "value": 30
+    },
+    {
+     "addr": 536871097,
+     "index": 2778,
+     "size": 1,
+     "value": 37
+    },
+    {
+     "addr": 536871098,
+     "index": 2783,
+     "size": 1,
+     "value": 44
+    },
+    {
+     "addr": 536871099,
+     "index": 2806,
+     "size": 1,
+     "value": 51
+    },
+    {
+     "addr": 536871100,
+     "index": 2811,
+     "size": 1,
+     "value": 58
+    },
+    {
+     "addr": 536871101,
+     "index": 2816,
+     "size": 1,
+     "value": 65
+    },
+    {
+     "addr": 536871102,
+     "index": 2821,
+     "size": 1,
+     "value": 72
+    },
+    {
+     "addr": 536871103,
+     "index": 2826,
+     "size": 1,
+     "value": 79
+    },
+    {
+     "addr": 536871104,
+     "index": 2831,
+     "size": 1,
+     "value": 86
+    },
+    {
+     "addr": 536871105,
+     "index": 2836,
+     "size": 1,
+     "value": 93
+    },
+    {
+     "addr": 536871106,
+     "index": 2841,
+     "size": 1,
+     "value": 100
+    },
+    {
+     "addr": 536871107,
+     "index": 2846,
+     "size": 1,
+     "value": 107
+    },
+    {
+     "addr": 536871108,
+     "index": 2851,
+     "size": 1,
+     "value": 114
+    },
+    {
+     "addr": 536871109,
+     "index": 2856,
+     "size": 1,
+     "value": 121
+    },
+    {
+     "addr": 536871110,
+     "index": 2861,
+     "size": 1,
+     "value": 128
+    },
+    {
+     "addr": 536871111,
+     "index": 2884,
+     "size": 1,
+     "value": 135
+    },
+    {
+     "addr": 536871112,
+     "index": 2889,
+     "size": 1,
+     "value": 142
+    },
+    {
+     "addr": 536871113,
+     "index": 2894,
+     "size": 1,
+     "value": 149
+    },
+    {
+     "addr": 536871114,
+     "index": 2899,
+     "size": 1,
+     "value": 156
+    },
+    {
+     "addr": 536871115,
+     "index": 2904,
+     "size": 1,
+     "value": 163
+    },
+    {
+     "addr": 536871098,
+     "index": 2914,
+     "size": 2,
+     "value": 48879
+    },
+    {
+     "addr": 536871092,
+     "index": 3512,
+     "size": 1,
+     "value": 3
+    },
+    {
+     "addr": 536871093,
+     "index": 3517,
+     "size": 1,
+     "value": 10
+    },
+    {
+     "addr": 536871094,
+     "index": 3522,
+     "size": 1,
+     "value": 17
+    },
+    {
+     "addr": 536871095,
+     "index": 3527,
+     "size": 1,
+     "value": 24
+    },
+    {
+     "addr": 536871096,
+     "index": 3532,
+     "size": 1,
+     "value": 31
+    },
+    {
+     "addr": 536871097,
+     "index": 3537,
+     "size": 1,
+     "value": 38
+    },
+    {
+     "addr": 536871098,
+     "index": 3542,
+     "size": 1,
+     "value": 45
+    },
+    {
+     "addr": 536871099,
+     "index": 3547,
+     "size": 1,
+     "value": 52
+    },
+    {
+     "addr": 536871100,
+     "index": 3552,
+     "size": 1,
+     "value": 59
+    },
+    {
+     "addr": 536871101,
+     "index": 3557,
+     "size": 1,
+     "value": 66
+    },
+    {
+     "addr": 536871102,
+     "index": 3580,
+     "size": 1,
+     "value": 73
+    },
+    {
+     "addr": 536871103,
+     "index": 3585,
+     "size": 1,
+     "value": 80
+    },
+    {
+     "addr": 536871104,
+     "index": 3590,
+     "size": 1,
+     "value": 87
+    },
+    {
+     "addr": 536871105,
+     "index": 3595,
+     "size": 1,
+     "value": 94
+    },
+    {
+     "addr": 536871106,
+     "index": 3600,
+     "size": 1,
+     "value": 101
+    },
+    {
+     "addr": 536871107,
+     "index": 3605,
+     "size": 1,
+     "value": 108
+    },
+    {
+     "addr": 536871108,
+     "index": 3610,
+     "size": 1,
+     "value": 115
+    },
+    {
+     "addr": 536871109,
+     "index": 3615,
+     "size": 1,
+     "value": 122
+    },
+    {
+     "addr": 536871110,
+     "index": 3620,
+     "size": 1,
+     "value": 129
+    },
+    {
+     "addr": 536871111,
+     "index": 3625,
+     "size": 1,
+     "value": 136
+    },
+    {
+     "addr": 536871112,
+     "index": 3630,
+     "size": 1,
+     "value": 143
+    },
+    {
+     "addr": 536871113,
+     "index": 3635,
+     "size": 1,
+     "value": 150
+    },
+    {
+     "addr": 536871114,
+     "index": 3658,
+     "size": 1,
+     "value": 157
+    },
+    {
+     "addr": 536871115,
+     "index": 3663,
+     "size": 1,
+     "value": 164
+    },
+    {
+     "addr": 536871098,
+     "index": 3673,
+     "size": 2,
+     "value": 48879
+    },
+    {
+     "addr": 536871092,
+     "index": 4255,
+     "size": 1,
+     "value": 4
+    },
+    {
+     "addr": 536871093,
+     "index": 4278,
+     "size": 1,
+     "value": 11
+    },
+    {
+     "addr": 536871094,
+     "index": 4283,
+     "size": 1,
+     "value": 18
+    },
+    {
+     "addr": 536871095,
+     "index": 4288,
+     "size": 1,
+     "value": 25
+    },
+    {
+     "addr": 536871096,
+     "index": 4293,
+     "size": 1,
+     "value": 32
+    },
+    {
+     "addr": 536871097,
+     "index": 4298,
+     "size": 1,
+     "value": 39
+    },
+    {
+     "addr": 536871098,
+     "index": 4303,
+     "size": 1,
+     "value": 46
+    },
+    {
+     "addr": 536871099,
+     "index": 4308,
+     "size": 1,
+     "value": 53
+    },
+    {
+     "addr": 536871100,
+     "index": 4313,
+     "size": 1,
+     "value": 60
+    },
+    {
+     "addr": 536871101,
+     "index": 4318,
+     "size": 1,
+     "value": 67
+    },
+    {
+     "addr": 536871102,
+     "index": 4323,
+     "size": 1,
+     "value": 74
+    },
+    {
+     "addr": 536871103,
+     "index": 4328,
+     "size": 1,
+     "value": 81
+    },
+    {
+     "addr": 536871104,
+     "index": 4333,
+     "size": 1,
+     "value": 88
+    },
+    {
+     "addr": 536871105,
+     "index": 4356,
+     "size": 1,
+     "value": 95
+    },
+    {
+     "addr": 536871106,
+     "index": 4361,
+     "size": 1,
+     "value": 102
+    },
+    {
+     "addr": 536871107,
+     "index": 4366,
+     "size": 1,
+     "value": 109
+    },
+    {
+     "addr": 536871108,
+     "index": 4371,
+     "size": 1,
+     "value": 116
+    },
+    {
+     "addr": 536871109,
+     "index": 4376,
+     "size": 1,
+     "value": 123
+    },
+    {
+     "addr": 536871110,
+     "index": 4381,
+     "size": 1,
+     "value": 130
+    },
+    {
+     "addr": 536871111,
+     "index": 4386,
+     "size": 1,
+     "value": 137
+    },
+    {
+     "addr": 536871112,
+     "index": 4391,
+     "size": 1,
+     "value": 144
+    },
+    {
+     "addr": 536871113,
+     "index": 4396,
+     "size": 1,
+     "value": 151
+    },
+    {
+     "addr": 536871114,
+     "index": 4401,
+     "size": 1,
+     "value": 158
+    },
+    {
+     "addr": 536871115,
+     "index": 4406,
+     "size": 1,
+     "value": 165
+    },
+    {
+     "addr": 536871098,
+     "index": 4434,
+     "size": 2,
+     "value": 48879
+    }
+   ]
+  }
+ ]
+}

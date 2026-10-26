@@ -153,6 +153,13 @@ pub struct Report {
     /// `None` in indexes built before this was recorded.
     #[serde(default)]
     pub registers_not_always_known: Option<Vec<String>>,
+    /// Where the data byte order came from: "option", "config", "elf" or
+    /// "isa default".
+    #[serde(default)]
+    pub endian_source: Option<String>,
+    /// An explicit byte order that disagrees with the ELF header.
+    #[serde(default)]
+    pub endian_conflict: Option<String>,
     /// Source attribution of the ELF code.
     pub sources: sources::SourceSummary,
 }
@@ -160,6 +167,9 @@ pub struct Report {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Meta {
     pub format_version: u32,
+    /// Data byte order (indexes from before this field: little).
+    #[serde(default)]
+    pub endian: simgdb_isa::Endian,
     pub isa: String,
     pub run: u32,
     pub core: u32,

@@ -281,9 +281,10 @@ impl Isa for ArmM {
         )
     }
 
-    fn little_endian(&self) -> bool {
-        // BE8 M-profile parts exist but are rare; not supported yet.
-        true
+    fn little_endian_regions(&self) -> &'static [(u64, u64)] {
+        // Armv7-M/v8-M: accesses to the Private Peripheral Bus are always
+        // little-endian, also on a big-endian (BE8) core.
+        &[(0xE000_0000, 0xE010_0000)]
     }
 
     fn flow(&self, opcode: u32, width: u8) -> crate::Flow {
@@ -410,6 +411,20 @@ mod tests {
         let s = state(&[(LR, 0xffff_ff48), (MSP, 0x3000_0f00)]); // v8-M Secure, FP, additional state
         assert_eq!(ArmM.exception_frame(&s), Some((0x3000_0f00, 0x20 + 0x48 + 0x40 + 0x28)));
         assert_eq!(ArmM.exception_frame(&state(&[(MSP, 0x2000_0fa0)])), None);
+    }
+
+    #[test]
+    fn data_byte_order() {
+        use crate::Endian;
+        let bytes = [0x11, 0x22, 0x33, 0x44];
+        assert_eq!(Endian::Little.value(&bytes), 0x4433_2211);
+        assert_eq!(Endian::Big.value(&bytes), 0x1122_3344);
+        assert_eq!((Endian::Little.shift(0, 4), Endian::Big.shift(0, 4)), (0, 24));
+        // The PPB is little-endian on a big-endian core; RAM is not.
+        assert_eq!(Endian::Big.at(&ArmM, 0xE000_E014), Endian::Little);
+        assert_eq!(Endian::Big.at(&ArmM, 0x2000_0000), Endian::Big);
+        assert_eq!(Endian::Little.at(&ArmM, 0x2000_0000), Endian::Little);
+        assert_eq!(Endian::parse("BE8"), Some(Endian::Big));
     }
 
     #[test]

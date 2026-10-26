@@ -55,6 +55,8 @@ pub struct RegistersConfig {
 pub struct MemoryConfig {
     /// `[start, end)` ranges; replaces the ISA default when given.
     pub volatile: Option<Vec<[u64; 2]>>,
+    /// Data byte order, `"little"` or `"big"`; overrides the ELF header.
+    pub endian: Option<simgdb_isa::Endian>,
 }
 
 impl SiteConfig {

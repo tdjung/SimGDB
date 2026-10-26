@@ -24,6 +24,7 @@
 #include <glib.h>
 #include <inttypes.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <qemu-plugin.h>
@@ -40,6 +41,7 @@ static const char *wanted[] = {
 static struct qemu_plugin_register *handles[NWANTED];
 static GByteArray *buf;
 static FILE *out;
+static int big_endian;
 
 typedef struct {
     uint64_t pc;
@@ -55,7 +57,11 @@ static uint32_t read_reg(int k)
     g_byte_array_set_size(buf, 0);
     int n = qemu_plugin_read_register(handles[k], buf);
     if (n >= 4) {
-        memcpy(&v, buf->data, 4); /* target is little-endian */
+        /* The gdbstub's register byte order: little-endian, or big-endian
+         * under QEMU_ARM_M_BIGEND (tests/firmware/qemu/qemu-m-bigend.patch). */
+        const uint8_t *d = buf->data;
+        v = big_endian ? (uint32_t)d[0] << 24 | (uint32_t)d[1] << 16 | (uint32_t)d[2] << 8 | d[3]
+                       : (uint32_t)d[3] << 24 | (uint32_t)d[2] << 16 | (uint32_t)d[1] << 8 | d[0];
     }
     return v;
 }
@@ -173,6 +179,7 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_
                                            int argc, char **argv)
 {
     const char *path = NULL;
+    big_endian = getenv("QEMU_ARM_M_BIGEND") != NULL;
     for (int i = 0; i < argc; i++) {
         if (g_str_has_prefix(argv[i], "out=")) {
             path = argv[i] + 4;

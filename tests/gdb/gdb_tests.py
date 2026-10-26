@@ -39,7 +39,10 @@ import time
 
 HERE = Path(__file__).resolve().parent
 FIRMWARE = HERE.parent / "firmware"
-MACHINES = {"m4": ("mps2-an386", "cortex-m4"), "m35p": ("mps2-an505", "cortex-m33")}
+# m4be: the m4 firmware built big-endian (BE8). Its expected output needs a
+# QEMU with tests/firmware/qemu/qemu-m-bigend.patch (run with QEMU_ARM_M_BIGEND).
+MACHINES = {"m4": ("mps2-an386", "cortex-m4"), "m35p": ("mps2-an505", "cortex-m33"),
+            "m4be": ("mps2-an386", "cortex-m4")}
 ICOUNT = "shift=5,align=off,sleep=off"
 DUMP = ["info registers r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12 sp lr pc xpsr msp psp control",
         "bt", "info args", "info locals"]
@@ -112,11 +115,15 @@ def expected(args):
         base = [args.qemu, "-M", machine, "-cpu", cpu, "-nographic", "-monitor", "none", "-serial", "none",
                 "-semihosting-config", "enable=on,target=native", "-kernel", str(elf),
                 "-accel", "tcg,one-insn-per-tb=on"]
-        subprocess.run(base + ["-icount", "{},rr=record,rrfile={}".format(ICOUNT, rr)], check=True, timeout=300)
+        env = dict(os.environ)
+        if args.core.endswith("be"):
+            env["QEMU_ARM_M_BIGEND"] = "1"
+        subprocess.run(base + ["-icount", "{},rr=record,rrfile={}".format(ICOUNT, rr)], check=True, timeout=300,
+                       env=env)
         for scenario in sorted((HERE / "scenarios").glob("*.gdb")):
             port = free_port()
             q = subprocess.Popen(base + ["-icount", "{},rr=replay,rrfile={}".format(ICOUNT, rr),
-                                         "-gdb", "tcp::{}".format(port), "-S"], stderr=subprocess.DEVNULL)
+                                         "-gdb", "tcp::{}".format(port), "-S"], stderr=subprocess.DEVNULL, env=env)
             try:
                 wait_port(port, q)
                 text = run_gdb(args.gdb, elf, port, commands(scenario, reverse=False), "kill")

@@ -7,6 +7,8 @@
 |---|---|
 | `src/state.c`, `src/startup.c`, `src/link_*.ld` | 테스트 펌웨어. `.data` 초기화, 바이트/하프워드/더블워드 저장, 재귀, 함수 포인터, SVC·SysTick 예외, 도중에 PSP로 전환(예외 frame이 두 스택에 쌓임) |
 | `state_m4.elf`, `state_m35p.elf` | Cortex-M4(`mps2-an386`), Cortex-M35P 빌드(QEMU는 `mps2-an505` Cortex-M33으로 실행, 같은 Armv8-M Mainline) |
+| `state_m4be.elf` | 같은 Cortex-M4 빌드의 big-endian(BE8) 판. 아래 "Big-endian" 참고 |
+| `qemu/qemu-m-bigend.patch` | QEMU 10.2.4에 M-profile big-endian 데이터를 넣는 시험용 패치(`QEMU_ARM_M_BIGEND=1`일 때만 동작) |
 | `qemu/trace_plugin.c` | QEMU TCG 플러그인: 명령어마다 레지스터 상태, 메모리 접근 값, 예외 진입과 쌓인 frame을 기록 |
 | `qemu/make_traces.py` | 플러그인 로그를 Tarmac 세 방언으로 만들고, gdbstub으로 정답을 기록 |
 | `traces/state_*.{fm,m4rtl,es}.log.gz` | Tarmac trace (방언은 아래) |
@@ -43,3 +45,21 @@ QEMU=/path/to/qemu-system-arm QEMU_SRC=/path/to/qemu ./build.sh
 
 필요한 것: arm-none-eabi-gcc/objdump, QEMU 10.1 이상(`--enable-plugins`), Python과 Arm을 지원하는 gdb
 (`gdb-multiarch` 또는 `GDB=arm-none-eabi-gdb`), glib 헤더. 개발 환경에서는 QEMU 10.2.4를 소스에서 빌드해 썼습니다.
+
+## Big-endian (`m4be`)
+
+QEMU의 M-profile은 little-endian 데이터만 지원하므로, `qemu/qemu-m-bigend.patch`를 적용한 QEMU로 BE8 펌웨어를 실행합니다.
+패치는 `QEMU_ARM_M_BIGEND=1`일 때만 동작하고(없으면 원래 QEMU와 같음), 다음을 바꿉니다.
+
+- 코어의 데이터 접근을 big-endian으로(CPSR.E와 같은 방식), 예외 stacking·unstacking·벡터 표 읽기도 같은 순서로.
+- PPB(SysTick, NVIC 등) 접근은 아키텍처대로 little-endian.
+- BE ELF를 읽고, semihosting 인자를 big-endian으로 읽음.
+- gdbstub이 레지스터를 big-endian 바이트로 보냄(BE 코어에 붙은 디버그 프로브처럼). 정답을 읽는 gdb는 BE ELF를 읽으므로
+  추가 설정이 없습니다.
+
+`make_traces.py`는 ELF 헤더로 byte 순서를 정하고, Tarmac 방언도 그 순서로 적습니다(`MW4`는 숫자, `MNW4___D`와 `LD`/`ST`는
+주소 순서 바이트). 정답 레지스터가 플러그인 기록과 모든 정답 시점에서 같은지 확인하는 것은 LE와 같습니다.
+
+```bash
+cd /path/to/qemu && git apply /path/to/simgdb/tests/firmware/qemu/qemu-m-bigend.patch && ninja -C build qemu-system-arm
+```

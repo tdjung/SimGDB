@@ -20,6 +20,9 @@ stops and steps (a plain second run drifts: gdb's step over a breakpoint
 holds the timer for one instruction). Every truth point re-checks its
 registers against the canonical log and the script fails if they differ.
 
+A big-endian (BE8) ELF runs with QEMU_ARM_M_BIGEND=1 under a QEMU with
+qemu/qemu-m-bigend.patch: QEMU's M-profile models only little-endian data.
+
 Usage: make_traces.py ELF {m4|m35p} OUT_DIR [--points N]
 Environment: QEMU, PLUGIN, GDB, OBJDUMP override the tool paths.
 """
@@ -48,6 +51,23 @@ def tool(name, default):
     return os.environ.get(name, default)
 
 
+# Data byte order of the run: set from the ELF header in main(). The Private
+# Peripheral Bus is little-endian whatever the data endianness (Armv7-M A3.3).
+BIG_ENDIAN = False
+PPB = (0xE0000000, 0xE0100000)
+
+
+def order(addr):
+    return "big" if BIG_ENDIAN and not PPB[0] <= addr < PPB[1] else "little"
+
+
+def qemu_env():
+    env = dict(os.environ)
+    if BIG_ENDIAN:
+        env["QEMU_ARM_M_BIGEND"] = "1"
+    return env
+
+
 # ---------------------------------------------------------------- canonical log
 
 class Insn:
@@ -67,7 +87,7 @@ def run_plugin(elf, core, log, rrfile):
                     "-accel", "tcg,one-insn-per-tb=on",
                     "-icount", "{},rr=record,rrfile={}".format(ICOUNT, rrfile),
                     "-plugin", "{},out={}".format(tool("PLUGIN", "trace_plugin.so"), log)],
-                   check=True, timeout=300)
+                   check=True, timeout=300, env=qemu_env())
 
 
 def read_canonical(log):
@@ -111,7 +131,7 @@ def listing(elf):
 
 
 def word(frame, k):
-    return int.from_bytes(frame[4 * k:4 * k + 4], "little")
+    return int.from_bytes(frame[4 * k:4 * k + 4], "big" if BIG_ENDIAN else "little")
 
 
 def pre_entry(insn, after):
@@ -289,7 +309,7 @@ class CortexM4Rtl(Dialect):
             self.emit("{:>10} cyc R {} {:08x}".format(t, name, value))
 
     def memory(self, t, rw, addr, size, value):
-        data = value.to_bytes(size, "little").hex()  # memory order
+        data = value.to_bytes(size, order(addr)).hex()  # memory order
         self.emit("{:>10} cyc MN{}{}___D {:08x} {}".format(t, rw, size, addr, data))
 
     def exception(self, t, number, exc):
@@ -318,10 +338,12 @@ class EmbeddedTrace(Dialect):
         base = addr & ~15
         cells = ["..."] * 16
         cells = [".."] * 16
-        for k, byte in enumerate(value.to_bytes(size, "little")):
+        data = value.to_bytes(size, order(addr))  # memory order
+        for k, byte in enumerate(data):
             off = addr + k - base
             if off >= 16:  # access crosses a 16-byte line: second diagram
-                self.memory(t, rw, base + 16, size - k, value >> (8 * k))
+                rest = data[k:]
+                self.memory(t, rw, base + 16, size - k, int.from_bytes(rest, order(addr)))
                 break
             cells[15 - off] = "{:02x}".format(byte)
         words = " ".join("".join(cells[w * 4:w * 4 + 4]) for w in range(4))
@@ -388,7 +410,7 @@ def truth_point(elf, core, pc, k, regions, tmp, rrfile):
                              "-accel", "tcg,one-insn-per-tb=on",
                              "-icount", "{},rr=replay,rrfile={}".format(ICOUNT, rrfile),
                              "-gdb", "tcp::{}".format(port), "-S"],
-                            stderr=subprocess.DEVNULL)
+                            stderr=subprocess.DEVNULL, env=qemu_env())
     try:
         out = Path(tmp) / "truth.json"
         script = Path(tmp) / "truth.py"
@@ -486,6 +508,8 @@ def main(argv):
     ap.add_argument("out", type=Path)
     ap.add_argument("--points", type=int, default=40)
     args = ap.parse_args(argv[1:])
+    global BIG_ENDIAN
+    BIG_ENDIAN = args.elf.read_bytes()[5] == 2  # EI_DATA: ELFDATA2MSB
     args.out.mkdir(parents=True, exist_ok=True)
     stem = args.out / args.elf.stem
     table = listing(args.elf)
@@ -516,6 +540,8 @@ def main(argv):
             print("truth: index {:5d} pc {:#010x} hit {:3d}".format(index, pc, k), file=sys.stderr)
     truth = {"elf": args.elf.name, "core": args.core, "instructions": len(insns),
              "exceptions": sum(1 for i in insns if i.exc), "regions": regions, "points": points}
+    if BIG_ENDIAN:
+        truth["big_endian"] = True
     with gzip.GzipFile("{}.truth.json.gz".format(stem), "wb", mtime=0) as f:
         f.write(json.dumps(truth, indent=1, sort_keys=True).encode())
     print("{}: {} instructions, {} exceptions, {} truth points".format(

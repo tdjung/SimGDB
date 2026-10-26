@@ -47,6 +47,8 @@ pub struct Elf {
     /// Sorted by address.
     pub symbols: Vec<Symbol>,
     pub entry: u64,
+    /// The ELF header's data encoding (ELFDATA2MSB: big-endian data, Arm BE8).
+    pub big_endian: bool,
 }
 
 impl Elf {
@@ -92,7 +94,7 @@ impl Elf {
             })
             .collect();
         symbols.sort_by_key(|s| s.addr);
-        Ok(Elf { image, symbols, entry: file.entry() })
+        Ok(Elf { image, symbols, entry: file.entry(), big_endian: !file.is_little_endian() })
     }
 
     /// Initial byte at `addr`, if the load image has one.

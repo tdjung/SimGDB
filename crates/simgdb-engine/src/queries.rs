@@ -226,7 +226,8 @@ pub struct WriteRecord {
     pub kind: &'static str,
     pub addr: u64,
     pub size: u32,
-    /// The value written (little/big endian per the ISA), `None` if not
+    /// The value written, as a number in the data byte order at `addr`
+    /// (the index's byte order; little-endian in the Arm PPB), `None` if not
     /// shown or not a write.
     pub value: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -749,18 +750,16 @@ impl Engine {
         let known = ds.mem_known.get(row) as u64;
         let full = if size >= 8 { u8::MAX as u64 } else { (1u64 << size) - 1 };
         let written = kind == MEM_WRITE && known != 0;
+        // Stored by address; present the value in the data byte order there.
+        let n = size.min(8) as usize;
+        let order = self.endian().at(self.isa.as_ref(), ds.mem_addr.get(row));
+        let raw = ds.mem_value.get(row);
         let value = written.then(|| {
-            let raw = ds.mem_value.get(row);
-            if self.isa.little_endian() || size > 8 {
-                raw
-            } else {
-                // Stored little-endian by byte; present it in memory order.
-                let bytes: Vec<u8> = (0..size).map(|k| (raw >> (8 * k)) as u8).collect();
-                bytes.iter().fold(0u64, |a, &b| (a << 8) | b as u64)
-            }
+            let bytes: Vec<u8> = (0..n).map(|k| (raw >> (8 * k)) as u8).collect();
+            order.value(&bytes)
         });
         let mask = (written && (known & full) != full)
-            .then(|| (0..size.min(8)).filter(|k| known & (1 << k) != 0).fold(0u64, |m, k| m | (0xff << (8 * k))));
+            .then(|| (0..n).filter(|&k| known & (1 << k) != 0).fold(0u64, |m, k| m | (0xff << order.shift(k, n))));
         WriteRecord {
             written_by: at.saturating_sub(1),
             visible_from: at,
@@ -1021,7 +1020,7 @@ impl Engine {
     /// Decoded value of a scalar variable at `index`, if fully known.
     fn scalar_value(&self, v: &simgdb_elf::variables::Variable, index: u64) -> Option<serde_json::Value> {
         let size = v.size.filter(|&s| s <= 8)?;
-        let raw = self.combine(&self.memory(v.addr, size, index).ok()?);
+        let raw = self.combine(v.addr, &self.memory(v.addr, size, index).ok()?);
         match (raw.value, raw.known_mask) {
             (Some(x), None) => self.decode(v.ty, x, size),
             _ => None,

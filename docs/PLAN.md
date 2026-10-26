@@ -93,11 +93,12 @@ zcat -f es.log | awk '$2=="tic"{if(p!="")d[$1-p]++; p=$1} END{for(k in d) print 
 
 | 범위 | 상태 | 검증 |
 |---|---|---|
-| Tarmac 공급자, 인덱스, 임의 시점 레지스터·메모리 | 구현 | QEMU gdbstub 정답과 일치(2코어 × 3방언), tarmac-trace-utilities 파서 결과 비교 |
+| Tarmac 공급자, 인덱스, 임의 시점 레지스터·메모리 | 구현 | QEMU gdbstub 정답과 일치(3코어 × 3방언), tarmac-trace-utilities 파서 결과 비교 |
+| Big-endian(BE8)과 little-endian | 구현(ELF 헤더로 자동, `--endian`/설정으로 지정) | BE8 시험 펌웨어를 big-endian 패치 QEMU로 만든 trace와 gdbstub 정답: 레지스터·메모리·변수·질의·call stack, 실제 gdb 스크립트 12조합, IDE 세션 3조합, VS Code cppdbg 엔진 |
 | 스트리밍 인덱서(메모리 한도), 현장 설정 파일 | 구현 | 버퍼 크기와 무관하게 같은 결과, 현장 표기 trace를 설정으로 읽은 결과가 표준과 같음 |
 | 소스 귀속(inline, line 0), call stack | 구현 | 변환기 결과와 1,158 명령어 일치, gdb backtrace와 일치 |
 | 질의(실행 시점, 예외, 호출 트리, 마지막 쓰기, 쓰기 이력, 비교, 조건 검색, 변수) | 구현 | 원본 실행 기록·변환기·gdb로 독립 계산한 정답과 일치 |
-| GDB RSP 서버(역방향 포함), monitor 명령 | 구현 | 실제 gdb 스크립트 48조합, IDE 방식 MI 세션 12조합 |
+| GDB RSP 서버(역방향 포함), monitor 명령 | 구현 | 실제 gdb 스크립트 60조합, IDE 방식 MI 세션 15조합, 모든 시점의 stack 조회(`stack_scan.py`) |
 | VS Code | 연결 설정 문서화, MI 순서로 시험 | **VS Code 자체는 폐쇄망 확인 필요** |
 | MCP 서버, skill 문서, AI 평가 세트 | 구현 | 도구 설명만 본 에이전트가 10/10(2회) |
 | SW 트랙 VCD | 구현 | 정답 시점의 PC·예외·함수가 gdb와 일치 | 

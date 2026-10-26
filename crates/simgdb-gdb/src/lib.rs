@@ -45,6 +45,13 @@ use simgdb_model::TimeUnit;
 struct Layout {
     xml: &'static str,
     count: usize,
+    /// GDB reads register bytes in the target's data byte order (it takes
+    /// that from the ELF it loaded).
+    big_endian: bool,
+}
+
+fn reg_bytes(v: u32) -> [u8; 4] {
+    if layout().big_endian { v.to_be_bytes() } else { v.to_le_bytes() }
 }
 
 static LAYOUT: OnceLock<Layout> = OnceLock::new();
@@ -73,7 +80,7 @@ impl Registers for Regs {
     fn gdb_serialize(&self, mut write_byte: impl FnMut(Option<u8>)) {
         for v in &self.values {
             match v {
-                Some(v) => v.to_le_bytes().iter().for_each(|b| write_byte(Some(*b))),
+                Some(v) => reg_bytes(*v).iter().for_each(|b| write_byte(Some(*b))),
                 None => (0..4).for_each(|_| write_byte(None)),
             }
         }
@@ -170,7 +177,8 @@ impl Session {
         };
         let xml: &'static str = Box::leak(engine.isa().target_xml(&unknown).into_boxed_str());
         let count = engine.isa().registers().len();
-        let _ = LAYOUT.set(Layout { xml, count });
+        let big_endian = engine.endian() == simgdb_isa::Endian::Big;
+        let _ = LAYOUT.set(Layout { xml, count, big_endian });
         Session { engine, index: 0, breakpoints: BTreeSet::new(), resume: None, annotations: None }
     }
 
@@ -335,7 +343,7 @@ impl SingleRegisterAccess<()> for Session {
         if !v.is_known() {
             return Ok(0);
         }
-        let bytes = (v.value.unwrap() as u32).to_le_bytes();
+        let bytes = reg_bytes(v.value.unwrap() as u32);
         buf[..4].copy_from_slice(&bytes);
         Ok(4)
     }

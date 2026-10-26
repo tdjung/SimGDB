@@ -34,14 +34,15 @@ impl Engine {
         self.ds.variables.resolve(path).map_err(EngineError::Variable)
     }
 
-    /// Bytes as one value: known when every byte is known, partially known
-    /// (with `known_mask`) when some are. The source is the least certain
-    /// of the bytes' sources; evidence lists each distinct record.
-    pub fn combine(&self, bytes: &[Value<u8>]) -> Value<u64> {
+    /// Bytes read from `addr` as one value in the data byte order there:
+    /// known when every byte is known, partially known (with `known_mask`)
+    /// when some are. The source is the least certain of the bytes'
+    /// sources; evidence lists each distinct record.
+    pub fn combine(&self, addr: u64, bytes: &[Value<u8>]) -> Value<u64> {
         if bytes.is_empty() || bytes.len() > 8 {
             return Value::unknown();
         }
-        let little = self.isa.little_endian();
+        let order = self.endian().at(self.isa.as_ref(), addr);
         let (mut value, mut mask) = (0u64, 0u64);
         let mut source = Source::Trace;
         let mut evidence: Vec<Evidence> = Vec::new();
@@ -53,7 +54,7 @@ impl Engine {
             Source::Unknown => 4,
         };
         for (k, b) in bytes.iter().enumerate() {
-            let shift = 8 * if little { k } else { bytes.len() - 1 - k };
+            let shift = order.shift(k, bytes.len());
             if let Some(v) = b.value {
                 value |= (v as u64) << shift;
                 mask |= 0xff << shift;
@@ -81,7 +82,7 @@ impl Engine {
         let bytes = self.memory(place.addr, size, index)?;
         let hex = bytes.iter().map(|b| b.value.map(|v| format!("{v:02x}")).unwrap_or_else(|| "??".into())).collect();
         let (raw, decoded) = if size <= 8 {
-            let raw = self.combine(&bytes);
+            let raw = self.combine(place.addr, &bytes);
             let decoded = match (raw.value, raw.known_mask) {
                 (Some(v), None) => self.decode(place.ty, v, size),
                 _ => None,
@@ -127,7 +128,7 @@ impl Engine {
         if size == 0 || size > 8 {
             return Err(EngineError::Variable(format!("{} is not a scalar", place.type_name)));
         }
-        let raw = self.combine(&self.memory(place.addr, size, index)?);
+        let raw = self.combine(place.addr, &self.memory(place.addr, size, index)?);
         let (Some(v), None) = (raw.value, raw.known_mask) else { return Ok(None) };
         let vars = &self.ds.variables;
         let signed = match vars.get(vars.strip(place.ty)) {
