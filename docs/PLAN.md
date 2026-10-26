@@ -89,6 +89,23 @@ zcat -f es.log | awk '$2=="tic"{if(p!="")d[$1-p]++; p=$1} END{for(k in d) print 
 - SW 트랙 waveform을 Verdi에서 HW waveform과 함께 볼 수 있음.
 - 사용자가 폐쇄망 실제 데이터로 확인.
 
+### 진행 상태 (2026-10-26)
+
+| 범위 | 상태 | 검증 |
+|---|---|---|
+| Tarmac 공급자, 인덱스, 임의 시점 레지스터·메모리 | 구현 | QEMU gdbstub 정답과 일치(2코어 × 3방언), tarmac-trace-utilities 파서 결과 비교 |
+| 스트리밍 인덱서(메모리 한도), 현장 설정 파일 | 구현 | 버퍼 크기와 무관하게 같은 결과, 현장 표기 trace를 설정으로 읽은 결과가 표준과 같음 |
+| 소스 귀속(inline, line 0), call stack | 구현 | 변환기 결과와 1,158 명령어 일치, gdb backtrace와 일치 |
+| 질의(실행 시점, 예외, 호출 트리, 마지막 쓰기, 쓰기 이력, 비교, 조건 검색, 변수) | 구현 | 원본 실행 기록·변환기·gdb로 독립 계산한 정답과 일치 |
+| GDB RSP 서버(역방향 포함), monitor 명령 | 구현 | 실제 gdb 스크립트 48조합, IDE 방식 MI 세션 12조합 |
+| VS Code | 연결 설정 문서화, MI 순서로 시험 | **VS Code 자체는 폐쇄망 확인 필요** |
+| MCP 서버, skill 문서, AI 평가 세트 | 구현 | 도구 설명만 본 에이전트가 10/10(2회) |
+| SW 트랙 VCD | 구현 | 정답 시점의 PC·예외·함수가 gdb와 일치 | 
+| RISC-V | ISA 정의 계층 | 단위 시험, gdb가 target description을 읽음 |
+| 성능 | 1천만 명령어: 인덱싱 24 s / 0.8 GB, 질의 대부분 1 ms 이하, 범위 질의 0.1–400 ms | 1억 명령어는 디스크 한도로 미측정(추정치는 benchmarks) |
+
+남은 것: 폐쇄망 실제 데이터 확인(`dist/CHECK.md`), Verdi에서 SW 트랙 보기, 지역변수·C 식의 MCP 제공(gdb 연동).
+
 ## Step 2. waveform 보충과 HW 연동
 
 Step 0-2 평가 결과에 따라 범위를 조정합니다(상용 도구가 충분히 하는 부분은 만들지 않음).

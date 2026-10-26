@@ -4,7 +4,7 @@
 시뮬레이션이 끝난 뒤 남은 실행 기록(Tarmac 등 trace 로그, waveform)으로 펌웨어를
 GDB, VS Code, AI 에이전트(MCP)에서 디버깅합니다.
 
-> 상태: **Step 1 개발 중** (Rust). 배경과 계획은 아래 문서에 있습니다.
+> 상태: **Step 1 구현 완료, 폐쇄망 실제 데이터 확인 대기** (Rust). 진행 상태는 [docs/PLAN.md](docs/PLAN.md)의 Step 1 "진행 상태"에 있습니다.
 
 ## 무엇을 하나
 
