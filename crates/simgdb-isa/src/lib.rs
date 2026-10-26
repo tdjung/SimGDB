@@ -5,6 +5,7 @@
 //! (banked stack pointers), and the GDB target description.
 
 pub mod arm_m;
+pub mod riscv;
 pub mod thumb;
 
 pub use thumb::Flow;
@@ -129,6 +130,7 @@ pub trait Isa: Send + Sync {
 pub fn by_name(name: &str) -> Option<Box<dyn Isa>> {
     match name {
         "arm-m" | "armv7-m" | "armv8-m" | "cortex-m4" | "cortex-m35p" | "cortex-m33" => Some(Box::new(arm_m::ArmM)),
+        "riscv32" | "rv32" => Some(Box::new(riscv::RiscV32)),
         _ => None,
     }
 }
