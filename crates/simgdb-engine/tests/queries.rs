@@ -255,6 +255,19 @@ fn find_first_matches_brute_force() {
             let range = Range { from: w["from"].as_u64().unwrap(), to: w["to"].as_u64().unwrap() };
             let dir = if w["direction"] == "forward" { Direction::Forward } else { Direction::Backward };
             let got = e.find_first(cond, range, dir).unwrap_or_else(|err| panic!("{cond}: {err}"));
+            // Small windows (many passes) give the same answer (and, forward,
+            // the same work; backward a single window evaluates more).
+            for window in [1, 37, 500] {
+                let w = e.find_first_windowed(cond, range, dir, window).unwrap();
+                assert_eq!(
+                    (w.found.map(|p| p.index), w.first_undecided, &w.undecided_ranges),
+                    (got.found.as_ref().map(|p| p.index), got.first_undecided, &got.undecided_ranges),
+                    "{core} {dialect} {cond} {dir:?} window {window}"
+                );
+                if dir == Direction::Forward {
+                    assert_eq!((w.evaluated, w.undecided), (got.evaluated, got.undecided), "{cond} window {window}");
+                }
+            }
             let ctx = format!("{core} {dialect} find_first({cond}, {range:?}, {dir:?})");
             let found = got.found.as_ref().map(|p| p.index);
             let expected = opt(&w["found"]);
@@ -305,6 +318,22 @@ fn conditions_are_checked() {
     let f = e.find_first("pc < 0x100 && reg(\"r0\") == 0", all, Forward).unwrap();
     assert_eq!(f.first_undecided, Some(0));
     assert!(f.found.unwrap().index > 0);
+    // Undecided stretches and every-point conditions across windows.
+    use simgdb_engine::Direction::Backward;
+    for cond in ["pc < 0x100 && reg(\"r4\") == 0", "var(\"svc_calls\") == 3", "reg(\"pc\") > 0x200 && reg(\"r7\") < 5"]
+    {
+        for dir in [Forward, Backward] {
+            let one = e.find_first(cond, all, dir).unwrap();
+            for window in [1, 3, 64, 999] {
+                let w = e.find_first_windowed(cond, all, dir, window).unwrap();
+                assert_eq!(
+                    (w.found.map(|p| p.index), w.first_undecided, w.undecided_ranges),
+                    (one.found.as_ref().map(|p| p.index), one.first_undecided, one.undecided_ranges.clone()),
+                    "{cond} {dir:?} window {window}"
+                );
+            }
+        }
+    }
 }
 
 #[test]
@@ -350,6 +379,79 @@ fn wide_writes_show_the_part_inside() {
                     assert_eq!(i.hex.len() as u64, 2 * i.len);
                 }
             }
+        }
+    }
+}
+
+#[test]
+fn single_instruction_ranges_and_edges() {
+    let dir = tempfile::tempdir().unwrap();
+    let e = open("m4", "fm", dir.path());
+    let all = e.range(None, None).unwrap();
+    let pool = e.variable("pool").unwrap();
+    let writes = e.writes_to(pool.addr, pool.size.unwrap(), all, 100_000, 0).unwrap().writes.items;
+    assert!(writes.len() > 10);
+    // A range of one instruction holds exactly that instruction's writes.
+    for w in writes.iter().step_by(7) {
+        let r = simgdb_engine::Range { from: w.written_by, to: w.written_by };
+        let got = e.writes_to(pool.addr, pool.size.unwrap(), r, 100, 0).unwrap().writes.items;
+        assert!(got.contains(w), "{w:?} missing from its own range");
+        assert!(got.iter().all(|g| g.written_by == w.written_by));
+    }
+    // Exception-frame rows are longer than 8 bytes: reading them must not overflow.
+    let sp = e.register_id("sp").unwrap();
+    let exc = e.exception_list(all, None, 5, 0).unwrap().exceptions.items;
+    for x in exc {
+        let s = e.register(x.entered_at, sp).unwrap().value.unwrap();
+        e.last_write(s, 32, x.entered_at).unwrap();
+        e.writes_to(s.saturating_sub(64), 128, all, 10, 0).unwrap();
+    }
+    // Addresses past the address space are refused, not wrapped.
+    assert!(e.last_write(0xffff_fffe, 4, 0).is_err());
+    assert!(e.writes_to(u64::MAX - 1, 4, all, 10, 0).is_err());
+    assert!(e.find_first("mem32(0xfffffffe) == 0", all, simgdb_engine::Direction::Forward).is_err());
+}
+
+#[test]
+fn undecided_ranges_match_point_by_point() {
+    use simgdb_engine::{Direction, Range};
+    let dir = tempfile::tempdir().unwrap();
+    let e = open("m4", "es", dir.path());
+    for cond in ["reg(\"r4\") == 0x20000018", "var(\"ticks\") == 2 || reg(\"r9\") != 0"] {
+        // The condition at every point, evaluated alone.
+        let at: Vec<Option<bool>> = (0..=e.end())
+            .map(|i| {
+                let f = e.find_first(cond, Range { from: i, to: i }, Direction::Forward).unwrap();
+                if f.found.is_some() {
+                    Some(true)
+                } else if f.undecided > 0 {
+                    None
+                } else {
+                    Some(false)
+                }
+            })
+            .collect();
+        for d in [Direction::Forward, Direction::Backward] {
+            let got = e.find_first(cond, e.range(None, None).unwrap(), d).unwrap();
+            let order: Vec<u64> =
+                if d == Direction::Forward { (0..=e.end()).collect() } else { (0..=e.end()).rev().collect() };
+            let hit = order.iter().copied().find(|&i| at[i as usize] == Some(true));
+            assert_eq!(got.found.map(|p| p.index), hit, "{cond} {d:?}");
+            // Undecided stretches before the match in search order.
+            let mut want: Vec<[u64; 2]> = Vec::new();
+            for &i in order.iter().take_while(|&&i| Some(i) != hit) {
+                if at[i as usize].is_none() {
+                    match want.last_mut() {
+                        Some(r) if d == Direction::Forward && r[1] + 1 == i => r[1] = i,
+                        Some(r) if d == Direction::Backward && r[0] == i + 1 => r[0] = i,
+                        _ => want.push([i, i]),
+                    }
+                }
+            }
+            want.truncate(5);
+            assert_eq!(got.undecided_ranges, want, "{cond} {d:?}");
+            let first = want.first().map(|r| if d == Direction::Forward { r[0] } else { r[1] });
+            assert_eq!(got.first_undecided, first, "{cond} {d:?}");
         }
     }
 }

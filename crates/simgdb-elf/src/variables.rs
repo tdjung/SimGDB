@@ -33,7 +33,9 @@ pub enum Encoding {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Member {
     pub name: Option<String>,
-    pub offset: u64,
+    /// Byte offset in the struct; `None` when DWARF gives it in a form not
+    /// decoded here (the member can then not be addressed).
+    pub offset: Option<u64>,
     #[serde(rename = "type")]
     pub ty: Option<TypeId>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
@@ -145,7 +147,11 @@ impl Variables {
                 if count.is_some_and(|c| index >= c) {
                     return Err(format!("index {index} out of bounds [{}]", count.unwrap()));
                 }
-                addr += index * self.size(*element).ok_or("element size unknown")?;
+                let step = index
+                    .checked_mul(self.size(*element).ok_or("element size unknown")?)
+                    .and_then(|o| addr.checked_add(o))
+                    .ok_or_else(|| format!("index {index} is out of the address space"))?;
+                addr = step;
                 ty = *element;
             } else if let Some(r) = rest.strip_prefix('.') {
                 let end = r.find(['[', '.']).unwrap_or(r.len());
@@ -161,7 +167,9 @@ impl Variables {
                 if m.bit_size.is_some() {
                     return Err(format!("{field} is a bit-field"));
                 }
-                addr += m.offset;
+                let off =
+                    m.offset.ok_or_else(|| format!("the offset of {field} is not known (DWARF form not read)"))?;
+                addr = addr.checked_add(off).ok_or("address overflow")?;
                 ty = m.ty;
             } else {
                 return Err(format!("cannot parse {rest:?}"));
@@ -172,7 +180,7 @@ impl Variables {
 
     /// The variable containing `addr`.
     pub fn containing(&self, addr: u64) -> Option<&Variable> {
-        self.variables.iter().find(|v| v.size.is_some_and(|s| addr >= v.addr && addr < v.addr + s))
+        self.variables.iter().find(|v| v.size.is_some_and(|s| addr >= v.addr && addr - v.addr < s))
     }
 
     /// Expression for the scalar holding `addr` (`pool[1].len`), with
@@ -195,12 +203,13 @@ impl Variables {
                     let m = members
                         .iter()
                         .filter(|m| m.bit_size.is_none())
-                        .find(|m| off >= m.offset && self.size(m.ty).is_some_and(|s| off < m.offset + s));
+                        .filter_map(|m| m.offset.map(|o| (m, o)))
+                        .find(|(m, o)| off >= *o && self.size(m.ty).is_some_and(|s| off - o < s));
                     match m {
-                        Some(m) => {
+                        Some((m, o)) => {
                             path.push('.');
                             path.push_str(m.name.as_deref().unwrap_or("?"));
-                            base += m.offset;
+                            base += o;
                             ty = m.ty;
                         }
                         None => break,
@@ -257,7 +266,8 @@ impl Variables {
         }
         let Some(ty) = self.get(id) else { return join("void", &suffix) };
         match ty {
-            Type::Base { name, .. } | Type::Typedef { name, .. } => join(name, &suffix),
+            Type::Base { name, .. } => join(c_spelling(name), &suffix),
+            Type::Typedef { name, .. } => join(name, &suffix),
             Type::Struct { keyword, name, .. } => {
                 join(&format!("{keyword} {}", name.as_deref().unwrap_or("{...}")), &suffix)
             }
@@ -300,6 +310,19 @@ impl Variables {
     }
 }
 
+/// GCC's base type names as C (and GDB) spell them.
+fn c_spelling(name: &str) -> &str {
+    match name {
+        "short int" => "short",
+        "short unsigned int" => "unsigned short",
+        "long int" => "long",
+        "long unsigned int" => "unsigned long",
+        "long long int" => "long long",
+        "long long unsigned int" => "unsigned long long",
+        n => n,
+    }
+}
+
 fn parse_index(s: &str) -> Result<u64, String> {
     match s.strip_prefix("0x") {
         Some(h) => u64::from_str_radix(h, 16),
@@ -326,6 +349,17 @@ fn udata<'a>(e: &gimli::DebuggingInformationEntry<R<'a>>, at: DwAt) -> Option<u6
 
 fn sdata<'a>(e: &gimli::DebuggingInformationEntry<R<'a>>, at: DwAt) -> Option<i64> {
     match e.attr_value(at).ok().flatten()? {
+        AttributeValue::Sdata(v) => Some(v),
+        v => v.udata_value().map(|u| u as i64),
+    }
+}
+
+/// An array bound: older GCC writes -1 (zero-length arrays) as an
+/// all-ones 4- or 8-byte constant. (A 1- or 2-byte 0xff.. is a real bound:
+/// GCC uses those forms for small arrays.)
+fn bound<'a>(e: &gimli::DebuggingInformationEntry<R<'a>>, at: DwAt) -> Option<i64> {
+    match e.attr_value(at).ok().flatten()? {
+        AttributeValue::Data4(0xffff_ffff) | AttributeValue::Data8(u64::MAX) => Some(-1),
         AttributeValue::Sdata(v) => Some(v),
         v => v.udata_value().map(|u| u as i64),
     }
@@ -406,7 +440,7 @@ impl<'a> Reader_<'a, '_> {
                     let c = child.entry();
                     if c.tag() == dw::DW_TAG_subrange_type {
                         let count = udata(c, dw::DW_AT_count).or_else(|| {
-                            let upper = sdata(c, dw::DW_AT_upper_bound)?;
+                            let upper = bound(c, dw::DW_AT_upper_bound)?;
                             let lower = sdata(c, dw::DW_AT_lower_bound).unwrap_or(0);
                             (upper >= lower - 1).then(|| (upper - lower + 1) as u64)
                         });
@@ -440,10 +474,21 @@ impl<'a> Reader_<'a, '_> {
                     let name = c.attr_value(dw::DW_AT_name).ok().flatten().and_then(|v| string(self.dwarf, unit, v));
                     let bit_size = udata(c, dw::DW_AT_bit_size);
                     let data_bit = udata(c, dw::DW_AT_data_bit_offset);
-                    let offset =
-                        udata(c, dw::DW_AT_data_member_location).or_else(|| data_bit.map(|b| b / 8)).unwrap_or(0);
-                    let bit_offset = match (bit_size, data_bit) {
-                        (Some(_), Some(b)) => Some(b - offset * 8),
+                    let offset = match c.attr_value(dw::DW_AT_data_member_location).ok().flatten() {
+                        // DWARF 2/3: a location expression, `DW_OP_plus_uconst n`.
+                        Some(AttributeValue::Exprloc(expr)) => {
+                            let mut ops = expr.operations(unit.encoding());
+                            match (ops.next(), ops.next()) {
+                                (Ok(Some(gimli::Operation::PlusConstant { value })), Ok(None)) => Some(value),
+                                _ => None,
+                            }
+                        }
+                        Some(v) => v.udata_value(),
+                        // Union members (and bit-fields with DW_AT_data_bit_offset).
+                        None => Some(data_bit.map(|b| b / 8).unwrap_or(0)),
+                    };
+                    let bit_offset = match (bit_size, data_bit, offset) {
+                        (Some(_), Some(b), Some(o)) => b.checked_sub(o * 8),
                         _ => None,
                     };
                     pending.push((name, offset, reference(unit, c, dw::DW_AT_type), bit_size, bit_offset));

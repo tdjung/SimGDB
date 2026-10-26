@@ -9,7 +9,7 @@ mod queries;
 mod track;
 mod vars;
 
-pub use track::{TrackNames, TrackRow};
+pub use track::{EXCEPTION_UNKNOWN, TrackNames, TrackRow};
 
 pub use condition::{Direction, Found, Input, Neighbour};
 
@@ -302,8 +302,10 @@ impl Engine {
 
     /// Byte `k` of memory row `row`, if the trace shows it.
     fn row_byte(&self, row: usize, addr: u64) -> Option<u8> {
+        // Rows that are not plain accesses (exception frames) can be longer
+        // than 8 bytes; they hold no values.
         let k = addr - self.ds.mem_addr.get(row);
-        (self.ds.mem_known.get(row) & (1 << k) != 0).then(|| (self.ds.mem_value.get(row) >> (8 * k)) as u8)
+        (k < 8 && self.ds.mem_known.get(row) & (1 << k) != 0).then(|| (self.ds.mem_value.get(row) >> (8 * k)) as u8)
     }
 
     fn initial_byte(&self, addr: u64) -> Option<u8> {
@@ -493,7 +495,8 @@ pub struct StackFrame {
     /// Where `pc` comes from: `current` (the PC at the point), `call` (the
     /// call instruction), `stacked` (the return address the exception entry
     /// stacked), `returned` (where the exception returned to; used when the
-    /// stacked value is not in the trace) or `unknown`.
+    /// stacked value is not in the trace: after an RTOS context switch this
+    /// is the next task's PC, not the interrupted one) or `unknown`.
     pub pc_from: &'static str,
     pub source: Option<SourcePos>,
     /// Point where this entry's frame was entered, and where it returns.

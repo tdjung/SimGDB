@@ -386,11 +386,13 @@ fn run(cli: Cli) -> Result<(), String> {
             let mut filt = std::fs::File::create(side(".gtkw-filter")).map_err(|e| e.to_string())?;
             vcd::write_gtkwave_filter(&mut filt, &names).map_err(|e| e.to_string())?;
             eprintln!(
-                "wrote {} ({} instructions; {} share a time stamp with the previous one, {} went backwards)",
+                "wrote {} ({} instructions; {} share a time stamp with the previous one, {} went backwards, \
+                 {} left out without a time)",
                 out.display(),
                 s.samples,
                 s.same_time,
-                s.backwards
+                s.backwards,
+                s.untimed
             );
             Ok(())
         }

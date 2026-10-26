@@ -1,0 +1,112 @@
+{
+ "big": {
+  "addr": 536870984,
+  "size": 256,
+  "type": "uint8_t [256]"
+ },
+ "big[255]": {
+  "addr": 536871239,
+  "size": 1,
+  "type": "uint8_t"
+ },
+ "counter": {
+  "addr": 536870980,
+  "size": 4,
+  "type": "volatile uint32_t"
+ },
+ "grid": {
+  "addr": 536871240,
+  "size": 30,
+  "type": "uint16_t [3][5]"
+ },
+ "grid[2]": {
+  "addr": 536871260,
+  "size": 10,
+  "type": "uint16_t [5]"
+ },
+ "grid[2][4]": {
+  "addr": 536871268,
+  "size": 2,
+  "type": "uint16_t"
+ },
+ "gs": {
+  "addr": 536870936,
+  "size": 40,
+  "type": "struct outer"
+ },
+ "gs.a": {
+  "addr": 536870936,
+  "size": 4,
+  "type": "int"
+ },
+ "gs.b": {
+  "addr": 536870940,
+  "size": 2,
+  "type": "short"
+ },
+ "gs.c": {
+  "addr": 536870944,
+  "size": 8,
+  "type": "long long"
+ },
+ "gs.d": {
+  "addr": 536870952,
+  "size": 3,
+  "type": "char [3]"
+ },
+ "gs.d[2]": {
+  "addr": 536870954,
+  "size": 1,
+  "type": "char"
+ },
+ "gs.e": {
+  "addr": 536870972,
+  "size": 4,
+  "type": "int"
+ },
+ "gs.in": {
+  "addr": 536870956,
+  "size": 16,
+  "type": "struct inner [2]"
+ },
+ "gs.in[1]": {
+  "addr": 536870964,
+  "size": 8,
+  "type": "struct inner"
+ },
+ "gs.in[1].value": {
+  "addr": 536870968,
+  "size": 4,
+  "type": "uint32_t"
+ },
+ "gu": {
+  "addr": 536870912,
+  "size": 4,
+  "type": "union u"
+ },
+ "gu.bytes[3]": {
+  "addr": 536870915,
+  "size": 1,
+  "type": "uint8_t"
+ },
+ "gu.word": {
+  "addr": 536870912,
+  "size": 4,
+  "type": "uint32_t"
+ },
+ "names": {
+  "addr": 536870916,
+  "size": 16,
+  "type": "const char *[4]"
+ },
+ "names[3]": {
+  "addr": 536870928,
+  "size": 4,
+  "type": "const char *"
+ },
+ "use::calls": {
+  "addr": 536870976,
+  "size": 4,
+  "type": "int"
+ }
+}

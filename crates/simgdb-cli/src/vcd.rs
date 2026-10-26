@@ -25,6 +25,8 @@ pub struct Summary {
     pub same_time: u64,
     /// Instructions whose time stamp went backwards (drawn at the previous time).
     pub backwards: u64,
+    /// Instructions left out: no time stamp, or before the time map starts.
+    pub untimed: u64,
 }
 
 struct Signal {
@@ -64,11 +66,11 @@ pub fn write<W: Write>(
     let mut signals = vec![
         Signal { id: id(0), name: "index".into(), bits: 64 },
         Signal { id: id(1), name: "pc".into(), bits: pc_bits },
-        Signal { id: id(2), name: "function".into(), bits: 16 },
-        Signal { id: id(3), name: "file".into(), bits: 16 },
+        Signal { id: id(2), name: "function".into(), bits: 32 },
+        Signal { id: id(3), name: "file".into(), bits: 32 },
         Signal { id: id(4), name: "line".into(), bits: 32 },
-        Signal { id: id(5), name: "depth".into(), bits: 16 },
-        Signal { id: id(6), name: "exception".into(), bits: 16 },
+        Signal { id: id(5), name: "depth".into(), bits: 32 },
+        Signal { id: id(6), name: "exception".into(), bits: 32 },
     ];
     for (k, m) in markers.iter().enumerate() {
         let name: String =
@@ -87,7 +89,11 @@ pub fn write<W: Write>(
     };
     writeln!(w, "$date simgdb track $end")?;
     writeln!(w, "$version simgdb {} $end", env!("CARGO_PKG_VERSION"))?;
-    writeln!(w, "$comment {comment}; time axis: {unit_note}; function and file are ids (see the .names.csv) $end")?;
+    writeln!(
+        w,
+        "$comment {comment}; time axis: {unit_note}; function and file are ids (see the .names.csv); \
+         exception 0xffffffff = a handler whose number the trace did not give $end"
+    )?;
     writeln!(w, "$timescale {scale} $end")?;
     writeln!(w, "$scope module sw $end")?;
     for s in &signals {
@@ -96,16 +102,19 @@ pub fn write<W: Write>(
     writeln!(w, "$upscope $end")?;
     writeln!(w, "$enddefinitions $end")?;
     let mut last: Vec<Option<u64>> = vec![None; signals.len()];
-    let mut summary = Summary { samples: 0, same_time: 0, backwards: 0 };
+    let mut summary = Summary { samples: 0, same_time: 0, backwards: 0, untimed: 0 };
     let mut now: Option<u64> = None;
     for r in rows {
         let t = match time {
             Time::Trace { .. } => r.time,
-            Time::Cycles { period, .. } => r.time.map(|t| t.saturating_mul(*period)),
+            Time::Cycles { period, .. } => r.time.and_then(|t| t.checked_mul(*period)),
             Time::Index => Some(r.index),
             Time::Map(m) => r.time.and_then(|t| m.time(t)),
         };
-        let Some(mut t) = t else { continue };
+        let Some(mut t) = t else {
+            summary.untimed += 1;
+            continue;
+        };
         match now {
             Some(n) if t < n => {
                 summary.backwards += 1;
@@ -159,7 +168,7 @@ pub fn write_names<W: Write>(w: &mut W, names: &TrackNames) -> io::Result<()> {
 /// GTKWave translate filter for the `function` signal (hex value -> name).
 pub fn write_gtkwave_filter<W: Write>(w: &mut W, names: &TrackNames) -> io::Result<()> {
     for (k, n) in names.functions.iter().enumerate().skip(1) {
-        writeln!(w, "{k:04x} {n}")?;
+        writeln!(w, "{k:08x} {n}")?;
     }
     Ok(())
 }

@@ -194,7 +194,7 @@ VCD의 `sw` scope에 신호가 생깁니다.
 | `pc` | PC |
 | `function`, `file`, `line` | 소스 위치. function과 file은 번호이고 이름은 `sw.vcd.names.csv`에 있음 |
 | `depth` | trace 흐름으로 센 호출 깊이 |
-| `exception` | 처리 중인 예외 번호(0 = 없음) |
+| `exception` | 처리 중인 예외 번호(0 = 없음, `0xffffffff` = 번호를 모르는 핸들러) |
 | `index` | 명령어 index(`simgdb-goto`에 그대로 씀) |
 | `mark_…` | `--mark`로 준 줄·함수·PC를 실행하는 동안 1 |
 

@@ -53,6 +53,8 @@ Step 0의 실제 Tarmac 조사 결과에 따라 갱신합니다.
   다음 명령어나 tail-chain에서 닫습니다. 그래서 스택 내용을 몰라도 동작하지만, trace 시작 전에 들어간 호출은 보이지 않고
   (가장 바깥은 `top`), 복귀 주소로 돌아가지 않는 호출(`bl` 후 RTOS 문맥 전환 등)은 frame이 남습니다.
   예외가 끊은 PC는 코어가 쌓은 복귀 주소(trace에 있을 때)를, 없으면 예외가 돌아간 PC를 씁니다. 각 frame의 `pc_from`이 출처입니다.
+  `returned`(돌아간 PC)는 RTOS 문맥 전환 뒤에는 다음 task의 PC이므로 끊긴 PC와 다를 수 있습니다.
+- **SW 트랙의 `exception`**: 예외 기록에 번호가 없으면 `0xffffffff`(번호 모름)입니다.
 - **tail-chaining**: 핸들러가 복귀하자마자 다른 예외로 이어질 때 trace에 예외 기록이 없으면, 복귀 직후에도
   핸들러 모드이고 예외 번호(IPSR)가 돌아갈 곳과 다른 것으로 알아내 예외 frame을 엽니다(보고서 `exceptions_inferred`).
   xPSR이 trace에 없으면 알아낼 수 없어 그 핸들러는 끊긴 코드의 일부로 보입니다.

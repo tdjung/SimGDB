@@ -128,8 +128,10 @@ pub struct ExceptionEntry {
     pub returned_at: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub instructions: Option<u64>,
-    /// PC the exception interrupted, and where that comes from (`stacked`,
-    /// `returned`, `unknown`).
+    /// PC the exception interrupted, and where that comes from: `stacked`
+    /// (the return address in the stacked frame), `returned` (where it
+    /// returned to, when the trace has no stacking stores: after an RTOS
+    /// context switch that is another task's PC), `unknown`.
     pub interrupted_pc: Option<u64>,
     pub interrupted_pc_from: &'static str,
     /// Exception it nested into (its `entered_at`).
@@ -341,6 +343,8 @@ pub struct Diff {
     pub memory: Page<MemoryChange>,
     /// Bytes written between the points whose value is the same at both.
     pub rewritten_same: u64,
+    /// Bytes written between the points that are unknown at both.
+    pub unknown_both: u64,
 }
 
 impl Engine {
@@ -527,8 +531,23 @@ impl Engine {
         while p != TOP_LEVEL && ds.call_kind.get(p as usize) != FRAME_EXCEPTION {
             p = ds.call_parent.get(p as usize);
         }
+        // Several entries at one point (late arrival): the n-th exception
+        // frame entered there goes with the n-th record there.
+        let n_before = (0..f)
+            .rev()
+            .take_while(|&g| ds.call_entry.get(g) == at)
+            .filter(|&g| ds.call_kind.get(g) == FRAME_EXCEPTION)
+            .count();
         let k = ds.exc_at.partition_point(0, ds.exc_at.len(), |x| x < at);
-        let line = (k < ds.exc_at.len() && ds.exc_at.get(k) == at).then(|| ds.exc_line.get(k));
+        let mut j = k;
+        let mut skip = n_before;
+        while j < ds.exc_at.len() && ds.exc_at.get(j) == at && (skip > 0 || ds.exc_kind.get(j) != 0) {
+            if ds.exc_kind.get(j) == 0 {
+                skip -= 1;
+            }
+            j += 1;
+        }
+        let line = (j < ds.exc_at.len() && ds.exc_at.get(j) == at).then(|| ds.exc_line.get(j));
         ExceptionEntry {
             entered_at: at,
             number,
@@ -792,6 +811,7 @@ impl Engine {
         if len > crate::MAX_MEMORY_REQUEST {
             return Err(EngineError::TooLarge(len));
         }
+        self.check_span(addr, len)?;
         let ds = &self.ds;
         let mut rows: Vec<usize> = Vec::new();
         let mut byte_row = Vec::new();
@@ -838,6 +858,7 @@ impl Engine {
         if len > crate::MAX_MEMORY_REQUEST {
             return Err(EngineError::TooLarge(len));
         }
+        self.check_span(addr, len)?;
         let ds = &self.ds;
         let mut rows = BTreeSet::new();
         for k in 0..len {
@@ -847,7 +868,7 @@ impl Engine {
             let b = ds.mi_at.partition_point(a, hi, |at| at <= range.to + 1);
             for pos in a..b {
                 let row = ds.mi_row.get(pos) as usize;
-                if ds.mem_kind.get(row) != MEM_READ && ds.mem_at.get(row) <= range.to.min(self.end()) {
+                if ds.mem_kind.get(row) != MEM_READ {
                     rows.insert((ds.mem_at.get(row), row));
                 }
             }
@@ -909,11 +930,12 @@ impl Engine {
                     16 * crate::MAX_MEMORY_REQUEST
                 )));
             }
-            addrs.extend(base..base + size);
+            addrs.extend(base..base.saturating_add(size));
         }
         let mut changes: Vec<MemoryChange> = Vec::new();
         let mut variables: Vec<VariableChange> = Vec::new();
         let mut rewritten_same = 0;
+        let mut unknown_both = 0;
         let hex = |v: &Value<u8>| v.value.map(|x| format!("{x:02x}")).unwrap_or_else(|| "??".into());
         let vars = &self.ds.variables;
         let mut last: Option<(u64, &'static str, Option<u64>)> = None;
@@ -924,6 +946,11 @@ impl Engine {
                 (Some(p), Some(q)) if p != q => "changed",
                 (None, Some(_)) => "became_known",
                 (Some(_), None) => "became_unknown",
+                (None, None) => {
+                    unknown_both += 1;
+                    last = None;
+                    continue;
+                }
                 _ => {
                     rewritten_same += 1;
                     last = None;
@@ -987,6 +1014,7 @@ impl Engine {
             variables,
             memory: Page::of(&changes, limit, cursor),
             rewritten_same,
+            unknown_both,
         })
     }
 
@@ -1035,12 +1063,20 @@ impl Engine {
         Ok(Page::of(&all, limit, cursor))
     }
 
+    /// `addr..addr+len` lies inside the ISA's address space.
+    pub(crate) fn check_span(&self, addr: u64, len: u64) -> Result<(), EngineError> {
+        match addr.checked_add(len) {
+            Some(end) if end <= self.isa.address_limit() => Ok(()),
+            _ => Err(EngineError::Query(format!("{addr:#x} + {len} is outside the address space"))),
+        }
+    }
+
     /// Variable containing `addr`, as `name+offset`.
     pub fn variable_at(&self, addr: u64) -> Option<String> {
         let vars = &self.ds.variables;
         vars.variables.iter().find_map(|v| {
             let size = v.size?;
-            (addr >= v.addr && addr < v.addr + size)
+            (addr >= v.addr && addr - v.addr < size)
                 .then(|| if addr == v.addr { v.name.clone() } else { format!("{}+{}", v.name, addr - v.addr) })
         })
     }

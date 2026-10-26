@@ -24,11 +24,14 @@ pub struct TrackRow {
     pub line: u32,
     /// Call depth from the trace flow (0 = the code the trace started in).
     pub depth: u32,
-    /// Exception being handled (nearest exception frame), 0 = none.
+    /// Exception being handled (nearest exception frame), 0 = none,
+    /// `EXCEPTION_UNKNOWN` = in a handler whose number the trace did not give.
     pub exception: u32,
     /// Bit k set: the instruction is on marker line k.
     pub markers: u64,
 }
+
+pub const EXCEPTION_UNKNOWN: u32 = u32::MAX;
 
 /// Names behind the ids. Index 0 is "" (no source).
 #[derive(Clone, Debug, Default)]
@@ -57,10 +60,8 @@ impl Engine {
             let p = ds.call_parent.get(f);
             let parent = if p == TOP_LEVEL { 0 } else { exc_of[p as usize] };
             exc_of[f] = if ds.call_kind.get(f) == FRAME_EXCEPTION {
-                match ds.call_number.get(f) {
-                    u32::MAX => parent,
-                    n => n,
-                }
+                // Not the parent's number: that would show the wrong handler.
+                ds.call_number.get(f)
             } else {
                 parent
             };

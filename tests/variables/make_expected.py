@@ -22,12 +22,23 @@ PATHS = [
 ]
 
 
+
+# Layouts built with DWARF 2, 4 and 5 (tests/variables/elf, from src/layout.c).
+LAYOUT_PATHS = [
+    "gs", "gs.a", "gs.b", "gs.c", "gs.d", "gs.d[2]", "gs.in", "gs.in[1]", "gs.in[1].value", "gs.e",
+    "gu", "gu.word", "gu.bytes[3]", "big", "big[255]", "grid", "grid[2]", "grid[2][4]", "names", "names[3]",
+    "counter", "use::calls",
+]
+
+
 def main():
     gdb = os.environ.get("GDB", "gdb-multiarch")
-    for core in ("m4", "m35p"):
-        elf = FIRMWARE / "state_{}.elf".format(core)
+    targets = [(FIRMWARE / "state_{}.elf".format(c), "state_{}".format(c), PATHS) for c in ("m4", "m35p")]
+    targets += [(ROOT / "elf" / "layout_dwarf{}.elf".format(v), "layout_dwarf{}".format(v), LAYOUT_PATHS)
+                for v in (2, 4, 5)]
+    for elf, stem, paths in targets:
         args = [gdb, "-q", "-nx", "-batch", str(elf)]
-        for p in PATHS:
+        for p in paths:
             args += ["-ex", "echo @@{}\\n".format(p), "-ex", "whatis {}".format(p),
                      "-ex", "print sizeof({})".format(p), "-ex", "print/x (unsigned)&{}".format(p)]
         out = subprocess.run(args, check=True, stdout=subprocess.PIPE, universal_newlines=True).stdout
@@ -38,7 +49,7 @@ def main():
             size = int(re.match(r"\$\d+ = (\d+)", lines[2]).group(1))
             addr = int(re.match(r"\$\d+ = (0x[0-9a-f]+)", lines[3]).group(1), 16)
             expected[lines[0]] = {"type": ty, "size": size, "addr": addr}
-        path = ROOT / "expected" / "state_{}.json".format(core)
+        path = ROOT / "expected" / "{}.json".format(stem)
         path.write_text(json.dumps(expected, indent=1, sort_keys=True) + "\n")
         print("{}: {} paths".format(path.name, len(expected)))
 

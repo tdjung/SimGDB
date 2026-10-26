@@ -144,6 +144,18 @@ pub struct Input {
     pub value: Option<String>,
 }
 
+/// Points per window of the search.
+const WINDOW: u64 = 1 << 20;
+
+/// What the condition reads, to find where it can change.
+struct Sources {
+    /// Some input changes at every point (`pc < X`).
+    every: bool,
+    pcs: Vec<u64>,
+    regs: BTreeSet<RegId>,
+    bytes: BTreeSet<u64>,
+}
+
 struct Parser<'a> {
     s: &'a str,
     pos: usize,
@@ -235,8 +247,11 @@ impl<'a> Parser<'a> {
                         Operand::Reg(r, _) => {
                             self.regs.insert(*r);
                         }
-                        Operand::Var(p, _) => self.bytes.extend(p.addr..p.addr + p.size.unwrap_or(0)),
-                        Operand::Mem(addr, size) => self.bytes.extend(*addr..addr + size),
+                        Operand::Var(p, _) => self.bytes.extend(p.addr..p.addr.saturating_add(p.size.unwrap_or(0))),
+                        Operand::Mem(addr, size) => {
+                            self.engine.check_span(*addr, *size)?;
+                            self.bytes.extend(*addr..addr + size)
+                        }
                         Operand::Str(_) => return Err(err("strings compare only with line, func or file")),
                         _ => {}
                     }
@@ -316,7 +331,9 @@ impl<'a> Parser<'a> {
             "file" => Operand::File,
             "reg" => {
                 let name = self.call_string()?;
-                Operand::Reg(self.engine.register_id(&name)?, name)
+                let id = self.engine.register_id(&name)?;
+                // The PC comes from instruction records, not register writes.
+                if id == self.engine.isa.pc() { Operand::Pc } else { Operand::Reg(id, name) }
             }
             "var" => {
                 let path = self.call_string()?;
@@ -502,6 +519,19 @@ impl Engine {
 
     /// The first (or last) point in `range` where `condition` holds.
     pub fn find_first(&self, condition: &str, range: Range, direction: Direction) -> Result<Found, EngineError> {
+        self.find_first_windowed(condition, range, direction, WINDOW)
+    }
+
+    /// `find_first` with a given window size (points per pass); for tests.
+    #[doc(hidden)]
+    pub fn find_first_windowed(
+        &self,
+        condition: &str,
+        range: Range,
+        direction: Direction,
+        window: u64,
+    ) -> Result<Found, EngineError> {
+        let window = window.max(1);
         let mut p = Parser {
             s: condition,
             pos: 0,
@@ -516,50 +546,12 @@ impl Engine {
             return Err(err(format!("unexpected `{}` at column {}", &condition[p.pos..], p.pos + 1)));
         }
         let (from, to) = (range.from, range.to);
-        // Points where an input can change.
-        let mut points: Vec<u64> = vec![from];
-        if p.every_point {
-            points = (from..=to).collect();
-        } else {
-            let ds = &self.ds;
-            let mut pcs = Vec::new();
-            Engine::at_points(&expr, &mut pcs);
-            for list in pcs {
-                for &pc in list {
-                    for i in self.executions_between(pc, from, to) {
-                        points.push(i);
-                        points.push(i + 1);
-                    }
-                }
-            }
-            if !p.regs.is_empty() {
-                for row in ds.rw_at.partition_point(0, ds.rw_at.len(), |at| at < from)..ds.rw_at.len() {
-                    let at = ds.rw_at.get(row);
-                    if at > to {
-                        break;
-                    }
-                    if p.regs.contains(&ds.rw_reg.get(row)) {
-                        points.push(at);
-                    }
-                }
-            }
-            for &addr in &p.bytes {
-                let n = ds.mi_addr.len();
-                let lo = ds.mi_addr.partition_point(0, n, |a| a < addr);
-                let hi = ds.mi_addr.partition_point(lo, n, |a| a <= addr);
-                let a = ds.mi_at.partition_point(lo, hi, |at| at < from);
-                for k in a..hi {
-                    let at = ds.mi_at.get(k);
-                    if at > to {
-                        break;
-                    }
-                    points.push(at);
-                }
-            }
-            points.retain(|&i| i >= from && i <= to);
-            points.sort_unstable();
-            points.dedup();
-        }
+        let mut lists = Vec::new();
+        Engine::at_points(&expr, &mut lists);
+        let mut pcs: Vec<u64> = lists.into_iter().flatten().copied().collect();
+        pcs.sort_unstable();
+        pcs.dedup();
+        let src = Sources { every: p.every_point, pcs, regs: p.regs.clone(), bytes: p.bytes.clone() };
         let mut found = Found {
             condition: condition.trim().to_string(),
             range,
@@ -575,102 +567,183 @@ impl Engine {
             previous: None,
             next: None,
         };
-        // Undecided stretches in time order, as (first, last) positions.
-        let mut stretches: Vec<(usize, usize)> = Vec::new();
-        // The condition is constant from one point to just before the next.
-        // Forward: in order. Backward: windows from the end, each in order,
-        // keeping the last match of the window; a match then holds up to the
-        // next point.
-        let forward = direction == Direction::Forward;
-        let window = self.ds.meta.checkpoint_interval.max(1) as usize;
-        let len = points.len();
-        let windows: Vec<std::ops::Range<usize>> = if forward {
-            std::iter::once(0..len).collect()
+        // The condition is constant from one change point to just before the
+        // next. Points are taken a window at a time so memory stays bounded
+        // however long the trace or however often the inputs change.
+        let mut hit: Option<u64> = None;
+        // Undecided stretches before the match, in search order (merged, first few).
+        let mut ranges: Vec<[u64; 2]> = Vec::new();
+        const KEEP: usize = 5;
+        if direction == Direction::Forward {
+            let mut pending = false;
+            let mut lo = from;
+            'windows: while lo <= to {
+                let hi = lo.saturating_add(window - 1).min(to);
+                let cands = self.candidates(&src, lo, hi, from);
+                if let Some(&first) = cands.first() {
+                    let mut regs = Regs::new(self, first);
+                    for &c in &cands {
+                        if pending {
+                            ranges.last_mut().unwrap()[1] = c - 1;
+                            pending = false;
+                        }
+                        regs.advance(c);
+                        found.evaluated += 1;
+                        match self.eval(&expr, c, &regs)? {
+                            Some(true) => {
+                                hit = Some(c);
+                                break 'windows;
+                            }
+                            None => {
+                                found.undecided += 1;
+                                let len = ranges.len();
+                                match ranges.last_mut() {
+                                    Some(r) if r[1] + 1 == c => pending = true,
+                                    _ if len < KEEP => {
+                                        ranges.push([c, c]);
+                                        pending = true;
+                                    }
+                                    _ => {}
+                                }
+                            }
+                            Some(false) => {}
+                        }
+                    }
+                }
+                if hi == to {
+                    break;
+                }
+                lo = hi + 1;
+            }
+            if pending {
+                ranges.last_mut().unwrap()[1] = to;
+            }
+            found.first_undecided = ranges.first().map(|r| r[0]);
         } else {
-            (0..len).step_by(window).map(|s| s..(s + window).min(len)).rev().collect()
-        };
-        let end_of = |pos: usize| if pos + 1 < len { points[pos + 1] - 1 } else { to };
-        for w in windows {
-            if w.is_empty() {
-                continue;
-            }
-            let mut regs = Regs::new(self, points[w.start]);
-            let (mut hit, mut undecided) = (None, None);
-            for pos in w {
-                let i = points[pos];
-                regs.advance(i);
-                found.evaluated += 1;
-                match self.eval(&expr, i, &regs)? {
-                    Some(true) => {
-                        hit = Some(pos);
-                        if forward {
-                            break;
+            // Windows from the end; within one, in time order, keeping the
+            // last match. A match holds up to the next change point, which
+            // may be the first point of the window after it.
+            let mut following: Option<u64> = None;
+            let mut hi = to;
+            loop {
+                let lo = hi.saturating_sub(window - 1).max(from);
+                let cands = self.candidates(&src, lo, hi, from);
+                if let Some(&first) = cands.first() {
+                    let end_of = |k: usize| match cands.get(k + 1) {
+                        Some(&n) => n - 1,
+                        None => following.map(|f| f - 1).unwrap_or(to),
+                    };
+                    let mut regs = Regs::new(self, first);
+                    let mut last_true = None;
+                    let mut undecided = Vec::new();
+                    for (k, &c) in cands.iter().enumerate() {
+                        regs.advance(c);
+                        found.evaluated += 1;
+                        match self.eval(&expr, c, &regs)? {
+                            Some(true) => last_true = Some(k),
+                            None => {
+                                found.undecided += 1;
+                                undecided.push(k);
+                            }
+                            Some(false) => {}
                         }
                     }
-                    None => {
-                        found.undecided += 1;
-                        match stretches.last_mut() {
-                            Some((_, last)) if *last + 1 == pos => *last = pos,
-                            _ => stretches.push((pos, pos)),
-                        }
-                        if forward {
-                            undecided.get_or_insert(pos);
-                        } else {
-                            undecided = Some(pos);
+                    // Undecided stretches after the match (before it in search order).
+                    let mut local: Vec<[u64; 2]> = Vec::new();
+                    for &k in undecided.iter().filter(|&&k| last_true.is_none_or(|h| k > h)) {
+                        match local.last_mut() {
+                            Some(r) if r[1] + 1 == cands[k] => r[1] = end_of(k),
+                            _ => local.push([cands[k], end_of(k)]),
                         }
                     }
-                    Some(false) => {}
+                    for r in local.into_iter().rev() {
+                        let len = ranges.len();
+                        match ranges.last_mut() {
+                            Some(g) if r[1] + 1 == g[0] => g[0] = r[0],
+                            _ if len < KEEP => ranges.push(r),
+                            _ => {}
+                        }
+                    }
+                    if let Some(h) = last_true {
+                        hit = Some(end_of(h));
+                        break;
+                    }
+                    following = Some(first);
                 }
-            }
-            if let (false, Some(h), Some(u)) = (forward, hit, undecided)
-                && u < h
-            {
-                // Searching backward, the match comes first.
-                undecided = None;
-            }
-            if found.first_undecided.is_none() {
-                found.first_undecided = undecided.map(|u| if forward { points[u] } else { end_of(u) });
-            }
-            if let Some(h) = hit {
-                let i = if forward { points[h] } else { end_of(h) };
-                let regs = Regs::new(self, i);
-                found.found = Some(self.point(i)?);
-                found.pc = self.pc(i)?.value;
-                found.source = found.pc.and_then(|pc| self.where_is(pc));
-                self.inputs(&expr, i, &regs, &mut found.inputs)?;
-                if i > 0 {
-                    found.previous = Some(self.neighbour(&expr, i - 1)?);
+                if lo == from {
+                    break;
                 }
-                if !forward && i < self.end() {
-                    found.next = Some(self.neighbour(&expr, i + 1)?);
-                }
-                break;
+                hi = lo - 1;
+            }
+            found.first_undecided = ranges.first().map(|r| r[1]);
+        }
+        if let Some(i) = hit {
+            let regs = Regs::new(self, i);
+            found.found = Some(self.point(i)?);
+            found.pc = self.pc(i)?.value;
+            found.source = found.pc.and_then(|pc| self.where_is(pc));
+            self.inputs(&expr, i, &regs, &mut found.inputs)?;
+            if i > 0 {
+                found.previous = Some(self.neighbour(&expr, i - 1)?);
+            }
+            if direction == Direction::Backward && i < self.end() {
+                found.next = Some(self.neighbour(&expr, i + 1)?);
             }
         }
-        let at = found.found.as_ref().map(|p| p.index);
-        stretches.sort_unstable();
-        let mut merged: Vec<(usize, usize)> = Vec::new();
-        for (a, b) in stretches {
-            match merged.last_mut() {
-                Some((_, last)) if *last + 1 >= a => *last = (*last).max(b),
-                _ => merged.push((a, b)),
-            }
-        }
-        let mut ranges: Vec<[u64; 2]> = merged
-            .into_iter()
-            .map(|(a, b)| [points[a], end_of(b)])
-            .filter(|r| match (at, forward) {
-                (Some(x), true) => r[0] < x,
-                (Some(x), false) => r[1] > x,
-                (None, _) => true,
-            })
-            .collect();
-        if !forward {
-            ranges.reverse();
-        }
-        ranges.truncate(5);
         found.undecided_ranges = ranges;
         Ok(found)
+    }
+
+    /// Points in `lo..=hi` where an input of the condition can change
+    /// (plus `from`, where the search starts), sorted.
+    fn candidates(&self, src: &Sources, lo: u64, hi: u64, from: u64) -> Vec<u64> {
+        let ds = &self.ds;
+        if src.every {
+            return (lo..=hi).collect();
+        }
+        let mut v = Vec::new();
+        if (lo..=hi).contains(&from) {
+            v.push(from);
+        }
+        for &pc in &src.pcs {
+            // An execution at i changes the condition at i and at i + 1.
+            for i in self.executions_between(pc, lo.saturating_sub(1), hi) {
+                if i >= lo {
+                    v.push(i);
+                }
+                if i < hi {
+                    v.push(i + 1);
+                }
+            }
+        }
+        if !src.regs.is_empty() {
+            let n = ds.rw_at.len();
+            for row in ds.rw_at.partition_point(0, n, |at| at < lo)..n {
+                let at = ds.rw_at.get(row);
+                if at > hi {
+                    break;
+                }
+                if src.regs.contains(&ds.rw_reg.get(row)) {
+                    v.push(at);
+                }
+            }
+        }
+        for &addr in &src.bytes {
+            let n = ds.mi_addr.len();
+            let a0 = ds.mi_addr.partition_point(0, n, |a| a < addr);
+            let a1 = ds.mi_addr.partition_point(a0, n, |a| a <= addr);
+            let k0 = ds.mi_at.partition_point(a0, a1, |at| at < lo);
+            for k in k0..a1 {
+                let at = ds.mi_at.get(k);
+                if at > hi {
+                    break;
+                }
+                v.push(at);
+            }
+        }
+        v.sort_unstable();
+        v.dedup();
+        v
     }
 
     fn neighbour(&self, expr: &Expr, index: u64) -> Result<Neighbour, EngineError> {
