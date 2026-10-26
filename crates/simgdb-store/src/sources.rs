@@ -5,12 +5,16 @@
 //! | `sources.arrow` | one per ELF instruction, sorted by pc | pc, file, function, line, placement, frame_start, frame_count |
 //! | `frames.arrow` | inline chains, innermost first | function, file, line |
 //! | `strings.arrow` | interned file and function names | s |
+//!
+//! `variables.json` holds the fixed-address variables and their types (a tree,
+//! small, read whole).
 
 use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 use simgdb_elf::source::{Placement, attribute};
+use simgdb_elf::variables::Variables;
 
 use crate::StoreError;
 use crate::table::{self, Column};
@@ -33,6 +37,9 @@ pub struct SourceSummary {
     pub instructions: u64,
     /// Line-0 instructions by how they were placed.
     pub line_zero: BTreeMap<String, u64>,
+    /// Fixed-address variables read from DWARF.
+    #[serde(default)]
+    pub variables: u64,
 }
 
 #[derive(Default)]
@@ -78,12 +85,53 @@ pub fn write(elf: &Path, out: &Path) -> Result<SourceSummary, StoreError> {
         }
     }
     write_tables(out, pc, file, function, line, placement, start, count, f_function, f_file, f_line, strings.list)?;
+    let symbols: Vec<SymbolEntry> = simgdb_elf::Elf::load(elf)?
+        .symbols
+        .into_iter()
+        .map(|s| SymbolEntry { name: s.name, addr: s.addr, size: s.size, function: s.is_function })
+        .collect();
+    write_json(out, "symbols.json", &symbols)?;
+    let variables = simgdb_elf::variables::variables(elf)?;
+    summary.variables = variables.variables.len() as u64;
+    write_variables(out, &variables)?;
     Ok(summary)
 }
 
 pub fn write_empty(out: &Path) -> Result<SourceSummary, StoreError> {
     write_tables(out, vec![], vec![], vec![], vec![], vec![], vec![], vec![], vec![], vec![], vec![], vec![])?;
+    write_variables(out, &Variables::default())?;
+    write_json(out, "symbols.json", &Vec::<SymbolEntry>::new())?;
     Ok(SourceSummary::default())
+}
+
+/// An ELF symbol (`symbols.json`, sorted by address).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SymbolEntry {
+    pub name: String,
+    pub addr: u64,
+    pub size: u64,
+    pub function: bool,
+}
+
+fn write_json<T: Serialize>(out: &Path, name: &str, v: &T) -> Result<(), StoreError> {
+    let path = out.join(name);
+    std::fs::write(&path, serde_json::to_vec(v)?).map_err(|e| StoreError::Io { path: path.clone(), source: e })
+}
+
+fn write_variables(out: &Path, v: &Variables) -> Result<(), StoreError> {
+    write_json(out, "variables.json", v)
+}
+
+pub fn read_symbols(dir: &Path) -> Result<Vec<SymbolEntry>, StoreError> {
+    let path = dir.join("symbols.json");
+    let bytes = std::fs::read(&path).map_err(|e| StoreError::Io { path: path.clone(), source: e })?;
+    Ok(serde_json::from_slice(&bytes)?)
+}
+
+pub fn read_variables(dir: &Path) -> Result<Variables, StoreError> {
+    let path = dir.join("variables.json");
+    let bytes = std::fs::read(&path).map_err(|e| StoreError::Io { path: path.clone(), source: e })?;
+    Ok(serde_json::from_slice(&bytes)?)
 }
 
 #[allow(clippy::too_many_arguments)]

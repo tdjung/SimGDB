@@ -91,13 +91,111 @@ enum Query {
         #[command(flatten)]
         at: At,
     },
-    /// Points at which a PC executed.
+    /// Where a PC, line (`file.c:123`) or function executed: count and points.
     Executions {
-        #[arg(long, value_parser = parse_u64)]
-        pc: u64,
-        #[arg(long, default_value_t = 100)]
-        limit: usize,
+        target: String,
+        #[command(flatten)]
+        range: Span,
+        #[command(flatten)]
+        page: PageArgs,
     },
+    /// Exceptions entered in a range.
+    Exceptions {
+        #[command(flatten)]
+        range: Span,
+        #[command(flatten)]
+        page: PageArgs,
+    },
+    /// Calls and exceptions in a range as a tree, plus per-function totals.
+    Calls {
+        #[command(flatten)]
+        range: Span,
+        #[arg(long, default_value_t = 6)]
+        depth: u32,
+    },
+    /// Which records last wrote each byte, as seen at a point.
+    LastWrite {
+        #[command(flatten)]
+        loc: Location,
+        #[command(flatten)]
+        at: At,
+    },
+    /// Writes to an address range by instructions in a range.
+    Writes {
+        #[command(flatten)]
+        loc: Location,
+        #[command(flatten)]
+        range: Span,
+        #[command(flatten)]
+        page: PageArgs,
+    },
+    /// Registers and memory that differ between two points.
+    Diff {
+        #[arg(long, value_parser = parse_u64)]
+        a: u64,
+        #[arg(long, value_parser = parse_u64)]
+        b: u64,
+        #[command(flatten)]
+        page: PageArgs,
+    },
+    /// First point where a condition holds (language: docs/USAGE.md).
+    Find {
+        condition: String,
+        #[command(flatten)]
+        range: Span,
+        /// Search backward: the last point at or before --to.
+        #[arg(long)]
+        backward: bool,
+    },
+    /// A variable's value (`name`, `name[3]`, `name.member`).
+    Var {
+        path: String,
+        #[command(flatten)]
+        at: At,
+    },
+    /// All fixed-address variables with address, size and type.
+    Variables,
+}
+
+#[derive(Args, Clone, Copy)]
+struct Span {
+    /// First point (default 0).
+    #[arg(long, value_parser = parse_u64)]
+    from: Option<u64>,
+    /// Last point (default: the end).
+    #[arg(long, value_parser = parse_u64)]
+    to: Option<u64>,
+}
+
+#[derive(Args, Clone, Copy)]
+struct PageArgs {
+    #[arg(long, default_value_t = 100)]
+    limit: usize,
+    /// `next_cursor` of the previous page.
+    #[arg(long, default_value_t = 0)]
+    cursor: u64,
+}
+
+#[derive(Args, Clone)]
+struct Location {
+    #[arg(long, value_parser = parse_u64, conflicts_with = "var")]
+    addr: Option<u64>,
+    /// Variable instead of an address (its size is the length).
+    #[arg(long)]
+    var: Option<String>,
+    #[arg(long)]
+    len: Option<u64>,
+}
+
+fn location(engine: &Engine, loc: &Location) -> Result<(u64, u64), String> {
+    match (&loc.var, loc.addr) {
+        (Some(v), _) => {
+            let p = engine.variable(v).map_err(|e| e.to_string())?;
+            Ok((p.addr, loc.len.or(p.size).ok_or("variable size unknown; give --len")?))
+        }
+        (None, Some(a)) => Ok((a, loc.len.unwrap_or(4))),
+        (None, None) => Err("give --addr or --var".into()),
+    }
 }
 
 fn parse_u64(s: &str) -> Result<u64, String> {
@@ -186,15 +284,58 @@ fn run(cli: Cli) -> Result<(), String> {
                         .collect();
                     json!({"point": engine.point(i).map_err(|e| e.to_string())?, "addr": addr, "hex": hex, "bytes": bytes})
                 }
-                Query::Executions { pc, limit } => {
-                    let all: Vec<u64> = engine.executions(pc).collect();
-                    json!({"pc": pc, "count": all.len(), "indexes": &all[..all.len().min(limit)], "truncated": all.len() > limit})
+                Query::Executions { target, range, page } => {
+                    let r = engine.range(range.from, range.to).map_err(|e| e.to_string())?;
+                    let t = simgdb_engine::Target::parse(&target);
+                    to_json(engine.find_executions(&t, r, page.limit, page.cursor))?
+                }
+                Query::Exceptions { range, page } => {
+                    let r = engine.range(range.from, range.to).map_err(|e| e.to_string())?;
+                    to_json(engine.exception_list(r, page.limit, page.cursor))?
+                }
+                Query::Calls { range, depth } => {
+                    let r = engine.range(range.from, range.to).map_err(|e| e.to_string())?;
+                    to_json(engine.call_tree(r, depth))?
+                }
+                Query::LastWrite { loc, at } => {
+                    let i = resolve(&engine, at)?;
+                    let (addr, len) = location(&engine, &loc)?;
+                    to_json(engine.last_write(addr, len, i))?
+                }
+                Query::Writes { loc, range, page } => {
+                    let r = engine.range(range.from, range.to).map_err(|e| e.to_string())?;
+                    let (addr, len) = location(&engine, &loc)?;
+                    to_json(engine.writes_to(addr, len, r, page.limit, page.cursor))?
+                }
+                Query::Diff { a, b, page } => to_json(engine.diff(a, b, page.limit, page.cursor))?,
+                Query::Find { condition, range, backward } => {
+                    let r = engine.range(range.from, range.to).map_err(|e| e.to_string())?;
+                    let d =
+                        if backward { simgdb_engine::Direction::Backward } else { simgdb_engine::Direction::Forward };
+                    to_json(engine.find_first(&condition, r, d))?
+                }
+                Query::Var { path, at } => {
+                    let i = resolve(&engine, at)?;
+                    to_json(engine.read_variable(&path, i))?
+                }
+                Query::Variables => {
+                    let v = engine.variables();
+                    let list: Vec<_> = v
+                        .variables
+                        .iter()
+                        .map(|x| json!({"name": x.name, "addr": x.addr, "size": x.size, "type": v.name(x.ty)}))
+                        .collect();
+                    json!({"variables": list})
                 }
             };
             println!("{}", serde_json::to_string_pretty(&out).unwrap());
             Ok(())
         }
     }
+}
+
+fn to_json<T: serde::Serialize>(r: Result<T, simgdb_engine::EngineError>) -> Result<serde_json::Value, String> {
+    r.map(|v| serde_json::to_value(v).unwrap()).map_err(|e| e.to_string())
 }
 
 fn main() -> ExitCode {

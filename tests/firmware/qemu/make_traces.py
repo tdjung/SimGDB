@@ -5,7 +5,7 @@ Test-data generator, not part of SimGDB. Steps:
 
 1. Run the firmware under QEMU with trace_plugin.so: a canonical log with the
    register state before every instruction, data accesses with values, and
-   exception entries with the stacked frame.
+   exception entries with the stacked frame (kept as *.canonical.log.gz).
 2. Render that log as Tarmac in three dialects (see DIALECTS). Register
    records come from differences between consecutive register states; an
    exception entry is split into the instruction's own effects and the entry's
@@ -494,6 +494,10 @@ def main(argv):
         rrfile = Path(tmp) / "run.rr"
         run_plugin(args.elf, args.core, log, rrfile)
         insns = read_canonical(log)
+        # Kept as the oracle for query tests (tests/queries): it is the run
+        # itself, before any Tarmac rendering.
+        with open(log, "rb") as src, gzip.GzipFile("{}.canonical.log.gz".format(stem), "wb", mtime=0) as f:
+            f.write(src.read())
         for name, cls in DIALECTS.items():
             lines = []
             cls(lines).render(insns, table)

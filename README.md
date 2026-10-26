@@ -27,6 +27,8 @@ simgdb index trace.log --elf firmware.elf -o trace.idx --report
 simgdb info trace.idx
 simgdb query trace.idx registers --at 1000
 simgdb query trace.idx locate --at 1000      # PC, 소스 줄, call stack
+simgdb query trace.idx executions state.c:111 # 그 줄이 실행된 횟수와 시점
+simgdb query trace.idx find 'var("ticks") == 5'
 simgdb query trace.idx memory --addr 0x20000000 --len 64 --time 13350000
 
 # GDB 서버
@@ -34,10 +36,13 @@ simgdb serve trace.idx --listen 127.0.0.1:3333
 arm-none-eabi-gdb firmware.elf -ex "target remote :3333" -ex "source tools/simgdb.gdb"
 ```
 
+질의 전체와 gdb 사용 시 실제 보드와 다른 점은 [docs/USAGE.md](docs/USAGE.md)에 있습니다.
+
 ## 문서
 
 | 문서 | 내용 |
 |---|---|
+| [docs/USAGE.md](docs/USAGE.md) | 사용법: 인덱스, gdb/VS Code(실제 보드와 다른 점), 질의와 조건식 |
 | [docs/BACKGROUND.md](docs/BACKGROUND.md) | 왜 만드는가, 기존 도구·상용 도구·AI 디버깅 동향 조사, 주요 결정과 이유 |
 | [docs/PLAN.md](docs/PLAN.md) | Step 0~3 전체 계획, 단계별 범위·산출물·완료 기준·위험 |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 구성요소, 데이터 모델, 인터페이스, 처음부터 고정할 설계 결정 |

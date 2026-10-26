@@ -101,7 +101,8 @@ Step 3까지 고려한 구조입니다. 구현은 단계별로 하지만 §2의 
 | **파생: `pc_hits`** | pc, 실행 횟수, 첫/마지막 index | 요약 먼저 응답 | 열 파일 |
 | `signals` (Step 2) | sim_time, signal_id, value | 필요한 신호만, SFR·bus 등 | 열 파일 |
 | `sources` (공유) | pc → file, line, function, line 0 배치 방식, inline frame(`frames`), 이름 표(`strings`) | ELF 기준, line 0 규칙 적용 | 열 파일 |
-| `variables` (공유) | 전역변수 이름 → 주소, 크기, 타입 | 엔진 DWARF(§2.12) | 열 파일 |
+| `variables` (공유) | 고정 주소 변수 이름 → 주소, 크기, 타입(타입은 트리) | 엔진 DWARF(§2.12) | JSON(`variables.json`, 작고 통째로 읽음) |
+| `symbols` (공유) | ELF 심볼 이름, 주소, 크기, 함수 여부 | `sym("…")`, 함수 진입 주소 | JSON(`symbols.json`) |
 | 메타데이터 | ISA, core, ELF 경로·해시, 시간 단위·변환 표, 공급자 버전, capability, 진단 요약 | | SQLite |
 | 주석·호출 로그·작업 | bookmark, 메모, MCP 호출 로그, 비동기 작업 상태 | 사람과 AI가 동시에 씀 | SQLite |
 
@@ -115,19 +116,22 @@ dataset.info() -> capabilities, runs, cores, limitations
 locate(point) -> pc, function, file:line, call stack (evidence)
 state.registers(point) -> {reg: Value}
 state.memory(addr, size, point) -> [Value per byte or word]
-query.executions(target: line|function|pc, range, limit, cursor) -> [point]
-query.last_write(addr|symbol, point) -> point + Value
-query.writes_to(addr range, time range) -> [point + Value]
-query.find_first(condition, range, direction) -> point
-query.exceptions(range) -> [...]
-query.call_tree(range, depth) -> tree
-diff(point_a, point_b) -> changed registers / memory
+query.executions(target: line|function|pc, range, limit, cursor) -> 실행 수 + 진입 시점
+query.last_write(addr|variable, len, point) -> 바이트별 마지막 쓰기 기록
+query.writes_to(addr|variable, len, range, limit, cursor) -> [쓰기 기록]
+query.find_first(condition, range, direction) -> point + 입력 값 + 판단 못 한 시점
+query.exceptions(range, limit, cursor) -> 종류별 개수 + [진입, 복귀, 끊긴 PC]
+query.call_tree(range, depth) -> 경로별 트리 + 함수별 합계
+diff(point_a, point_b, limit, cursor) -> changed registers / memory runs
+read_variable(path, point) -> 값 + 바이트별 출처
 annotations.add/list(point, text)
 (Step 2) hw.sfr(name, point), hw.sfr_history(name, range), hw.bus(range, filter), hw.signal_changes(path, range)
 (Step 3) runs.first_divergence(run_a, run_b), runs.where_executed(target, runs)
 ```
 
 모든 시점 인자는 `index` 또는 `sim_time`으로 줄 수 있고, 엔진이 `Point`로 바꿉니다.
+의미와 예는 [USAGE.md](USAGE.md) §3. 조건식은 값이 바뀔 수 있는 시점(대상 코드의 실행, 레지스터 쓰기,
+읽는 바이트의 메모리 기록)만 평가하고, 모르는 값은 3값 논리(참/거짓/모름)로 다룹니다.
 같은 `sim_time`에 명령어가 여럿이면 그중 첫 명령어의 시점입니다.
 
 API는 두 층입니다(§2.11). `locate`, `state.*`, `diff`는 한 시점 층이고, `query.*`는 조건에 맞는

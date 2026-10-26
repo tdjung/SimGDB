@@ -4,6 +4,18 @@
 //! Set layer, as needed by the GDB server in this milestone: `executions`,
 //! `next_execution`. Every value says where it came from; nothing is guessed.
 
+mod condition;
+mod queries;
+mod vars;
+
+pub use condition::{Direction, Found, Input};
+
+pub use queries::{
+    CallNode, CallTree, Diff, ExceptionEntry, ExceptionList, Executions, FunctionCalls, LastWrite, MemoryChange, Page,
+    Range, RegisterChange, Target, WriteRecord, WritesTo,
+};
+pub use vars::VariableValue;
+
 use std::path::Path;
 
 use serde::Serialize;
@@ -21,6 +33,10 @@ pub enum EngineError {
     OutOfRange { index: u64, last: u64 },
     #[error("unknown register {0}")]
     Register(String),
+    #[error("{0}")]
+    Variable(String),
+    #[error("{0}")]
+    Query(String),
     #[error("memory request of {0} bytes is larger than the limit of {MAX_MEMORY_REQUEST}")]
     TooLarge(u64),
 }
@@ -576,13 +592,30 @@ impl Engine {
         let (state, _) = self.replay(entry);
         if let Some((slot, len)) = self.isa.exception_return_slot(&state) {
             let bytes = self.memory(slot, len, entry).unwrap_or_default();
-            if !bytes.is_empty() && bytes.iter().all(|b| b.value.is_some()) {
-                let v = bytes.iter().rev().fold(0u64, |a, b| (a << 8) | b.value.unwrap() as u64);
-                return (Some(v & !1), "stacked");
+            let v = self.combine(&bytes);
+            if let (Some(pc), None) = (v.value, v.known_mask) {
+                return (Some(pc & !1), "stacked");
             }
         }
-        let r = ds.call_return.get(f);
-        if r != NONE && r < self.end() { (Some(ds.insn_pc.get(r as usize)), "returned") } else { (None, "unknown") }
+        // Where it returned to; past tail-chained handlers (a frame entered
+        // at the return point, under the same parent), where the last one did.
+        let mut f = f;
+        for _ in 0..4096 {
+            let r = ds.call_return.get(f);
+            if r == NONE || r >= self.end() {
+                return (None, "unknown");
+            }
+            let n = ds.call_entry.len();
+            let k = ds.call_entry.partition_point(0, n, |e| e < r);
+            let chained = (k..n).take_while(|&g| ds.call_entry.get(g) == r).find(|&g| {
+                ds.call_kind.get(g) != simgdb_store::calls::FRAME_CALL && ds.call_parent.get(g) == ds.call_parent.get(f)
+            });
+            match chained {
+                Some(g) => f = g,
+                None => return (Some(ds.insn_pc.get(r as usize)), "returned"),
+            }
+        }
+        (None, "unknown")
     }
 
     /// Where execution is at `index`: PC, source line and call stack.

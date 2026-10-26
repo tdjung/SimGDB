@@ -124,7 +124,30 @@ bin/simgdb query real.idx locate --at I
 - 줄 번호는 같거나, 함수 첫 명령어 등에서 한 줄 다를 수 있습니다(ARCHITECTURE §6의 line table 규칙 차이).
 - 다르면 `locate` 출력과 `bt` 출력을 함께 알려 주세요. RTOS 문맥 전환이 있는 펌웨어라면 그 사실도 알려 주세요.
 
-## 6. 함께 알려 주시면 좋은 것 (Step 0)
+## 6. 범위 질의
+
+실제 trace에서 다음을 실행하고 결과를 확인합니다(사용법: `docs/USAGE.md` §3).
+
+```bash
+bin/simgdb query real.idx exceptions --limit 3 > exc.json
+bin/simgdb query real.idx calls --depth 3 > calls.json
+bin/simgdb query real.idx executions <자주 실행되는 함수 이름> --limit 3
+bin/simgdb query real.idx variables > vars.json
+bin/simgdb query real.idx find 'pc == sym("<예외 핸들러 이름>")'
+```
+
+기대 결과:
+
+- `exc.json`의 `by_exception`이 펌웨어가 쓰는 예외(SysTick, 인터럽트 번호 등)와 맞습니다. 첫 항목의 `entered_at`을
+  gdb에서 `simgdb-goto <entered_at>` 하면 그 핸들러 첫 줄에서 멈춥니다.
+- `calls.json`의 `functions`에 주요 함수가 호출 횟수와 함께 나옵니다.
+- `executions`의 `entries.total`이 그 함수가 호출된 횟수입니다. 첫 항목으로 `simgdb-goto` 하면 그 함수 첫 줄입니다.
+- `vars.json`에 전역변수가 주소·타입과 함께 나옵니다. 그중 하나를 `bin/simgdb query real.idx var <이름> --at I`로 읽은 값이
+  gdb에서 같은 시점(`simgdb-goto I`)에 `print <이름>`한 값과 같습니다(모르는 바이트는 `??`).
+- `find` 결과의 `found.index`가 첫 예외 항목의 `entered_at`과 같습니다.
+- 다르거나 오류가 나면 명령과 출력을 알려 주세요. `report.json`의 `exceptions_inferred`도 함께 알려 주세요.
+
+## 7. 함께 알려 주시면 좋은 것 (Step 0)
 
 - ES `tic`이 무엇을 세는지(코어 클럭인지 전역 tick인지), 클럭이 멈추면 카운터도 멈추는지, 시뮬레이션 중 주파수가 바뀌는지.
 - `IF` 레코드의 의미(바로 앞 명령어의 중복인지).

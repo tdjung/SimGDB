@@ -250,6 +250,37 @@ impl Isa for ArmM {
         1 << 32
     }
 
+    fn exception_number(&self, state: &RegState) -> Option<u32> {
+        // IPSR, xPSR[8:0].
+        state.get(XPSR, 9).map(|v| (v & 0x1ff) as u32)
+    }
+
+    fn exception_name(&self, number: u32) -> Option<String> {
+        Some(
+            match number {
+                1 => "Reset",
+                2 => "NMI",
+                3 => "HardFault",
+                4 => "MemManage",
+                5 => "BusFault",
+                6 => "UsageFault",
+                7 => "SecureFault",
+                11 => "SVCall",
+                12 => "DebugMonitor",
+                14 => "PendSV",
+                15 => "SysTick",
+                n if n >= 16 => return Some(format!("IRQ{}", n - 16)),
+                _ => return None,
+            }
+            .to_string(),
+        )
+    }
+
+    fn little_endian(&self) -> bool {
+        // BE8 M-profile parts exist but are rare; not supported yet.
+        true
+    }
+
     fn flow(&self, opcode: u32, width: u8) -> crate::Flow {
         crate::thumb::classify_opcode(opcode, width)
     }

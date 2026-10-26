@@ -11,6 +11,7 @@
 | `qemu/make_traces.py` | 플러그인 로그를 Tarmac 세 방언으로 만들고, gdbstub으로 정답을 기록 |
 | `traces/state_*.{fm,m4rtl,es}.log.gz` | Tarmac trace (방언은 아래) |
 | `traces/state_*.truth.json.gz` | 정답: 시점별 레지스터, RAM(.data/.bss/스택), backtrace |
+| `traces/state_*.canonical.log.gz` | QEMU 플러그인의 원본 기록(명령어마다 레지스터 전체, 메모리 접근 값, 예외 frame). Tarmac으로 바꾸기 전의 실행 자체이며 질의 정답(`tests/queries`)의 입력 |
 
 ## Tarmac 방언
 

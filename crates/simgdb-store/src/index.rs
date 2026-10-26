@@ -208,7 +208,7 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
                     flags |= FLAG_FETCH_FAILED;
                     report.fetch_failed += 1;
                 }
-                let frame = b.calls.at_instruction(at, i.pc);
+                let frame = b.calls.at_instruction(at, i.pc, isa.exception_number(&state));
                 b.frame.push(frame);
                 if let (false, Some(op)) = (i.failed, i.opcode) {
                     b.calls.after_instruction(at, i.pc, i.width, isa.flow(op, i.width));
@@ -322,6 +322,7 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
     if let Some(p) = pending.take() {
         report.exception_frames_unplaced += finish_entry(&mut b, p, &state, isa) as u64;
     }
+    report.exceptions_inferred = b.calls.inferred.len() as u64;
     let instructions = b.pc.len() as u64;
     if instructions == 0 {
         return Err(StoreError::Trace(format!(

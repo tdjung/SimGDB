@@ -11,7 +11,11 @@
 //! - a return-type instruction executed at exception level (the handler's
 //!   own `bx lr` or `pop {pc}`, also through tail calls) closes the exception
 //!   frame at the next instruction, or at the next exception record when the
-//!   exception tail-chains.
+//!   exception tail-chains;
+//! - if the instruction after such a return still runs in handler mode, at
+//!   an exception level other than the one returned to, the trace omitted a
+//!   tail-chained entry: an exception frame is opened for it (counted as
+//!   inferred).
 
 use std::collections::HashMap;
 
@@ -48,6 +52,9 @@ pub struct Calls {
     /// instructions are no return target, and need no stack search.
     open_returns: HashMap<u64, u32>,
     exception_return: bool,
+    /// Exception frames opened without an exception record (tail-chaining
+    /// seen from the exception level alone).
+    pub inferred: Vec<u32>,
 }
 
 impl Calls {
@@ -91,11 +98,27 @@ impl Calls {
         }
     }
 
-    /// Instruction record `index` at `pc` is about to be indexed. Returns the
-    /// innermost frame active at point `index`.
-    pub fn at_instruction(&mut self, index: u64, pc: u64) -> u32 {
+    /// Instruction record `index` at `pc` is about to be indexed; `level` is
+    /// the exception number at point `index` (0 in thread mode) if known.
+    /// Returns the innermost frame active at point `index`.
+    pub fn at_instruction(&mut self, index: u64, pc: u64, level: Option<u32>) -> u32 {
         if self.exception_return && self.top_is_exception() {
             self.close_top(index);
+            let outer = self
+                .stack
+                .iter()
+                .rev()
+                .find(|&&f| self.kind[f as usize] == FRAME_EXCEPTION)
+                .map(|&f| self.number[f as usize])
+                .unwrap_or(0);
+            if let Some(n) = level {
+                if n != 0 && outer != u32::MAX && n != outer {
+                    self.open(FRAME_EXCEPTION, index, index, NONE, NONE, n);
+                    self.inferred.push(self.kind.len() as u32 - 1);
+                    self.exception_return = false;
+                    return self.top();
+                }
+            }
         }
         self.exception_return = false;
         // Return to a call frame's return address, searching down to the
@@ -156,16 +179,16 @@ mod tests {
     #[test]
     fn calls_and_exceptions() {
         let mut c = Calls::default();
-        assert_eq!(c.at_instruction(0, 0x100), TOP_LEVEL);
+        assert_eq!(c.at_instruction(0, 0x100, Some(0)), TOP_LEVEL);
         c.after_instruction(0, 0x100, 4, Flow::Call); // bl 0x200
-        assert_eq!(c.at_instruction(1, 0x200), 0);
+        assert_eq!(c.at_instruction(1, 0x200, Some(0)), 0);
         c.after_instruction(1, 0x200, 2, Flow::Next);
         c.exception(2, Some(15));
-        assert_eq!(c.at_instruction(2, 0x300), 1); // handler
+        assert_eq!(c.at_instruction(2, 0x300, Some(15)), 1); // handler
         c.after_instruction(2, 0x300, 2, Flow::Return); // bx lr (EXC_RETURN)
-        assert_eq!(c.at_instruction(3, 0x202), 0); // back in the callee
+        assert_eq!(c.at_instruction(3, 0x202, Some(0)), 0); // back in the callee
         c.after_instruction(3, 0x202, 2, Flow::Return); // bx lr
-        assert_eq!(c.at_instruction(4, 0x104), TOP_LEVEL); // back at the caller
+        assert_eq!(c.at_instruction(4, 0x104, Some(0)), TOP_LEVEL); // back at the caller
         assert_eq!((c.return_index[0], c.return_index[1]), (4, 3));
         assert_eq!(c.depth[1], 2);
     }
@@ -173,13 +196,39 @@ mod tests {
     #[test]
     fn tail_chain_replaces_the_exception_frame() {
         let mut c = Calls::default();
-        c.at_instruction(0, 0x100);
+        c.at_instruction(0, 0x100, None);
         c.exception(1, Some(15));
-        c.at_instruction(1, 0x300);
+        c.at_instruction(1, 0x300, None);
         c.after_instruction(1, 0x300, 2, Flow::Return);
         c.exception(2, Some(11));
-        assert_eq!(c.at_instruction(2, 0x400), 1);
+        assert_eq!(c.at_instruction(2, 0x400, None), 1);
         assert_eq!(c.parent[1], TOP_LEVEL);
         assert_eq!(c.return_index[0], 2);
+        assert!(c.inferred.is_empty());
+    }
+
+    #[test]
+    fn tail_chain_without_a_record_is_inferred_from_the_level() {
+        let mut c = Calls::default();
+        c.at_instruction(0, 0x100, Some(0));
+        c.exception(1, Some(11)); // SVC
+        c.at_instruction(1, 0x300, Some(11));
+        c.exception(2, Some(15)); // SysTick nested into it
+        c.at_instruction(2, 0x500, Some(15));
+        c.after_instruction(2, 0x500, 2, Flow::Return);
+        // Back in the SVC handler: a nested return, not a tail chain.
+        assert_eq!(c.at_instruction(3, 0x302, Some(11)), 0);
+        c.after_instruction(3, 0x302, 2, Flow::Return);
+        // Still handler mode, level 14 (PendSV): tail-chained, no record.
+        assert_eq!(c.at_instruction(4, 0x600, Some(14)), 2);
+        assert_eq!((c.number[2], c.parent[2], c.return_index[0]), (14, TOP_LEVEL, 4));
+        assert_eq!(c.inferred, [2]);
+        c.after_instruction(4, 0x600, 2, Flow::Return);
+        assert_eq!(c.at_instruction(5, 0x102, Some(0)), TOP_LEVEL);
+        // Unknown level: closed, nothing inferred.
+        c.exception(6, None);
+        c.at_instruction(6, 0x300, None);
+        c.after_instruction(6, 0x300, 2, Flow::Return);
+        assert_eq!(c.at_instruction(7, 0x104, None), TOP_LEVEL);
     }
 }

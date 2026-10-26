@@ -115,6 +115,13 @@ pub trait Isa: Send + Sync {
     fn exception_return_slot(&self, after_entry: &RegState) -> Option<(u64, u64)>;
     /// Addresses are below this limit (e.g. 2^32 for a 32-bit ISA).
     fn address_limit(&self) -> u64;
+    /// Byte order of data in memory.
+    fn little_endian(&self) -> bool;
+    /// Exception being handled in this register state (0: none, thread
+    /// mode), if the state shows it.
+    fn exception_number(&self, state: &RegState) -> Option<u32>;
+    /// Architectural name of an exception number (e.g. "SysTick", "IRQ3").
+    fn exception_name(&self, number: u32) -> Option<String>;
     /// Control-flow class of an executed instruction from its trace encoding.
     fn flow(&self, opcode: u32, width: u8) -> Flow;
 }

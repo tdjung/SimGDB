@@ -881,6 +881,7 @@ dependencies = [
  "object",
  "serde",
  "serde_json",
+ "simgdb-elf",
  "simgdb-isa",
  "simgdb-model",
  "simgdb-store",

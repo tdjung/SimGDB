@@ -69,4 +69,47 @@ fn main() {
     let t = Instant::now();
     let n = e.executions(pcs[0]).count();
     println!("{:<40} {:.3} ms ({n} hits)", "all executions of one PC", t.elapsed().as_secs_f64() * 1e3);
+
+    // Set-layer queries over the whole trace, once each.
+    use simgdb_engine::{Direction, Target};
+    let all = e.range(None, None).unwrap();
+    let once = |name: &str, f: &mut dyn FnMut() -> String| {
+        let t = Instant::now();
+        let what = f();
+        println!("{name:<40} {:>10.1} ms   {what}", t.elapsed().as_secs_f64() * 1e3);
+    };
+    once("executions of a line (entries)", &mut || {
+        let r = e.find_executions(&Target::parse("state.c:111"), all, 10, 0).unwrap();
+        format!("{} instructions, {} entries", r.instructions, r.entries.total)
+    });
+    once("executions of a function (calls)", &mut || {
+        let r = e.find_executions(&Target::parse("mix"), all, 10, 0).unwrap();
+        format!("{} instructions, {} calls", r.instructions, r.entries.total)
+    });
+    once("exception list", &mut || format!("{} exceptions", e.exception_list(all, 10, 0).unwrap().exceptions.total));
+    once("call tree, depth 6", &mut || format!("{} functions", e.call_tree(all, 6).unwrap().functions.len()));
+    let mid = e.end() / 2;
+    once("last write of a variable", &mut || {
+        format!("{} records", e.last_write(0x2000_00b0, 4, mid).unwrap().writes.len())
+    });
+    once("writes to a 32-byte array", &mut || {
+        format!("{} writes", e.writes_to(0x2000_00dc, 32, all, 10, 0).unwrap().writes.total)
+    });
+    once("diff over 1,000 instructions", &mut || {
+        let d = e.diff(mid, mid + 1000, 10, 0).unwrap();
+        format!("{} registers, {} memory runs", d.registers.len(), d.memory.total)
+    });
+    for (cond, dir) in [
+        ("var(\"ticks\") == 100000", Direction::Forward),
+        ("var(\"ticks\") == 100000", Direction::Backward),
+        ("func == \"depth\" && reg(\"r0\") == 0", Direction::Forward),
+        ("line == \"state.c:111\" && var(\"svc_calls\") > 9000", Direction::Forward),
+        ("reg(\"sp\") < 0x2000ff00", Direction::Forward),
+        ("var(\"result\") == 1", Direction::Forward),
+    ] {
+        once(&format!("find {cond} {dir:?}"), &mut || {
+            let f = e.find_first(cond, all, dir).unwrap();
+            format!("found {:?}, {} points evaluated", f.found.map(|p| p.index), f.evaluated)
+        });
+    }
 }

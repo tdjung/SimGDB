@@ -34,7 +34,7 @@ use simgdb_model::TimeUnit;
 pub use index::{IndexOptions, build};
 pub use table::{BATCH, Col, Table};
 
-pub const FORMAT_VERSION: u32 = 2;
+pub const FORMAT_VERSION: u32 = 3;
 
 /// Instruction flags.
 pub const FLAG_FAILED: u8 = 1;
@@ -134,6 +134,10 @@ pub struct Report {
     /// Exception entries whose frame could not be placed (stack pointer or
     /// EXC_RETURN unknown): stack values after them may be stale.
     pub exception_frames_unplaced: u64,
+    /// Tail-chained exception entries the trace has no record for, inferred
+    /// from the exception level after a handler returned.
+    #[serde(default)]
+    pub exceptions_inferred: u64,
     pub time_unit: Option<TimeUnit>,
     pub first_time: Option<u64>,
     pub last_time: Option<u64>,
@@ -221,6 +225,8 @@ pub struct Dataset {
     pub fr_file: Col<UInt32Type>,
     pub fr_line: Col<UInt32Type>,
     pub strings: Vec<String>,
+    pub variables: simgdb_elf::variables::Variables,
+    pub symbols: Vec<sources::SymbolEntry>,
 }
 
 impl Dataset {
@@ -312,6 +318,8 @@ impl Dataset {
             fr_file: fr.col("file")?,
             fr_line: fr.col("line")?,
             strings,
+            variables: sources::read_variables(dir)?,
+            symbols: sources::read_symbols(dir)?,
             meta,
         })
     }

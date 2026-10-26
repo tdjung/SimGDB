@@ -8,6 +8,7 @@
 //! image. `.bss` has no file bytes and is not part of it either.
 
 pub mod source;
+pub mod variables;
 
 use std::path::Path;
 

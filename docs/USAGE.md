@@ -1,0 +1,120 @@
+# SimGDB 사용법
+
+시뮬레이션이 남긴 Tarmac trace와 펌웨어 ELF로 인덱스를 만들고, gdb·VS Code나 명령줄 질의(JSON)로 봅니다.
+보이지 않는 값과 그 이유는 [LIMITATIONS.md](LIMITATIONS.md)에 있습니다.
+
+## 1. 인덱스 만들기
+
+```bash
+simgdb index trace.log --elf firmware.elf -o trace.idx --report > report.json
+```
+
+- trace는 gzip이어도 됩니다. ELF는 소스 줄, 함수, 변수, 초기 메모리(플래시)에 씁니다.
+- `--report`의 JSON에서 먼저 볼 것:
+  - `unrecognised`: 해석하지 못한 줄 종류와 샘플. 비어 있어야 정상입니다.
+  - `capabilities`: 이 trace로 할 수 있는 것(메모리 값, 소스 줄 등).
+  - `exception_frames_unplaced`, `exceptions_inferred`: 예외 처리에서 추정이 들어간 횟수.
+- 멀티코어 trace는 `--core N`으로 한 코어씩 만듭니다.
+
+## 2. gdb / VS Code
+
+```bash
+simgdb serve trace.idx --listen 127.0.0.1:3333
+arm-none-eabi-gdb firmware.elf -ex "target remote :3333" -ex "source tools/simgdb.gdb"
+```
+
+보드에 붙은 것처럼 `break`, `continue`, `step`, `next`, `finish`, `bt`, `print`, `info registers`를 씁니다.
+기록을 거꾸로 가는 `reverse-step`, `reverse-next`, `reverse-continue`, `reverse-finish`도 됩니다.
+
+| 명령 | 하는 일 |
+|---|---|
+| `simgdb-time` | 지금 시점: 명령어 index, trace 시간, PC |
+| `simgdb-goto N` | 명령어 index N으로 이동 |
+| `simgdb-goto-time T` | trace 시간 T 이후 첫 명령어로 이동 |
+| `simgdb-info` | trace가 기록한 것과 SimGDB가 볼 수 없는 것 |
+
+### 실제 보드와 다른 점
+
+- **값을 모르면 모른다고 보여 줍니다.** trace에 아직 나오지 않은 레지스터는 `<unavailable>`,
+  기록이 없는 메모리는 읽기 오류입니다. 0 같은 값을 지어내지 않습니다.
+- **쓰기는 거부됩니다.** `set var`, 레지스터·메모리 쓰기는 오류입니다(기록을 보는 도구이므로).
+- **인터럽트에 선점된 명령어의 breakpoint는 한 번만 멈춥니다.**
+  보드에서는 PC가 breakpoint 주소에 도착한 순간 멈출 수 있고, 그 명령어가 실행되기 전에 인터럽트가 들어오면
+  핸들러에서 돌아온 뒤 같은 주소에서 한 번 더 멈춥니다. Tarmac에는 **실행된 명령어만** 기록되므로
+  SimGDB는 실제로 실행될 때 한 번 멈춥니다. 그래서 `ignore`나 hit 횟수(`info breakpoints`의 "already hit")가
+  보드보다 작을 수 있습니다. 멈춘 시점의 레지스터·메모리 값은 같습니다.
+- **`next`/`finish` 도중 인터럽트**: 보드와 같이 핸들러를 건너뛰고 원래 함수에서 멈춥니다.
+- **PSP를 쓰는 펌웨어**에서는 PSP가 처음 쓰이기 전 핸들러 안의 `bt`가 중간에 끊길 수 있습니다(LIMITATIONS 참고).
+
+## 3. 명령줄 질의
+
+모든 질의는 JSON을 출력하고, 값마다 출처(`source`: `trace`, `elf_initial`, `inferred`, `unknown`)와
+근거(`evidence`: 그 값을 만든 명령어 index와 trace 줄 번호)가 붙습니다.
+
+### 시점
+
+시점은 명령어 index입니다. **시점 i는 i번째 명령어를 실행하기 직전**의 상태(gdb가 그 PC에서 멈춘 상태)이고,
+i번째 명령어가 쓴 값은 시점 i+1부터 보입니다. `--at INDEX` 대신 `--time T`(trace에 기록된 시간 값)를 쓸 수 있습니다.
+범위는 `--from`, `--to`(양 끝 포함, 기본은 전체)입니다.
+
+### 한 시점
+
+| 질의 | 예 |
+|---|---|
+| 레지스터 | `simgdb query trace.idx registers --at 1000` |
+| 메모리 | `simgdb query trace.idx memory --addr 0x20000000 --len 64 --at 1000` |
+| 위치(PC, 소스 줄, call stack) | `simgdb query trace.idx locate --at 1000` |
+| 변수 | `simgdb query trace.idx var 'pool[2].len' --at 1000` |
+| 변수 목록 | `simgdb query trace.idx variables` |
+
+- 변수는 고정 주소 변수(전역, 파일 static, 함수 static `func::name`)이고 `name`, `name[3]`, `name.member`를 씁니다.
+  포인터를 따라가는 식(`head->next`)과 지역변수는 gdb에서 봅니다.
+- `locate`의 call stack은 스택 메모리가 아니라 trace의 호출·복귀·예외 흐름으로 만듭니다. 항목마다 `pc_from`이
+  그 PC의 출처입니다(`current`, `call`, `stacked`, `returned`).
+
+### 범위 전체
+
+| 질의 | 예 | 결과 |
+|---|---|---|
+| 실행 시점 | `simgdb query trace.idx executions state.c:111` | 실행 명령어 수와 진입 시점 목록 |
+| 예외 목록 | `simgdb query trace.idx exceptions --from 0 --to 50000` | 종류별 개수, 진입·복귀 시점, 끊긴 PC |
+| 호출 트리 | `simgdb query trace.idx calls --depth 4` | 호출 경로별 횟수·명령어 수, 함수별 합계 |
+| 마지막 쓰기 | `simgdb query trace.idx last-write --var ticks --at 3000` | 각 바이트를 마지막으로 쓴 기록 |
+| 쓰기 이력 | `simgdb query trace.idx writes --var ring --from 0 --to 5000` | 범위 안의 쓰기 기록 |
+| 두 시점 비교 | `simgdb query trace.idx diff --a 1000 --b 2000` | 바뀐 레지스터, 바뀐 메모리 구간(변수 이름 포함) |
+| 조건 검색 | `simgdb query trace.idx find 'var("ticks") == 5'` | 조건이 처음 참인 시점 |
+
+- **`executions`의 대상**: `0x1f4`(PC), `state.c:111`(줄), `mix`(함수).
+  - 줄: `instructions`는 그 줄 명령어가 실행된 횟수(tarmac_to_cachegrind의 Ir과 같음), `entries`는 그 줄에
+    **들어온** 시점입니다. 같은 줄 안에서 이어지는 실행과, 인터럽트에서 돌아와 줄을 이어 실행하는 것은 새 진입이 아닙니다.
+  - 함수: `entries`는 함수 시작 주소의 실행(호출) 시점, `instructions`는 그 함수 자체 코드의 실행 횟수입니다
+    (다른 함수에 inline된 사본은 포함하지 않음).
+- 목록은 `--limit`(기본 100)만큼 나오고, 더 있으면 `next_cursor`를 `--cursor`로 넘겨 다음을 받습니다. `total`은 전체 개수입니다.
+- **예외**: 복귀 기록 없이 이어지는 tail-chaining을 trace가 기록하지 않았으면 예외 번호(IPSR)로 추정하고,
+  `evidence.note`에 그렇게 적습니다.
+- **`calls`의 함수별 합계**: `inclusive_instructions`는 복귀한 호출마다 (복귀 시점 − 진입 시점)을 더한 값입니다.
+  재귀 호출은 각각 셉니다.
+
+### 조건식 (`find`)
+
+```
+var("ticks") == 5
+func == "depth" && reg("r0") == 0
+line == "state.c:111" && var("svc_calls") > 3
+pc == sym("HardFault_Handler")
+mem32(0x200000dc) != 0 || !(reg("sp") >= 0x2000ff00)
+```
+
+| 요소 | 뜻 |
+|---|---|
+| `pc`, `reg("r0")`, `reg("sp")` | PC, 레지스터 |
+| `var("pool[3].len")`, `mem8/16/32/64(주소)` | 변수, 메모리(주소는 숫자나 `sym("이름")`) |
+| `line == "file.c:123"`, `func == "name"`, `file == "file.c"` | 소스 위치(`==`, `!=`만) |
+| `sym("name")` | 심볼 주소 |
+| `==` `!=` `<` `<=` `>` `>=`, `&&` `\|\|` `!`, 괄호 | 비교와 논리 |
+
+- `--backward`는 `--to`에서 거꾸로 찾아 **조건이 참인 마지막 시점**을 줍니다.
+- trace가 보여 주지 않는 값이 들어간 비교는 "모름"이고, 모름은 참으로 치지 않습니다. 결과의 `first_undecided`가
+  찾은 시점보다 앞서 있으면 그 사이에 판단하지 못한 시점이 있다는 뜻입니다(`undecided`는 그런 시점 수).
+- 결과의 `inputs`는 찾은 시점의 레지스터·변수 값입니다.
+- 임의 코드는 실행하지 않습니다. 위 문법 밖의 식은 오류입니다.
