@@ -518,7 +518,7 @@
    "callee": "mix",
    "caller": "build_list",
    "entry": 2452,
-   "return": 2476
+   "return": 2458
   },
   {
    "call": 2466,
@@ -1293,7 +1293,7 @@
   },
   "mix": {
    "calls": 106,
-   "inclusive": 780,
+   "inclusive": 762,
    "returned": 106
   },
   "op_add": {

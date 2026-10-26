@@ -286,7 +286,7 @@
    "callee": "mix",
    "caller": "build_list",
    "entry": 1771,
-   "return": 1795
+   "return": 1777
   },
   {
    "call": 1785,
@@ -1270,7 +1270,7 @@
    "callee": "mix",
    "caller": "depth",
    "entry": 4561,
-   "return": 4585
+   "return": 4567
   },
   {
    "call": 4575,
@@ -1389,7 +1389,7 @@
   },
   "mix": {
    "calls": 118,
-   "inclusive": 852,
+   "inclusive": 816,
    "returned": 118
   },
   "op_add": {

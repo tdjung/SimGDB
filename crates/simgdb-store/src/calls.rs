@@ -15,7 +15,12 @@
 //! - if the instruction after such a return still runs in handler mode, at
 //!   an exception level other than the one returned to, the trace omitted a
 //!   tail-chained entry: an exception frame is opened for it (counted as
-//!   inferred).
+//!   inferred);
+//! - an exception taken right after a call frame's return-type instruction
+//!   executed, whose handler returns to that frame's return address, came
+//!   after the call returned: the call frame closes at the exception entry
+//!   and the exception frame belongs to the caller. (The return target is
+//!   only seen when the exception returns, so this is settled then.)
 
 use std::collections::HashMap;
 use std::fs::File;
@@ -119,9 +124,25 @@ pub struct Calls {
     /// instructions are no return target, and need no stack search.
     open_returns: HashMap<u64, u32>,
     exception_return: bool,
+    /// The last executed instruction was a return-type instruction in a call
+    /// frame (its target is seen at the next instruction).
+    call_return: bool,
+    /// An exception entered right after `call_return`: settled when the
+    /// exceptions return.
+    pending: Option<ReturnedCall>,
     /// Exception frames opened without an exception record (tail-chaining
     /// seen from the exception level alone).
     pub inferred: Vec<u32>,
+}
+
+/// A call frame that may have returned just before an exception entry.
+#[derive(Clone, Copy)]
+struct ReturnedCall {
+    call: u32,
+    return_pc: u64,
+    /// First frame opened for the exception, and the entry point.
+    first: u32,
+    entry: u64,
 }
 
 impl Default for Calls {
@@ -132,6 +153,8 @@ impl Default for Calls {
             stack: Vec::new(),
             open_returns: HashMap::new(),
             exception_return: false,
+            call_return: false,
+            pending: None,
             inferred: Vec::new(),
         }
     }
@@ -195,6 +218,50 @@ impl Calls {
             }
         }
         Ok(())
+    }
+
+    /// Change a stored row.
+    fn patch(&mut self, id: u32, change: impl FnOnce(&mut Frame)) -> Result<(), StoreError> {
+        match &mut self.store {
+            Store::Memory(v) => change(&mut v[id as usize]),
+            Store::File { file, path, base, tail } => {
+                if id >= *base {
+                    change(&mut tail[(id - *base) as usize]);
+                } else {
+                    let off = id as u64 * REC as u64;
+                    let mut b = [0u8; REC];
+                    file.seek(SeekFrom::Start(off)).map_err(|e| StoreError::io(path, e))?;
+                    file.read_exact(&mut b).map_err(|e| StoreError::io(path, e))?;
+                    let mut f = Frame::from_bytes(&b);
+                    change(&mut f);
+                    file.seek(SeekFrom::Start(off)).map_err(|e| StoreError::io(path, e))?;
+                    file.write_all(&f.bytes()).map_err(|e| StoreError::io(path, e))?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// The pending call frame returned before the exception entry: it closes
+    /// there, and the frames opened since (the exception's) move up a level.
+    fn settle_returned_call(&mut self, p: ReturnedCall) -> Result<(), StoreError> {
+        let caller = match &self.store {
+            Store::Memory(v) => v[p.call as usize].parent,
+            Store::File { .. } => {
+                let mut parent = TOP_LEVEL;
+                self.patch(p.call, |f| parent = f.parent)?;
+                parent
+            }
+        };
+        for id in p.first..self.count {
+            self.patch(id, |f| {
+                f.depth -= 1;
+                if f.parent == p.call {
+                    f.parent = caller;
+                }
+            })?;
+        }
+        self.close_top(p.entry)
     }
 
     fn set_return(&mut self, id: u32, at: u64) -> Result<(), StoreError> {
@@ -277,6 +344,20 @@ impl Calls {
             }
         }
         self.exception_return = false;
+        self.call_return = false;
+        // Settled once the frames above the call frame (the exception's,
+        // and calls the handler makes) are gone.
+        if let Some(p) = self.pending {
+            if self.top() == p.call {
+                self.pending = None;
+                if pc == p.return_pc {
+                    self.settle_returned_call(p)?;
+                    return Ok(self.top());
+                }
+            } else if !self.stack.iter().any(|o| o.id == p.call) {
+                self.pending = None;
+            }
+        }
         // Return to a call frame's return address, searching down to the
         // nearest exception frame.
         if !self.open_returns.contains_key(&pc) {
@@ -305,6 +386,7 @@ impl Calls {
         match flow {
             Flow::Call => self.open(FRAME_CALL, index, index + 1, pc, pc + width as u64, u32::MAX)?,
             Flow::Return if self.top_is_exception() => self.exception_return = true,
+            Flow::Return => self.call_return = !self.stack.is_empty(),
             _ => {}
         }
         Ok(())
@@ -316,6 +398,8 @@ impl Calls {
             self.close_top(at)?;
         }
         self.exception_return = false;
+        self.call_return = false;
+        self.pending = None;
         Ok(())
     }
 
@@ -326,6 +410,13 @@ impl Calls {
             self.close_top(at)?;
         }
         self.exception_return = false;
+        if self.call_return
+            && self.pending.is_none()
+            && let Some(top) = self.stack.last()
+            && top.kind == FRAME_CALL
+        {
+            self.pending = Some(ReturnedCall { call: top.id, return_pc: top.return_pc, first: self.count, entry: at });
+        }
         self.open(FRAME_EXCEPTION, at, at, NONE, NONE, number.unwrap_or(u32::MAX))
     }
 
