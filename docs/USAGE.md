@@ -81,7 +81,8 @@ i번째 명령어가 쓴 값은 시점 i+1부터 보입니다. `--at INDEX` 대�
 | 호출 트리 | `simgdb query trace.idx calls --depth 4` | 호출 경로별 횟수·명령어 수, 함수별 합계 |
 | 마지막 쓰기 | `simgdb query trace.idx last-write --var ticks --at 3000` | 각 바이트를 마지막으로 쓴 기록 |
 | 쓰기 이력 | `simgdb query trace.idx writes --var ring --from 0 --to 5000` | 범위 안의 쓰기 기록 |
-| 두 시점 비교 | `simgdb query trace.idx diff --a 1000 --b 2000` | 바뀐 레지스터, 바뀐 메모리 구간(변수 이름 포함) |
+| 두 시점 비교 | `simgdb query trace.idx diff --a 1000 --b 2000` | 바뀐 레지스터, 바뀐 변수(원소·멤버, 스칼라는 이전/이후 값), 메모리 구간 |
+| 레지스터 이력 | `simgdb query trace.idx reg-history r0 --from 0 --to 5000` | 그 레지스터의 쓰기 기록 |
 | 조건 검색 | `simgdb query trace.idx find 'var("ticks") == 5'` | 조건이 처음 참인 시점 |
 
 - **`executions`의 대상**: `0x1f4`(PC), `state.c:111`(줄), `mix`(함수).
@@ -92,8 +93,10 @@ i번째 명령어가 쓴 값은 시점 i+1부터 보입니다. `--at INDEX` 대�
 - 목록은 `--limit`(기본 100)만큼 나오고, 더 있으면 `next_cursor`를 `--cursor`로 넘겨 다음을 받습니다. `total`은 전체 개수입니다.
 - **예외**: 복귀 기록 없이 이어지는 tail-chaining을 trace가 기록하지 않았으면 예외 번호(IPSR)로 추정하고,
   `evidence.note`에 그렇게 적습니다.
-- **`calls`의 함수별 합계**: `inclusive_instructions`는 복귀한 호출마다 (복귀 시점 − 진입 시점)을 더한 값입니다.
-  재귀 호출은 각각 셉니다.
+- **`calls`의 함수별 합계**: `inclusive_instructions`는 복귀한 호출마다 (복귀 시점 − 진입 시점)을 더한 값으로,
+  그 사이에 실행된 callee와 인터럽트를 포함합니다(재귀 호출은 각각 셈). 복귀하지 않은 호출은 `unreturned_instructions`에,
+  예외 핸들러는 `kind: "exception"`으로 따로 나옵니다.
+- **쓰기 기록의 `inside`**: 질의한 범위 밖까지 덮는 저장(예: 변수 위로 겹친 넓은 스택 저장)이면 범위 안의 바이트만 따로 보여 줍니다.
 
 ### 조건식 (`find`)
 
@@ -116,5 +119,23 @@ mem32(0x200000dc) != 0 || !(reg("sp") >= 0x2000ff00)
 - `--backward`는 `--to`에서 거꾸로 찾아 **조건이 참인 마지막 시점**을 줍니다.
 - trace가 보여 주지 않는 값이 들어간 비교는 "모름"이고, 모름은 참으로 치지 않습니다. 결과의 `first_undecided`가
   찾은 시점보다 앞서 있으면 그 사이에 판단하지 못한 시점이 있다는 뜻입니다(`undecided`는 그런 시점 수).
-- 결과의 `inputs`는 찾은 시점의 레지스터·변수 값입니다.
+- 결과의 `inputs`는 찾은 시점의 레지스터·변수 값입니다. `previous`는 바로 앞 명령어와 그때 조건이 성립했는지(`holds`)이고,
+  성립하지 않았다면 그 명령어가 조건을 참으로 만든 것입니다. `undecided_ranges`는 판단하지 못한 구간입니다(예: 시작 직후 초기화 전).
 - 임의 코드는 실행하지 않습니다. 위 문법 밖의 식은 오류입니다.
+
+## 4. AI 클라이언트 (MCP)
+
+```bash
+simgdb mcp trace.idx                       # stdio MCP 서버
+claude mcp add simgdb -- simgdb mcp /path/trace.idx   # Claude Code 예
+simgdb skill > .claude/skills/simgdb-debug/SKILL.md     # 분석 절차 skill 문서
+```
+
+도구는 위 질의와 같습니다: `trace_info`, `locate`, `registers`, `read_memory`, `read_variable`, `list_variables`,
+`find_executions`, `call_tree`, `exceptions`, `last_write`, `writes_to`, `register_history`, `find_first`, `diff_state`,
+`bookmark_add`, `bookmark_list`. 모든 도구가 시점·범위를 인자로 받고(상태 없음), 목록은 기본 20개씩입니다.
+주소와 PC는 `0x…` 문자열, 시점은 10진 숫자입니다.
+
+- **bookmark**와 **도구 호출 기록**은 인덱스 옆 `annotations.sqlite`에 남습니다(`--annotations 경로`로 바꿀 수 있음).
+  인덱스 디렉터리에 쓸 수 없으면 둘 다 꺼지고 나머지는 동작합니다.
+- 지역변수와 C 식(`p->next`)은 아직 MCP에 없습니다. gdb(`simgdb serve`)에서 봅니다.

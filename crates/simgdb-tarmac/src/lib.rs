@@ -231,11 +231,12 @@ impl Parser {
         }
         // An LD/ST continuation line starts at the column of the previous
         // address and has no type token (its address may look decimal).
-        if let Some((column, write)) = continuation {
-            if toks[0].pos == column && hex(toks[0].s).is_some() {
-                let record = self.diagram(&toks, write)?;
-                return Ok(self.line(None, record));
-            }
+        if let Some((column, write)) = continuation
+            && toks[0].pos == column
+            && hex(toks[0].s).is_some()
+        {
+            let record = self.diagram(&toks, write)?;
+            return Ok(self.line(None, record));
         }
         let mut i = 0;
         let mut unit = None;
@@ -255,11 +256,11 @@ impl Parser {
             self.unit = Some(u.clone());
         }
         let mut core = None;
-        if let Some(t) = toks.get(i) {
-            if let Some(n) = t.s.strip_prefix("cpu") {
-                core = n.parse().ok();
-                i += 1;
-            }
+        if let Some(t) = toks.get(i)
+            && let Some(n) = t.s.strip_prefix("cpu")
+        {
+            core = n.parse().ok();
+            i += 1;
         }
         let Some(kind) = toks.get(i) else {
             return Ok(self.line(core, Record::Blank));
@@ -308,18 +309,18 @@ impl Parser {
         };
         let mut j = 0;
         let mut paren: Option<String> = None;
-        if let Some(t) = rest.first() {
-            if t.s.starts_with('(') {
-                let mut text = String::new();
-                while j < rest.len() {
-                    text.push_str(rest[j].s);
-                    j += 1;
-                    if text.ends_with(')') {
-                        break;
-                    }
+        if let Some(t) = rest.first()
+            && t.s.starts_with('(')
+        {
+            let mut text = String::new();
+            while j < rest.len() {
+                text.push_str(rest[j].s);
+                j += 1;
+                if text.ends_with(')') {
+                    break;
                 }
-                paren = Some(text.trim_start_matches('(').trim_end_matches(')').to_string());
             }
+            paren = Some(text.trim_start_matches('(').trim_end_matches(')').to_string());
         }
         // Form A: [paren] pc opcode state ...
         let explicit = match (rest.get(j), rest.get(j + 1), rest.get(j + 2)) {
@@ -616,11 +617,11 @@ fn exception_e(rest: &[Tok<'_>]) -> Record {
 fn exception_exc(rest: &[Tok<'_>]) -> Record {
     let mut number = None;
     let mut j = 0;
-    if let Some(t) = rest.first() {
-        if let Some(inner) = t.s.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
-            number = hex(inner).or_else(|| inner.parse().ok()).map(|n| n as u32);
-            j = 1;
-        }
+    if let Some(t) = rest.first()
+        && let Some(inner) = t.s.strip_prefix('[').and_then(|s| s.strip_suffix(']'))
+    {
+        number = hex(inner).or_else(|| inner.parse().ok()).map(|n| n as u32);
+        j = 1;
     }
     let name = rest[j..].iter().map(|t| t.s).collect::<Vec<_>>().join(" ");
     Record::Exception { number, name, target: None }

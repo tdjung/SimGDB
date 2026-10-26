@@ -111,13 +111,15 @@ impl Calls {
                 .find(|&&f| self.kind[f as usize] == FRAME_EXCEPTION)
                 .map(|&f| self.number[f as usize])
                 .unwrap_or(0);
-            if let Some(n) = level {
-                if n != 0 && outer != u32::MAX && n != outer {
-                    self.open(FRAME_EXCEPTION, index, index, NONE, NONE, n);
-                    self.inferred.push(self.kind.len() as u32 - 1);
-                    self.exception_return = false;
-                    return self.top();
-                }
+            if let Some(n) = level
+                && n != 0
+                && outer != u32::MAX
+                && n != outer
+            {
+                self.open(FRAME_EXCEPTION, index, index, NONE, NONE, n);
+                self.inferred.push(self.kind.len() as u32 - 1);
+                self.exception_return = false;
+                return self.top();
             }
         }
         self.exception_return = false;

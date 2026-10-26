@@ -1,0 +1,148 @@
+{
+ "core": "m4",
+ "trace": "tests/firmware/traces/state_m4.m4rtl.log.gz",
+ "elf": "tests/firmware/state_m4.elf",
+ "questions": [
+  {
+   "id": "systick_count",
+   "question": "How many SysTick interrupts were taken during the run?",
+   "accept": [
+    [
+     "48"
+    ]
+   ],
+   "note": "count of exception entries with number 15 (one is a tail-chain without a record)"
+  },
+  {
+   "id": "svc_calls_3",
+   "question": "At which instruction index does the global svc_calls first hold the value 3, and which function wrote it?",
+   "accept": [
+    [
+     "3150",
+     "3149"
+    ],
+    [
+     "SVC_Handler"
+    ]
+   ],
+   "note": "first point where svc_calls == 3 (the writer is index-1)"
+  },
+  {
+   "id": "most_called",
+   "question": "Which function was called the most times, and how many times?",
+   "accept": [
+    [
+     "mix"
+    ],
+    [
+     "118"
+    ]
+   ],
+   "note": "calls by bl/blx"
+  },
+  {
+   "id": "ticks_at_result",
+   "question": "What was the value of the global ticks when main stored its final value to the global result?",
+   "accept": [
+    [
+     "48"
+    ]
+   ],
+   "note": "ticks at the point after the store to result (index 4746)"
+  },
+  {
+   "id": "pool3_len_writer",
+   "question": "Before instruction index 3000, which instruction last wrote pool[3].len (give its index and PC) and what value did it write?",
+   "accept": [
+    [
+     "2580"
+    ],
+    [
+     "0x124",
+     "292"
+    ],
+    [
+     "700"
+    ]
+   ],
+   "note": "last store covering pool[3].len before point 3000"
+  },
+  {
+   "id": "line44",
+   "question": "How many times was source line state.c:44 entered, and how many instructions on that line executed in total?",
+   "accept": [
+    [
+     "118"
+    ],
+    [
+     "472"
+    ]
+   ],
+   "note": "entries per tests/queries definition; instruction count = tarmac_to_cachegrind Ir"
+  },
+  {
+   "id": "first_svc",
+   "question": "At which instruction index was the first SVC exception taken, and which function was executing the SVC?",
+   "accept": [
+    [
+     "1669"
+    ],
+    [
+     "work"
+    ]
+   ],
+   "note": "first SVCall entry"
+  },
+  {
+   "id": "sp_low",
+   "question": "When does the stack pointer first go below 0x2000ff80, and in which function?",
+   "accept": [
+    [
+     "1081"
+    ],
+    [
+     "SysTick_Handler"
+    ]
+   ],
+   "note": "first point with sp < 0x2000ff80"
+  },
+  {
+   "id": "diff_vars",
+   "question": "Which global variables changed between instruction index 949 and 1582?",
+   "accept": [
+    [
+     "bytes"
+    ],
+    [
+     "head"
+    ],
+    [
+     "pool"
+    ],
+    [
+     "ring"
+    ],
+    [
+     "ticks"
+    ],
+    [
+     "wide"
+    ]
+   ],
+   "note": "variables covering bytes that changed (known at both points)"
+  },
+  {
+   "id": "r4_unknown",
+   "question": "What is the value of register r4 at instruction index 10?",
+   "accept": [
+    [
+     "unknown",
+     "not known",
+     "not recorded",
+     "unavailable"
+    ]
+   ],
+   "note": "the trace first writes r4 at index 1043 (renderer emits a register only when it changes)"
+  }
+ ]
+}

@@ -87,7 +87,7 @@ fn line_counts_match_the_converter() {
 #[test]
 fn exceptions_match_the_run() {
     each(|core, dialect, e, want| {
-        let list = e.exception_list(e.range(None, None).unwrap(), 10_000, 0).unwrap();
+        let list = e.exception_list(e.range(None, None).unwrap(), None, 10_000, 0).unwrap();
         let want = want["exceptions"].as_array().unwrap();
         assert_eq!(list.exceptions.total as usize, want.len(), "{core} {dialect}");
         for (got, w) in list.exceptions.items.iter().zip(want) {
@@ -99,6 +99,16 @@ fn exceptions_match_the_run() {
         }
         let names: BTreeSet<&str> = list.by_exception.keys().map(String::as_str).collect();
         assert!(names.contains("SysTick") && names.contains("SVCall"), "{names:?}");
+        // Filtering by name or number.
+        let svc: Vec<u64> = want.iter().filter(|w| w["number"] == 11).map(|w| w["entry"].as_u64().unwrap()).collect();
+        for kind in ["svcall", "11"] {
+            let got = e.exception_list(e.range(None, None).unwrap(), Some(kind), 100, 0).unwrap();
+            let got: Vec<u64> = got.exceptions.items.iter().map(|x| x.entered_at).collect();
+            assert_eq!(got, svc, "{core} {dialect} kind {kind}");
+        }
+        for x in &list.exceptions.items {
+            assert_eq!(x.taken_after.as_ref().unwrap().index + 1, x.entered_at);
+        }
     });
 }
 
@@ -109,6 +119,7 @@ fn calls_match_the_run() {
         let got: BTreeMap<&str, (u64, u64, u64)> = tree
             .functions
             .iter()
+            .filter(|f| f.kind == "call")
             .map(|f| (f.function.as_str(), (f.calls, f.returned, f.inclusive_instructions)))
             .collect();
         let want: BTreeMap<&str, (u64, u64, u64)> = want["calls"]
@@ -128,7 +139,7 @@ fn calls_match_the_run() {
             nodes.iter().map(|n| n.calls + n.deeper_calls + total(&n.children)).sum()
         }
         let calls: u64 = want.values().map(|v| v.0).sum();
-        let exceptions = e.exception_list(e.range(None, None).unwrap(), 0, 0).unwrap().exceptions.total;
+        let exceptions = e.exception_list(e.range(None, None).unwrap(), None, 0, 0).unwrap().exceptions.total;
         assert_eq!(total(&tree.roots), calls + exceptions, "{core} {dialect}");
     });
 }
@@ -294,4 +305,51 @@ fn conditions_are_checked() {
     let f = e.find_first("pc < 0x100 && reg(\"r0\") == 0", all, Forward).unwrap();
     assert_eq!(f.first_undecided, Some(0));
     assert!(f.found.unwrap().index > 0);
+}
+
+#[test]
+fn register_histories_match_the_run() {
+    each(|core, dialect, e, want| {
+        let all = e.range(None, None).unwrap();
+        for (reg, changes) in want["register_changes"].as_object().unwrap() {
+            let got = e.register_history(reg, all, 1_000_000, 0).unwrap();
+            // The trace may repeat a value; the run lists changes only.
+            let mut last = None;
+            let got: Vec<(u64, u64)> = got
+                .items
+                .iter()
+                .filter_map(|w| {
+                    let v = w.value.unwrap();
+                    let changed = last != Some(v);
+                    last = Some(v);
+                    changed.then_some((w.written_by, v))
+                })
+                .collect();
+            let want: Vec<(u64, u64)> =
+                changes.as_array().unwrap().iter().map(|c| (c[0].as_u64().unwrap(), c[1].as_u64().unwrap())).collect();
+            assert_eq!(got, want, "{core} {dialect} {reg}");
+        }
+    });
+}
+
+#[test]
+fn wide_writes_show_the_part_inside() {
+    let dir = tempfile::tempdir().unwrap();
+    let e = open("m4", "m4rtl", dir.path());
+    let all = e.range(None, None).unwrap();
+    for var in ["result", "head", "wide", "ring[2]"] {
+        let p = e.variable(var).unwrap();
+        let size = p.size.unwrap();
+        for w in e.writes_to(p.addr, size, all, 100_000, 0).unwrap().writes.items {
+            let (lo, hi) = (w.addr, w.addr + w.size as u64);
+            match &w.inside {
+                None => assert!(lo >= p.addr && hi <= p.addr + size, "{var}: {w:?}"),
+                Some(i) => {
+                    assert!(lo < p.addr || hi > p.addr + size);
+                    assert_eq!((i.addr, i.len), (lo.max(p.addr), hi.min(p.addr + size) - lo.max(p.addr)));
+                    assert_eq!(i.hex.len() as u64, 2 * i.len);
+                }
+            }
+        }
+    }
 }

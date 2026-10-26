@@ -169,8 +169,8 @@ API는 두 층입니다(§2.11). `locate`, `state.*`, `diff`는 한 시점 층�
 | `find_executions` | 1 |
 | `call_tree` | 1 |
 | `registers`, `read_memory` | 1 |
-| `read_variable` (C 식; 내부에서 gdb를 SimGDB RSP에 붙여 DWARF 해석) | 1 |
-| `last_write`, `writes_to` | 1 |
+| `read_variable`, `list_variables` (고정 주소 변수, 엔진 DWARF §2.12. C 식·지역변수는 gdb를 SimGDB RSP에 붙이는 방식으로 이후) | 1 |
+| `last_write`, `writes_to`, `register_history` | 1 |
 | `exceptions` | 1 |
 | `find_first` (조건식) | 1 |
 | `diff_state` | 1 |
@@ -179,6 +179,10 @@ API는 두 층입니다(§2.11). `locate`, `state.*`, `diff`는 한 시점 층�
 | `sfr`, `sfr_history`, `bus_transactions`, `signal_changes` | 2 |
 | `first_divergence`, `where_executed` (여러 run) | 3 |
 | `explain` (서버 측 분석 에이전트) | 3 |
+
+구현(`simgdb-mcp`): stdio 전송, 도구 16개, 주소·PC는 16진 문자열, 기본 목록 20개(최대 1000). 도구 오류는 MCP tool error(`isError`)와
+고칠 수 있는 메시지로 돌려줍니다. 호출마다 도구, 인자, 결과 요약, 시간을 `annotations.sqlite`의 `call_log`에 남기고(§2.8),
+bookmark도 같은 파일에 둡니다(§2.7). skill 문서는 `crates/simgdb-mcp/skill/SKILL.md`(`simgdb skill`로 출력).
 
 ### CLI / Python API
 

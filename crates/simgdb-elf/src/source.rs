@@ -191,12 +191,12 @@ pub fn attribute(path: &Path) -> Result<BTreeMap<u64, Attribution>, ElfError> {
         }
         // No DWARF function: the symbol containing the address (as
         // addr2line falls back to the symbol table).
-        if frames.last().unwrap().function == UNKNOWN {
-            if let Some(name) = containing(&functions, pc) {
-                frames.last_mut().unwrap().function = name.to_string();
-                if frames.len() == 1 {
-                    frames[0].function = name.to_string();
-                }
+        if frames.last().unwrap().function == UNKNOWN
+            && let Some(name) = containing(&functions, pc)
+        {
+            frames.last_mut().unwrap().function = name.to_string();
+            if frames.len() == 1 {
+                frames[0].function = name.to_string();
             }
         }
         let first = &frames[0];
@@ -233,15 +233,14 @@ pub fn place_line_zero(sources: &mut BTreeMap<u64, Attribution>, listing: &Listi
     };
     for pc in pending {
         let mut placed: Option<(String, u32, String, Placement)> = None;
-        if let Some(&prev) = listing.prev.get(&pc) {
-            if listing.falls(prev)
-                && sources.contains_key(&prev)
-                && same_function(sources, prev, pc)
-                && !sources[&prev].needs_line()
-            {
-                let p = &sources[&prev];
-                placed = Some((p.file.clone(), p.line, p.function.clone(), Placement::Previous));
-            }
+        if let Some(&prev) = listing.prev.get(&pc)
+            && listing.falls(prev)
+            && sources.contains_key(&prev)
+            && same_function(sources, prev, pc)
+            && !sources[&prev].needs_line()
+        {
+            let p = &sources[&prev];
+            placed = Some((p.file.clone(), p.line, p.function.clone(), Placement::Previous));
         }
         if placed.is_none() {
             let mut cur = pc;

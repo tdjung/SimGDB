@@ -8,11 +8,11 @@ mod condition;
 mod queries;
 mod vars;
 
-pub use condition::{Direction, Found, Input};
+pub use condition::{Direction, Found, Input, Neighbour};
 
 pub use queries::{
-    CallNode, CallTree, Diff, ExceptionEntry, ExceptionList, Executions, FunctionCalls, LastWrite, MemoryChange, Page,
-    Range, RegisterChange, Target, WriteRecord, WritesTo,
+    CallNode, CallTree, Diff, ExceptionEntry, ExceptionList, Executions, FunctionCalls, Inside, InstructionRef,
+    LastWrite, MemoryChange, Page, Range, RegisterChange, RegisterWrite, Target, VariableChange, WriteRecord, WritesTo,
 };
 pub use vars::VariableValue;
 
@@ -458,6 +458,14 @@ pub struct InlineFrame {
     pub line: u32,
 }
 
+/// Function and source line of a PC, in brief.
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub struct Where {
+    pub function: String,
+    pub file: String,
+    pub line: u32,
+}
+
 /// One entry of a call stack, innermost first.
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct StackFrame {
@@ -521,6 +529,11 @@ impl Engine {
             placement: simgdb_store::sources::PLACEMENTS[ds.src_placement.get(i) as usize],
             inline,
         })
+    }
+
+    /// Function, file and line of `pc` (the innermost inline frame's line).
+    pub fn where_is(&self, pc: u64) -> Option<Where> {
+        self.source(pc).map(|s| Where { function: s.function, file: s.file, line: s.line })
     }
 
     /// Call stack at `index`, innermost first.

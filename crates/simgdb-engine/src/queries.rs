@@ -62,10 +62,10 @@ impl Target {
         if let Some(n) = parse_number(s) {
             return Target::Pc(n);
         }
-        if let Some((file, line)) = s.rsplit_once(':') {
-            if let Ok(line) = line.trim().parse() {
-                return Target::Line { file: file.trim().to_string(), line };
-            }
+        if let Some((file, line)) = s.rsplit_once(':')
+            && let Ok(line) = line.trim().parse()
+        {
+            return Target::Line { file: file.trim().to_string(), line };
         }
         Target::Function(s.to_string())
     }
@@ -135,9 +135,22 @@ pub struct ExceptionEntry {
     /// Exception it nested into (its `entered_at`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub nested_in: Option<u64>,
+    /// The last instruction before the handler (`entered_at - 1`): for SVC
+    /// or a fault, the instruction that raised it; for an interrupt, the
+    /// last one completed; for a tail chain, the previous handler's return.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub taken_after: Option<InstructionRef>,
     /// The trace's exception record, or (no record: a tail-chained entry
     /// inferred from the exception level) a note saying so.
     pub evidence: Evidence,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct InstructionRef {
+    pub index: u64,
+    pub pc: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub function: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -171,14 +184,21 @@ fn is_zero(v: &u64) -> bool {
     *v == 0
 }
 
-/// Per function, over every call in the range (recursive calls each count).
+/// Per function (or exception handler), over every call or exception
+/// entered in the range (recursive calls each count).
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct FunctionCalls {
     pub function: String,
+    /// `call` or `exception` (an exception handler).
+    pub kind: &'static str,
     pub calls: u64,
     pub returned: u64,
-    /// Sum of (return point - entry point) over the calls that returned.
+    /// Sum of (return point - entry point) over the calls that returned:
+    /// everything that ran meanwhile, callees and interrupts included.
     pub inclusive_instructions: u64,
+    /// For calls that did not return within the trace: instructions from
+    /// entry to the end of the range.
+    pub unreturned_instructions: u64,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -211,8 +231,22 @@ pub struct WriteRecord {
     pub known_mask: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pc: Option<u64>,
+    /// Function of the writing instruction.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub function: Option<String>,
+    /// Set when the record also covers bytes outside the queried range:
+    /// the part inside it (`??` where not shown).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub inside: Option<Inside>,
     /// Trace file line.
     pub line: u64,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub struct Inside {
+    pub addr: u64,
+    pub len: u64,
+    pub hex: String,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -236,6 +270,22 @@ pub struct WritesTo {
     pub writes: Page<WriteRecord>,
 }
 
+/// A register write record.
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub struct RegisterWrite {
+    /// Instruction whose records hold the write.
+    pub written_by: u64,
+    pub visible_from: u64,
+    /// `None` when the trace shows the value as unknown.
+    pub value: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub known_mask: Option<u64>,
+    /// Not in the trace as such: derived (e.g. the banked SP that SP was).
+    pub derived: bool,
+    /// Trace file line.
+    pub line: u64,
+}
+
 #[derive(Clone, Debug, Serialize)]
 pub struct RegisterChange {
     pub name: String,
@@ -253,9 +303,31 @@ pub struct MemoryChange {
     /// `changed` (known at both, different), `became_known`,
     /// `became_unknown`.
     pub kind: &'static str,
-    /// Variable covering the start of the run, if any.
+    /// Variable the run is in (runs never cross a variable boundary).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub variable: Option<String>,
+    /// Element or member at the run's first byte, e.g. `pool[1].len`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
+    /// ... and at its last byte, when different.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub path_end: Option<String>,
+}
+
+/// Per variable: how many of its bytes differ.
+#[derive(Clone, Debug, Serialize)]
+pub struct VariableChange {
+    pub variable: String,
+    pub changed: u64,
+    pub became_known: u64,
+    pub became_unknown: u64,
+    /// Elements or members that changed value (first 32).
+    pub paths: Vec<String>,
+    /// Decoded value at each point, for a scalar variable known at both.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub a: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub b: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -263,6 +335,8 @@ pub struct Diff {
     pub a: Point,
     pub b: Point,
     pub registers: Vec<RegisterChange>,
+    /// Variables with differing bytes, in address order.
+    pub variables: Vec<VariableChange>,
     /// Runs of changed bytes, in address order.
     pub memory: Page<MemoryChange>,
     /// Bytes written between the points whose value is the same at both.
@@ -400,7 +474,15 @@ impl Engine {
         }
     }
 
-    pub fn exception_list(&self, range: Range, limit: usize, cursor: u64) -> Result<ExceptionList, EngineError> {
+    /// Exceptions entered in the range; `kind` keeps only those whose name
+    /// (`SysTick`, `IRQ3`, case-insensitive) or number matches.
+    pub fn exception_list(
+        &self,
+        range: Range,
+        kind: Option<&str>,
+        limit: usize,
+        cursor: u64,
+    ) -> Result<ExceptionList, EngineError> {
         let ds = &self.ds;
         let mut frames = Vec::new();
         let mut by_exception = BTreeMap::new();
@@ -413,6 +495,12 @@ impl Engine {
                 u32::MAX => "unknown".to_string(),
                 n => self.isa.exception_name(n).unwrap_or_else(|| n.to_string()),
             };
+            if let Some(k) = kind
+                && !k.eq_ignore_ascii_case(&key)
+                && k.trim() != n.to_string()
+            {
+                continue;
+            }
             *by_exception.entry(key).or_insert(0u64) += 1;
             frames.push(f);
         }
@@ -451,6 +539,7 @@ impl Engine {
             interrupted_pc,
             interrupted_pc_from,
             nested_in: (p != TOP_LEVEL).then(|| ds.call_entry.get(p as usize)),
+            taken_after: (at >= 1 && at - 1 < self.end()).then(|| self.instruction_ref(at - 1)),
             evidence: Evidence {
                 index: Some(at),
                 line,
@@ -458,6 +547,15 @@ impl Engine {
                     .is_none()
                     .then(|| "no exception record: tail-chained entry inferred from the exception level".to_string()),
             },
+        }
+    }
+
+    pub(crate) fn instruction_ref(&self, index: u64) -> InstructionRef {
+        let pc = self.ds.insn_pc.get(index as usize);
+        InstructionRef {
+            index,
+            pc,
+            function: self.function_id(pc).and_then(|id| self.ds.strings.get(id as usize).cloned()),
         }
     }
 
@@ -545,24 +643,28 @@ impl Engine {
         };
         let mut nodes = vec![new(u32::MAX, true, 0)];
         let mut node_of: Vec<usize> = Vec::with_capacity(frames.len());
-        let mut functions: HashMap<u32, FunctionCalls> = HashMap::new();
+        let mut functions: HashMap<(u32, bool), FunctionCalls> = HashMap::new();
         for f in frames.clone() {
             let call = ds.call_kind.get(f) == FRAME_CALL;
             let name = name_of(&mut names, self.frame_first_pc(f));
             let entry = ds.call_entry.get(f);
             let r = ds.call_return.get(f);
             let returned = r != NONE;
-            if call {
-                let s = functions.entry(name).or_insert_with(|| FunctionCalls {
+            {
+                let s = functions.entry((name, call)).or_insert_with(|| FunctionCalls {
                     function: names[name as usize].clone(),
+                    kind: if call { "call" } else { "exception" },
                     calls: 0,
                     returned: 0,
                     inclusive_instructions: 0,
+                    unreturned_instructions: 0,
                 });
                 s.calls += 1;
                 if returned {
                     s.returned += 1;
                     s.inclusive_instructions += r - entry;
+                } else {
+                    s.unreturned_instructions += stop.saturating_sub(entry);
                 }
             }
             // Parents are opened before children, so theirs is known.
@@ -653,8 +755,27 @@ impl Engine {
             value,
             known_mask: mask,
             pc: (at >= 1 && at - 1 < self.end()).then(|| ds.insn_pc.get(at as usize - 1)),
+            function: (at >= 1 && at - 1 < self.end())
+                .then(|| self.function_id(ds.insn_pc.get(at as usize - 1)))
+                .flatten()
+                .and_then(|id| ds.strings.get(id as usize).cloned()),
             line: ds.mem_line.get(row),
+            inside: None,
         }
+    }
+
+    /// The record, marking the part inside `addr..addr+len` if it reaches outside.
+    fn write_record_in(&self, row: usize, addr: u64, len: u64) -> WriteRecord {
+        let mut w = self.write_record(row);
+        let (lo, hi) = (w.addr, w.addr + w.size as u64);
+        if lo < addr || hi > addr + len {
+            let (a, b) = (lo.max(addr), hi.min(addr + len));
+            let hex = (a..b)
+                .map(|x| self.row_byte(row, x).map(|v| format!("{v:02x}")).unwrap_or_else(|| "??".into()))
+                .collect();
+            w.inside = Some(Inside { addr: a, len: b - a, hex });
+        }
+        w
     }
 
     /// Memory-index positions of `addr`'s records.
@@ -687,10 +808,10 @@ impl Engine {
                 }
             }
             byte_row.push(found);
-            if let Some(r) = found {
-                if !rows.contains(&r) {
-                    rows.push(r);
-                }
+            if let Some(r) = found
+                && !rows.contains(&r)
+            {
+                rows.push(r);
             }
         }
         rows.sort_by(|a, b| ds.mem_at.get(*b).cmp(&ds.mem_at.get(*a)).then(b.cmp(a)));
@@ -699,7 +820,7 @@ impl Engine {
             point: self.point(index)?,
             addr,
             len,
-            writes: rows.iter().map(|&r| self.write_record(r)).collect(),
+            writes: rows.iter().map(|&r| self.write_record_in(r, addr, len)).collect(),
             byte_writer,
         })
     }
@@ -732,7 +853,7 @@ impl Engine {
             }
         }
         // Writes visible from the end point are by the last instruction.
-        let all: Vec<WriteRecord> = rows.into_iter().map(|(_, r)| self.write_record(r)).collect();
+        let all: Vec<WriteRecord> = rows.into_iter().map(|(_, r)| self.write_record_in(r, addr, len)).collect();
         let all: Vec<WriteRecord> =
             all.into_iter().filter(|w| w.written_by >= range.from && w.written_by <= range.to).collect();
         Ok(WritesTo { addr, len, range, writes: Page::of(&all, limit, cursor) })
@@ -791,9 +912,11 @@ impl Engine {
             addrs.extend(base..base + size);
         }
         let mut changes: Vec<MemoryChange> = Vec::new();
+        let mut variables: Vec<VariableChange> = Vec::new();
         let mut rewritten_same = 0;
         let hex = |v: &Value<u8>| v.value.map(|x| format!("{x:02x}")).unwrap_or_else(|| "??".into());
-        let mut last: Option<(u64, &'static str)> = None;
+        let vars = &self.ds.variables;
+        let mut last: Option<(u64, &'static str, Option<u64>)> = None;
         for addr in addrs {
             let x = self.byte(addr, a);
             let y = self.byte(addr, b);
@@ -807,11 +930,42 @@ impl Engine {
                     continue;
                 }
             };
+            let var = vars.containing(addr);
+            let var_addr = var.map(|v| v.addr);
+            if let Some(v) = var {
+                if variables.last().is_none_or(|c| c.variable != v.name) {
+                    variables.push(VariableChange {
+                        variable: v.name.clone(),
+                        changed: 0,
+                        became_known: 0,
+                        became_unknown: 0,
+                        paths: vec![],
+                        a: self.scalar_value(v, a),
+                        b: self.scalar_value(v, b),
+                    });
+                }
+                let c = variables.last_mut().unwrap();
+                match kind {
+                    "changed" => {
+                        c.changed += 1;
+                        if let Some(p) = vars.path_at(addr) {
+                            let p = p.split('+').next().unwrap().to_string();
+                            if c.paths.len() < 32 && !c.paths.contains(&p) {
+                                c.paths.push(p);
+                            }
+                        }
+                    }
+                    "became_known" => c.became_known += 1,
+                    _ => c.became_unknown += 1,
+                }
+            }
             match (last, changes.last_mut()) {
-                (Some((prev, k)), Some(c)) if prev + 1 == addr && k == kind => {
+                (Some((prev, k, v)), Some(c)) if prev + 1 == addr && k == kind && v == var_addr => {
                     c.len += 1;
                     c.a.push_str(&hex(&x));
                     c.b.push_str(&hex(&y));
+                    let end = vars.path_at(addr);
+                    c.path_end = if end == c.path { None } else { end };
                 }
                 _ => changes.push(MemoryChange {
                     addr,
@@ -819,18 +973,66 @@ impl Engine {
                     a: hex(&x),
                     b: hex(&y),
                     kind,
-                    variable: self.variable_at(addr),
+                    variable: var.map(|v| v.name.clone()),
+                    path: vars.path_at(addr),
+                    path_end: None,
                 }),
             }
-            last = Some((addr, kind));
+            last = Some((addr, kind, var_addr));
         }
         Ok(Diff {
             a: self.point(a)?,
             b: self.point(b)?,
             registers,
+            variables,
             memory: Page::of(&changes, limit, cursor),
             rewritten_same,
         })
+    }
+
+    /// Decoded value of a scalar variable at `index`, if fully known.
+    fn scalar_value(&self, v: &simgdb_elf::variables::Variable, index: u64) -> Option<serde_json::Value> {
+        let size = v.size.filter(|&s| s <= 8)?;
+        let raw = self.combine(&self.memory(v.addr, size, index).ok()?);
+        match (raw.value, raw.known_mask) {
+            (Some(x), None) => self.decode(v.ty, x, size),
+            _ => None,
+        }
+    }
+
+    /// Writes of one register in the range, in trace order.
+    pub fn register_history(
+        &self,
+        name: &str,
+        range: Range,
+        limit: usize,
+        cursor: u64,
+    ) -> Result<Page<RegisterWrite>, EngineError> {
+        let reg = self.register_id(name)?;
+        let ds = &self.ds;
+        let n = ds.rw_at.len();
+        // A write by instruction i is visible from i + 1.
+        let lo = ds.rw_at.partition_point(0, n, |at| at < range.from + 1);
+        let hi = ds.rw_at.partition_point(lo, n, |at| at <= range.to + 1);
+        let all: Vec<RegisterWrite> = (lo..hi)
+            .filter(|&row| ds.rw_reg.get(row) == reg)
+            .map(|row| {
+                let at = ds.rw_at.get(row);
+                let known = ds.rw_known.get(row);
+                let bits = self.isa.registers()[reg as usize].bits;
+                let full = simgdb_isa::RegState::full_mask(bits);
+                RegisterWrite {
+                    written_by: at.saturating_sub(1),
+                    visible_from: at,
+                    value: (known != 0).then(|| ds.rw_value.get(row)),
+                    known_mask: (known & full != full).then_some(known),
+                    derived: ds.rw_derived.get(row) != 0,
+                    line: ds.rw_line.get(row),
+                }
+            })
+            .filter(|w| w.written_by >= range.from && w.written_by <= range.to)
+            .collect();
+        Ok(Page::of(&all, limit, cursor))
     }
 
     /// Variable containing `addr`, as `name+offset`.

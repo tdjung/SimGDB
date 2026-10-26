@@ -42,6 +42,19 @@ fn places_match_gdb() {
             assert_eq!(place.type_name, want["type"].as_str().unwrap(), "{core} {path}: type");
         }
         assert!(engine.variable("ring[8]").is_err(), "bounds are checked");
+        // Address -> expression, the inverse of the above.
+        let vars = engine.variables();
+        for path in ["pool[1].len", "pool[5].stamp", "ring[3]", "bytes[23]", "seed", "head", "primes[7]"] {
+            let addr = engine.variable(path).unwrap().addr;
+            assert_eq!(vars.path_at(addr).as_deref(), Some(path), "{core}");
+        }
+        let len = engine.variable("pool[1].len").unwrap().addr;
+        assert_eq!(vars.path_at(len + 1).as_deref(), Some("pool[1].len+1"));
+        let wide = engine.variable("wide").unwrap().addr;
+        assert_eq!(vars.path_at(wide + 5).as_deref(), Some("wide+5"));
+        // Padding between members belongs to no member.
+        let kind = engine.variable("pool[0].kind").unwrap().addr;
+        assert_eq!(vars.path_at(kind + 1).as_deref(), Some("pool[0]+1"));
         assert!(engine.variable("pool[0].nope").is_err());
         assert!(engine.variable("nope").is_err());
     }

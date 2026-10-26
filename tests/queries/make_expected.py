@@ -311,8 +311,13 @@ def main():
                 find_first.append({"condition": text, "from": start, "to": end, "direction": direction,
                                    "found": found})
 
+        # Register r4 and r7: (writing instruction, new value) at each change.
+        reg_changes = {r: [[i - 1, insns[i].before[r]] for i in range(1, run.n)
+                           if insns[i].before[r] != insns[i - 1].before[r]] for r in ("r4", "r7")}
+
         expected = {
             "instructions": run.n,
+            "register_changes": reg_changes,
             "line_ir": line_ir,
             "line_visits": visits,
             "exceptions": run.exceptions,

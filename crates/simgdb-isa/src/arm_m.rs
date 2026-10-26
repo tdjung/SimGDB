@@ -126,13 +126,13 @@ impl Isa for ArmM {
 
     fn lookup(&self, name: &TraceRegName<'_>) -> Option<RegId> {
         let lower = name.name.to_ascii_lowercase();
-        if lower == "r13" || lower == "sp" {
-            if let Some(bank) = name.bank {
-                match bank.to_ascii_lowercase().as_str() {
-                    "msp" | "main" => return Some(MSP),
-                    "psp" | "process" => return Some(PSP),
-                    _ => {}
-                }
+        if (lower == "r13" || lower == "sp")
+            && let Some(bank) = name.bank
+        {
+            match bank.to_ascii_lowercase().as_str() {
+                "msp" | "main" => return Some(MSP),
+                "psp" | "process" => return Some(PSP),
+                _ => {}
             }
         }
         alias(&lower)

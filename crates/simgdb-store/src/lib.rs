@@ -19,6 +19,7 @@
 //! instruction from point 0; memory reads from the point of the reading
 //! instruction (the value was there before it read it).
 
+pub mod annotations;
 pub mod calls;
 mod index;
 pub mod sources;

@@ -14,7 +14,7 @@ Rust를 몰라도 됩니다. Rust 빌드 도구 `cargo`가 의존 라이브러�
 # Rust 설치 (관리자 권한 불필요, ~/.cargo와 ~/.rustup에 설치)
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 source ~/.cargo/env
-cargo --version        # 1.85 이상이면 됩니다
+cargo --version        # 1.88 이상이면 됩니다
 ```
 
 이미 설치되어 있으면 `rustup update`로 최신화합니다.
@@ -59,7 +59,7 @@ gdb로 GDB 서버를 확인하는 스크립트 테스트는 `tests/gdb/README.md
 |---|---|
 | `linker 'cc' not found` | C 컴파일러가 없음 → 1번의 `build-essential` / `Development Tools` 설치 |
 | `failed to download` / `failed to fetch` (사내 프록시) | `export HTTPS_PROXY=http://프록시:포트` 후 다시 실행 |
-| `package requires rustc 1.85` | `rustup update` |
+| `package requires rustc 1.88` | `rustup update` |
 | 폐쇄망에서 `GLIBC_2.xx not found` | 3번 패키지(glibc 2.17 대상)를 사용 |
 
 ## 폐쇄망 안에서 직접 빌드해야 한다면

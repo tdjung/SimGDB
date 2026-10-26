@@ -6,7 +6,7 @@ members = ["crates/*"]
 version = "0.1.0"
 edition = "2024"
 license = "Apache-2.0"
-rust-version = "1.85"
+rust-version = "1.88"
 
 [workspace.dependencies]
 simgdb-model = { path = "crates/simgdb-model" }
@@ -16,6 +16,7 @@ simgdb-tarmac = { path = "crates/simgdb-tarmac" }
 simgdb-store = { path = "crates/simgdb-store" }
 simgdb-engine = { path = "crates/simgdb-engine" }
 simgdb-gdb = { path = "crates/simgdb-gdb" }
+simgdb-mcp = { path = "crates/simgdb-mcp" }
 arrow-array = "60"
 arrow-buffer = "60"
 arrow-ipc = "60"

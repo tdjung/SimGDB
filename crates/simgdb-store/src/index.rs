@@ -149,22 +149,22 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
                 core = Some(c);
             }
         }
-        if let (Some(c), Some(want)) = (current_core, core) {
-            if c != want {
-                *report.other_cores.entry(c).or_default() += 1;
-                // Another core's stores change memory this core sees: those
-                // bytes become unknown from here on.
-                if let Record::Memory(accesses) = &parsed.record {
-                    let now = b.pc.len() as u64;
-                    for a in accesses.iter().filter(|a| a.write) {
-                        if a.addr.checked_add(a.size as u64).is_some_and(|end| end <= limit) {
-                            report.other_core_writes += 1;
-                            mark_unknown(&mut b, MEM_FOREIGN, now, a.addr, a.size as u64, lineno);
-                        }
+        if let (Some(c), Some(want)) = (current_core, core)
+            && c != want
+        {
+            *report.other_cores.entry(c).or_default() += 1;
+            // Another core's stores change memory this core sees: those
+            // bytes become unknown from here on.
+            if let Record::Memory(accesses) = &parsed.record {
+                let now = b.pc.len() as u64;
+                for a in accesses.iter().filter(|a| a.write) {
+                    if a.addr.checked_add(a.size as u64).is_some_and(|end| end <= limit) {
+                        report.other_core_writes += 1;
+                        mark_unknown(&mut b, MEM_FOREIGN, now, a.addr, a.size as u64, lineno);
                     }
                 }
-                continue;
             }
+            continue;
         }
         let at = b.pc.len() as u64;
         match parsed.record {
@@ -177,7 +177,7 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
                 if let Some(p) = pending.take() {
                     report.exception_frames_unplaced += finish_entry(&mut b, p, &state, isa) as u64;
                 }
-                if at % opts.checkpoint_interval == 0 {
+                if at.is_multiple_of(opts.checkpoint_interval) {
                     b.cp_index.push(at);
                     b.cp_rw_row.push(b.rw_at.len() as u64);
                     for (r, &row) in last_write_row.iter().enumerate() {

@@ -97,6 +97,9 @@ pub struct Found {
     pub found: Option<Point>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pc: Option<u64>,
+    /// Source position of the matching point.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<crate::Where>,
     /// The condition's inputs at the matching point.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub inputs: Vec<Input>,
@@ -108,6 +111,30 @@ pub struct Found {
     /// answer could be there.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub first_undecided: Option<u64>,
+    /// Undecided stretches `[from, to]` before the match in search order
+    /// (first 5, in that order), e.g. only before startup set a variable.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub undecided_ranges: Vec<[u64; 2]>,
+    /// The instruction just before the match and whether the condition held
+    /// there: if not, that instruction (or the PC reaching this point) made
+    /// it true.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub previous: Option<Neighbour>,
+    /// Searching backward: the point after the match, where the condition no
+    /// longer holds (its `index - 1` instruction ended it).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next: Option<Neighbour>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct Neighbour {
+    pub index: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pc: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub function: Option<String>,
+    /// Whether the condition held at this point (`null`: undecided).
+    pub holds: Option<bool>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -539,11 +566,17 @@ impl Engine {
             direction,
             found: None,
             pc: None,
+            source: None,
             inputs: vec![],
             evaluated: 0,
             undecided: 0,
             first_undecided: None,
+            undecided_ranges: vec![],
+            previous: None,
+            next: None,
         };
+        // Undecided stretches in time order, as (first, last) positions.
+        let mut stretches: Vec<(usize, usize)> = Vec::new();
         // The condition is constant from one point to just before the next.
         // Forward: in order. Backward: windows from the end, each in order,
         // keeping the last match of the window; a match then holds up to the
@@ -576,6 +609,10 @@ impl Engine {
                     }
                     None => {
                         found.undecided += 1;
+                        match stretches.last_mut() {
+                            Some((_, last)) if *last + 1 == pos => *last = pos,
+                            _ => stretches.push((pos, pos)),
+                        }
                         if forward {
                             undecided.get_or_insert(pos);
                         } else {
@@ -585,11 +622,11 @@ impl Engine {
                     Some(false) => {}
                 }
             }
-            if let (false, Some(h), Some(u)) = (forward, hit, undecided) {
-                if u < h {
-                    // Searching backward, the match comes first.
-                    undecided = None;
-                }
+            if let (false, Some(h), Some(u)) = (forward, hit, undecided)
+                && u < h
+            {
+                // Searching backward, the match comes first.
+                undecided = None;
             }
             if found.first_undecided.is_none() {
                 found.first_undecided = undecided.map(|u| if forward { points[u] } else { end_of(u) });
@@ -599,11 +636,52 @@ impl Engine {
                 let regs = Regs::new(self, i);
                 found.found = Some(self.point(i)?);
                 found.pc = self.pc(i)?.value;
+                found.source = found.pc.and_then(|pc| self.where_is(pc));
                 self.inputs(&expr, i, &regs, &mut found.inputs)?;
+                if i > 0 {
+                    found.previous = Some(self.neighbour(&expr, i - 1)?);
+                }
+                if !forward && i < self.end() {
+                    found.next = Some(self.neighbour(&expr, i + 1)?);
+                }
                 break;
             }
         }
+        let at = found.found.as_ref().map(|p| p.index);
+        stretches.sort_unstable();
+        let mut merged: Vec<(usize, usize)> = Vec::new();
+        for (a, b) in stretches {
+            match merged.last_mut() {
+                Some((_, last)) if *last + 1 >= a => *last = (*last).max(b),
+                _ => merged.push((a, b)),
+            }
+        }
+        let mut ranges: Vec<[u64; 2]> = merged
+            .into_iter()
+            .map(|(a, b)| [points[a], end_of(b)])
+            .filter(|r| match (at, forward) {
+                (Some(x), true) => r[0] < x,
+                (Some(x), false) => r[1] > x,
+                (None, _) => true,
+            })
+            .collect();
+        if !forward {
+            ranges.reverse();
+        }
+        ranges.truncate(5);
+        found.undecided_ranges = ranges;
         Ok(found)
+    }
+
+    fn neighbour(&self, expr: &Expr, index: u64) -> Result<Neighbour, EngineError> {
+        let regs = Regs::new(self, index);
+        let pc = self.pc(index)?.value;
+        Ok(Neighbour {
+            index,
+            pc,
+            function: pc.and_then(|p| self.where_is(p)).map(|w| w.function),
+            holds: self.eval(expr, index, &regs)?,
+        })
     }
 
     fn executions_between(&self, pc: u64, from: u64, to: u64) -> impl Iterator<Item = u64> + '_ {

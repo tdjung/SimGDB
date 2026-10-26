@@ -58,6 +58,15 @@ enum Command {
         #[arg(long)]
         once: bool,
     },
+    /// Serve the index to AI clients over MCP (stdio).
+    Mcp {
+        index: PathBuf,
+        /// Bookmarks and the tool-call log (default: annotations.sqlite in the index directory).
+        #[arg(long)]
+        annotations: Option<PathBuf>,
+    },
+    /// Print the skill document for AI clients (save as .claude/skills/simgdb-debug/SKILL.md).
+    Skill,
     /// Query the state at a point.
     Query {
         index: PathBuf,
@@ -101,6 +110,9 @@ enum Query {
     },
     /// Exceptions entered in a range.
     Exceptions {
+        /// Only this kind: a name (SysTick, IRQ3) or number.
+        #[arg(long)]
+        kind: Option<String>,
         #[command(flatten)]
         range: Span,
         #[command(flatten)]
@@ -124,6 +136,14 @@ enum Query {
     Writes {
         #[command(flatten)]
         loc: Location,
+        #[command(flatten)]
+        range: Span,
+        #[command(flatten)]
+        page: PageArgs,
+    },
+    /// Writes of one register in a range.
+    RegHistory {
+        name: String,
         #[command(flatten)]
         range: Span,
         #[command(flatten)]
@@ -263,6 +283,24 @@ fn run(cli: Cli) -> Result<(), String> {
             println!("{}", serde_json::to_string_pretty(&engine.info()).unwrap());
             Ok(())
         }
+        Command::Skill => {
+            print!("{}", simgdb_mcp::SKILL);
+            Ok(())
+        }
+        Command::Mcp { index, annotations } => {
+            let engine = Engine::open(&index).map_err(|e| e.to_string())?;
+            let path = annotations.unwrap_or_else(|| index.join("annotations.sqlite"));
+            let notes = match simgdb_store::annotations::Annotations::open(&path) {
+                Ok(a) => Some(a),
+                Err(e) => {
+                    eprintln!("simgdb mcp: bookmarks and call log disabled ({}: {e})", path.display());
+                    None
+                }
+            };
+            let server = simgdb_mcp::SimGdbMcp::new(std::sync::Arc::new(engine), notes);
+            let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().map_err(|e| e.to_string())?;
+            rt.block_on(simgdb_mcp::serve_stdio(server)).map_err(|e| e.to_string())
+        }
         Command::Query { index, what } => {
             let engine = Engine::open(&index).map_err(|e| e.to_string())?;
             let out = match what {
@@ -289,9 +327,9 @@ fn run(cli: Cli) -> Result<(), String> {
                     let t = simgdb_engine::Target::parse(&target);
                     to_json(engine.find_executions(&t, r, page.limit, page.cursor))?
                 }
-                Query::Exceptions { range, page } => {
+                Query::Exceptions { kind, range, page } => {
                     let r = engine.range(range.from, range.to).map_err(|e| e.to_string())?;
-                    to_json(engine.exception_list(r, page.limit, page.cursor))?
+                    to_json(engine.exception_list(r, kind.as_deref(), page.limit, page.cursor))?
                 }
                 Query::Calls { range, depth } => {
                     let r = engine.range(range.from, range.to).map_err(|e| e.to_string())?;
@@ -306,6 +344,10 @@ fn run(cli: Cli) -> Result<(), String> {
                     let r = engine.range(range.from, range.to).map_err(|e| e.to_string())?;
                     let (addr, len) = location(&engine, &loc)?;
                     to_json(engine.writes_to(addr, len, r, page.limit, page.cursor))?
+                }
+                Query::RegHistory { name, range, page } => {
+                    let r = engine.range(range.from, range.to).map_err(|e| e.to_string())?;
+                    to_json(engine.register_history(&name, r, page.limit, page.cursor))?
                 }
                 Query::Diff { a, b, page } => to_json(engine.diff(a, b, page.limit, page.cursor))?,
                 Query::Find { condition, range, backward } => {

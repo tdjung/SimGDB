@@ -16,6 +16,8 @@ simgdb-isa.workspace = true
 simgdb-store.workspace = true
 simgdb-engine.workspace = true
 simgdb-gdb.workspace = true
+simgdb-mcp.workspace = true
+tokio = { version = "1", features = ["rt-multi-thread"] }
 clap.workspace = true
 serde.workspace = true
 serde_json.workspace = true

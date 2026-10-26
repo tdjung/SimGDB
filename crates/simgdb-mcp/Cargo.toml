@@ -1,0 +1,21 @@
+[package]
+name = "simgdb-mcp"
+description = "MCP server for SimGDB: the engine as stateless tools for AI clients"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version = "1.88"
+
+[dependencies]
+simgdb-engine.workspace = true
+simgdb-store.workspace = true
+rmcp = { version = "3.7", default-features = false, features = ["server", "macros", "transport-io"] }
+serde.workspace = true
+serde_json.workspace = true
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-std"] }
+
+[dev-dependencies]
+simgdb-isa.workspace = true
+rmcp = { version = "3.7", default-features = false, features = ["client", "server", "macros", "transport-io"] }
+tempfile.workspace = true
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-std", "io-util"] }

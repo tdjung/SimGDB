@@ -86,7 +86,9 @@ fn main() {
         let r = e.find_executions(&Target::parse("mix"), all, 10, 0).unwrap();
         format!("{} instructions, {} calls", r.instructions, r.entries.total)
     });
-    once("exception list", &mut || format!("{} exceptions", e.exception_list(all, 10, 0).unwrap().exceptions.total));
+    once("exception list", &mut || {
+        format!("{} exceptions", e.exception_list(all, None, 10, 0).unwrap().exceptions.total)
+    });
     once("call tree, depth 6", &mut || format!("{} functions", e.call_tree(all, 6).unwrap().functions.len()));
     let mid = e.end() / 2;
     once("last write of a variable", &mut || {

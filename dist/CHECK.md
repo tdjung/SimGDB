@@ -147,7 +147,22 @@ bin/simgdb query real.idx find 'pc == sym("<예외 핸들러 이름>")'
 - `find` 결과의 `found.index`가 첫 예외 항목의 `entered_at`과 같습니다.
 - 다르거나 오류가 나면 명령과 출력을 알려 주세요. `report.json`의 `exceptions_inferred`도 함께 알려 주세요.
 
-## 7. 함께 알려 주시면 좋은 것 (Step 0)
+## 7. MCP 서버
+
+AI 클라이언트 없이도 동작을 확인할 수 있습니다(`tools/mcp_call.py`, Python 3.6 이상).
+
+```bash
+SIMGDB=bin/simgdb python3 tools/mcp_call.py real.idx                 # 도구 목록
+SIMGDB=bin/simgdb python3 tools/mcp_call.py real.idx trace_info
+SIMGDB=bin/simgdb python3 tools/mcp_call.py real.idx exceptions '{"limit": 2}'
+```
+
+기대 결과: 도구 16개가 나열되고, `trace_info`의 `exceptions`가 §6의 `exceptions` 결과와 같습니다.
+AI 클라이언트를 쓸 수 있으면 `bin/simgdb mcp real.idx`를 stdio MCP 서버로 등록하고 "주요 인터럽트가 몇 번 들어왔고
+첫 진입 시점은?"처럼 물어본 뒤, 답의 시점을 gdb에서 `simgdb-goto <index>`로 확인합니다.
+도구 호출 기록은 인덱스 옆 `annotations.sqlite`(`call_log` 표)에 남습니다.
+
+## 8. 함께 알려 주시면 좋은 것 (Step 0)
 
 - ES `tic`이 무엇을 세는지(코어 클럭인지 전역 tick인지), 클럭이 멈추면 카운터도 멈추는지, 시뮬레이션 중 주파수가 바뀌는지.
 - `IF` 레코드의 의미(바로 앞 명령어의 중복인지).

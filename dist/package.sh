@@ -14,9 +14,11 @@ rm -rf "$out/$name" && mkdir -p "$out/$name/bin" "$out/$name/tools" \
 cp target/$target/release/simgdb "$out/$name/bin/" && strip "$out/$name/bin/simgdb"
 cp tools/simgdb.gdb "$out/$name/tools/"
 cp tests/firmware/state_*.elf "$out/$name/selftest/tests/firmware/"
-cp tests/firmware/traces/*.log.gz "$out/$name/selftest/tests/firmware/traces/"
+cp tests/firmware/traces/state_*.fm.log.gz tests/firmware/traces/state_*.m4rtl.log.gz \
+  tests/firmware/traces/state_*.es.log.gz "$out/$name/selftest/tests/firmware/traces/"
 cp -r tests/gdb/scenarios tests/gdb/expected tests/gdb/gdb_tests.py tests/gdb/README.md "$out/$name/selftest/tests/gdb/"
-cp dist/CHECK.md "$out/$name/"
+cp dist/CHECK.md docs/USAGE.md docs/LIMITATIONS.md "$out/$name/"
+cp tests/ai_eval/mcp_call.py "$out/$name/tools/"
 # Fail if the binary needs a newer glibc than 2.17.
 newest=$(objdump -T "$out/$name/bin/simgdb" | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1)
 [ "$newest" = GLIBC_2.17 ] || [ "$(printf '%s\nGLIBC_2.17\n' "$newest" | sort -V | tail -1)" = GLIBC_2.17 ] \

@@ -16,10 +16,9 @@ pub struct VariableValue {
     pub place: Place,
     /// Raw value (little- or big-endian per the ISA), when the type is a
     /// scalar of at most 8 bytes. Partially known values carry `known_mask`.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub raw: Option<Value<u64>>,
-    /// Decoded scalar (signed, unsigned, float, pointer, bool, enum name).
-    #[serde(skip_serializing_if = "Option::is_none")]
+    /// Decoded scalar (signed, unsigned, float, pointer, bool, enum name);
+    /// `null` when not fully known or not a scalar.
     pub decoded: Option<serde_json::Value>,
     /// Bytes, `??` where unknown.
     pub hex: String,
@@ -94,7 +93,7 @@ impl Engine {
         Ok(VariableValue { point: self.point(index)?, path: path.to_string(), place, raw, decoded, hex })
     }
 
-    fn decode(&self, ty: Option<usize>, v: u64, size: u64) -> Option<serde_json::Value> {
+    pub(crate) fn decode(&self, ty: Option<usize>, v: u64, size: u64) -> Option<serde_json::Value> {
         let vars = &self.ds.variables;
         let sign = |v: u64| {
             let bits = 8 * size as u32;

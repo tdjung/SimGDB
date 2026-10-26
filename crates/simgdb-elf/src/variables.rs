@@ -170,6 +170,51 @@ impl Variables {
         Ok(Place { addr, size: self.size(ty), ty, type_name: self.name(ty) })
     }
 
+    /// The variable containing `addr`.
+    pub fn containing(&self, addr: u64) -> Option<&Variable> {
+        self.variables.iter().find(|v| v.size.is_some_and(|s| addr >= v.addr && addr < v.addr + s))
+    }
+
+    /// Expression for the scalar holding `addr` (`pool[1].len`), with
+    /// `+k` when `addr` is not its first byte.
+    pub fn path_at(&self, addr: u64) -> Option<String> {
+        let v = self.containing(addr)?;
+        let mut path = v.name.clone();
+        let (mut base, mut ty) = (v.addr, v.ty);
+        for _ in 0..64 {
+            match self.get(self.strip(ty)) {
+                Some(Type::Array { element, .. }) => {
+                    let size = self.size(*element).filter(|&s| s > 0)?;
+                    let i = (addr - base) / size;
+                    path.push_str(&format!("[{i}]"));
+                    base += i * size;
+                    ty = *element;
+                }
+                Some(Type::Struct { members, .. }) => {
+                    let off = addr - base;
+                    let m = members
+                        .iter()
+                        .filter(|m| m.bit_size.is_none())
+                        .find(|m| off >= m.offset && self.size(m.ty).is_some_and(|s| off < m.offset + s));
+                    match m {
+                        Some(m) => {
+                            path.push('.');
+                            path.push_str(m.name.as_deref().unwrap_or("?"));
+                            base += m.offset;
+                            ty = m.ty;
+                        }
+                        None => break,
+                    }
+                }
+                _ => break,
+            }
+        }
+        if addr > base {
+            path.push_str(&format!("+{}", addr - base));
+        }
+        Some(path)
+    }
+
     pub fn get(&self, id: Option<TypeId>) -> Option<&Type> {
         id.and_then(|i| self.types.get(i))
     }
