@@ -5,6 +5,7 @@
 //! (banked stack pointers), and the GDB target description.
 
 pub mod arm_m;
+pub mod thumb;
 
 use serde::Serialize;
 

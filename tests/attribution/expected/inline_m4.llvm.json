@@ -1,0 +1,42 @@
+{
+"1000": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/inline.c",
+"func_A",
+13
+],
+"1002": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/inline.c",
+"func_A",
+8
+],
+"1004": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/inline.c",
+"func_A",
+8
+],
+"1006": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/inline.c",
+"func_A",
+8
+],
+"100a": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/inline.c",
+"func_A",
+8
+],
+"100c": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/inline.c",
+"func_A",
+15
+],
+"100e": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/inline.c",
+"func_A",
+16
+],
+"1012": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/inline.c",
+"func_A",
+16
+]
+}

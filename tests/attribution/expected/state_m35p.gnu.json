@@ -1,0 +1,1262 @@
+{
+"10000040": [
+"/home/claude/simgdb/tests/firmware/src/startup.c",
+"Default_Handler",
+17
+],
+"10000042": [
+"/home/claude/simgdb/tests/firmware/src/startup.c",
+"Default_Handler",
+17
+],
+"10000044": [
+"/home/claude/simgdb/tests/firmware/src/startup.c",
+"Reset_Handler",
+11
+],
+"10000046": [
+"/home/claude/simgdb/tests/firmware/src/startup.c",
+"Reset_Handler",
+11
+],
+"10000048": [
+"/home/claude/simgdb/tests/firmware/src/startup.c",
+"Reset_Handler",
+9
+],
+"1000004a": [
+"/home/claude/simgdb/tests/firmware/src/startup.c",
+"Reset_Handler",
+11
+],
+"1000004c": [
+"/home/claude/simgdb/tests/firmware/src/startup.c",
+"Reset_Handler",
+11
+],
+"1000004e": [
+"/home/claude/simgdb/tests/firmware/src/startup.c",
+"Reset_Handler",
+11
+],
+"10000050": [
+"/home/claude/simgdb/tests/firmware/src/startup.c",
+"Reset_Handler",
+11
+],
+"10000052": [
+"/home/claude/simgdb/tests/firmware/src/startup.c",
+"Reset_Handler",
+10
+],
+"10000054": [
+"/home/claude/simgdb/tests/firmware/src/startup.c",
+"Reset_Handler",
+10
+],
+"10000056": [
+"/home/claude/simgdb/tests/firmware/src/startup.c",
+"Reset_Handler",
+10
+],
+"1000005a": [
+"/home/claude/simgdb/tests/firmware/src/startup.c",
+"Reset_Handler",
+10
+],
+"1000005c": [
+"/home/claude/simgdb/tests/firmware/src/startup.c",
+"Reset_Handler",
+10
+],
+"1000005e": [
+"/home/claude/simgdb/tests/firmware/src/startup.c",
+"Reset_Handler",
+11
+],
+"10000062": [
+"/home/claude/simgdb/tests/firmware/src/startup.c",
+"Reset_Handler",
+11
+],
+"10000064": [
+"/home/claude/simgdb/tests/firmware/src/startup.c",
+"Reset_Handler",
+11
+],
+"10000068": [
+"/home/claude/simgdb/tests/firmware/src/startup.c",
+"Reset_Handler",
+11
+],
+"1000006a": [
+"/home/claude/simgdb/tests/firmware/src/startup.c",
+"Reset_Handler",
+12
+],
+"1000006c": [
+"/home/claude/simgdb/tests/firmware/src/startup.c",
+"Reset_Handler",
+12
+],
+"1000006e": [
+"/home/claude/simgdb/tests/firmware/src/startup.c",
+"Reset_Handler",
+12
+],
+"10000070": [
+"/home/claude/simgdb/tests/firmware/src/startup.c",
+"Reset_Handler",
+12
+],
+"10000072": [
+"/home/claude/simgdb/tests/firmware/src/startup.c",
+"Reset_Handler",
+12
+],
+"10000074": [
+"/home/claude/simgdb/tests/firmware/src/startup.c",
+"Reset_Handler",
+12
+],
+"10000076": [
+"/home/claude/simgdb/tests/firmware/src/startup.c",
+"Reset_Handler",
+12
+],
+"10000078": [
+"/home/claude/simgdb/tests/firmware/src/startup.c",
+"Reset_Handler",
+12
+],
+"1000007c": [
+"/home/claude/simgdb/tests/firmware/src/startup.c",
+"Reset_Handler",
+12
+],
+"1000007e": [
+"/home/claude/simgdb/tests/firmware/src/startup.c",
+"Reset_Handler",
+12
+],
+"10000080": [
+"/home/claude/simgdb/tests/firmware/src/startup.c",
+"Reset_Handler",
+12
+],
+"10000082": [
+"/home/claude/simgdb/tests/firmware/src/startup.c",
+"Reset_Handler",
+12
+],
+"10000086": [
+"/home/claude/simgdb/tests/firmware/src/startup.c",
+"Reset_Handler",
+12
+],
+"10000088": [
+"/home/claude/simgdb/tests/firmware/src/startup.c",
+"Reset_Handler",
+12
+],
+"1000008a": [
+"/home/claude/simgdb/tests/firmware/src/startup.c",
+"Reset_Handler",
+13
+],
+"1000008e": [
+"/home/claude/simgdb/tests/firmware/src/startup.c",
+"Reset_Handler",
+14
+],
+"100000a8": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"op_add",
+87
+],
+"100000aa": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"op_add",
+87
+],
+"100000ac": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"op_xor",
+88
+],
+"100000ae": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"op_xor",
+88
+],
+"100000b0": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"mix",
+44
+],
+"100000b2": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"mix",
+44
+],
+"100000b4": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"mix",
+44
+],
+"100000b8": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"mix",
+44
+],
+"100000bc": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"mix",
+46
+],
+"100000be": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"mix",
+46
+],
+"100000c4": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"depth",
+49
+],
+"100000c6": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"depth",
+49
+],
+"100000c8": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"depth",
+50
+],
+"100000ca": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"depth",
+51
+],
+"100000cc": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"depth",
+49
+],
+"100000ce": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"depth",
+51
+],
+"100000d0": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"depth",
+53
+],
+"100000d2": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"depth",
+53
+],
+"100000d6": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"depth",
+53
+],
+"100000d8": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"depth",
+53
+],
+"100000da": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"depth",
+50
+],
+"100000de": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"depth",
+51
+],
+"100000e0": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"depth",
+51
+],
+"100000e2": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"depth",
+51
+],
+"100000e4": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"depth",
+54
+],
+"100000e6": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"depth",
+54
+],
+"100000e8": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+58
+],
+"100000ea": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+57
+],
+"100000ee": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+58
+],
+"100000f0": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+59
+],
+"100000f4": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+57
+],
+"100000f6": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+58
+],
+"100000f8": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+59
+],
+"100000fa": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+63
+],
+"100000fc": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+63
+],
+"100000fe": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+63
+],
+"10000102": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+63
+],
+"10000106": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+63
+],
+"1000010a": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+63
+],
+"1000010e": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+63
+],
+"10000112": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+63
+],
+"10000114": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+63
+],
+"10000118": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+63
+],
+"1000011a": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+62
+],
+"1000011e": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+61
+],
+"10000122": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+62
+],
+"10000126": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+62
+],
+"1000012a": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+62
+],
+"1000012c": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+62
+],
+"1000012e": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+62
+],
+"10000130": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+63
+],
+"10000132": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+63
+],
+"10000136": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+63
+],
+"1000013a": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+59
+],
+"1000013e": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+64
+],
+"10000142": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+59
+],
+"10000146": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+60
+],
+"10000148": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+65
+],
+"1000014c": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+64
+],
+"1000014e": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+59
+],
+"10000150": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+59
+],
+"10000154": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+63
+],
+"10000158": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+64
+],
+"1000015c": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+59
+],
+"1000015e": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+59
+],
+"10000162": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+59
+],
+"10000164": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+59
+],
+"10000166": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+59
+],
+"1000016a": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+59
+],
+"1000016e": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+59
+],
+"10000170": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+68
+],
+"10000172": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+68
+],
+"10000176": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"build_list",
+68
+],
+"10000188": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"walk_list",
+73
+],
+"1000018a": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"walk_list",
+73
+],
+"1000018c": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"walk_list",
+73
+],
+"1000018e": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"walk_list",
+72
+],
+"10000190": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"walk_list",
+74
+],
+"10000192": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"walk_list",
+74
+],
+"10000196": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"walk_list",
+74
+],
+"10000198": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"walk_list",
+74
+],
+"1000019a": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"walk_list",
+73
+],
+"1000019c": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"walk_list",
+74
+],
+"1000019e": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"walk_list",
+74
+],
+"100001a0": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"walk_list",
+73
+],
+"100001a2": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"walk_list",
+73
+],
+"100001a4": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"walk_list",
+73
+],
+"100001a6": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"walk_list",
+72
+],
+"100001a8": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"walk_list",
+76
+],
+"100001aa": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"walk_list",
+76
+],
+"100001b0": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"fill_bytes",
+80
+],
+"100001b2": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"fill_bytes",
+80
+],
+"100001b6": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"fill_bytes",
+81
+],
+"100001ba": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"fill_bytes",
+80
+],
+"100001bc": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"fill_bytes",
+80
+],
+"100001c0": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"fill_bytes",
+80
+],
+"100001c2": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"fill_bytes",
+80
+],
+"100001c4": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"fill_bytes",
+82
+],
+"100001c8": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"fill_bytes",
+83
+],
+"100001ca": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"fill_bytes",
+83
+],
+"100001ce": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"fill_bytes",
+82
+],
+"100001d0": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"fill_bytes",
+83
+],
+"100001d4": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"fill_bytes",
+82
+],
+"100001d8": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"fill_bytes",
+84
+],
+"100001da": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"fill_bytes",
+84
+],
+"100001dc": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"fill_bytes",
+84
+],
+"100001f0": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"apply_ops",
+92
+],
+"100001f2": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"apply_ops",
+92
+],
+"100001f4": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"apply_ops",
+93
+],
+"100001f6": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"apply_ops",
+93
+],
+"100001f8": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"apply_ops",
+92
+],
+"100001fa": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"apply_ops",
+92
+],
+"100001fc": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"apply_ops",
+94
+],
+"100001fe": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"apply_ops",
+94
+],
+"10000202": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"apply_ops",
+94
+],
+"10000204": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"apply_ops",
+93
+],
+"10000206": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"apply_ops",
+94
+],
+"1000020a": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"apply_ops",
+93
+],
+"1000020c": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"apply_ops",
+94
+],
+"1000020e": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"apply_ops",
+94
+],
+"10000212": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"apply_ops",
+93
+],
+"10000214": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"apply_ops",
+94
+],
+"10000216": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"apply_ops",
+94
+],
+"10000218": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"apply_ops",
+96
+],
+"1000021a": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"apply_ops",
+96
+],
+"10000224": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"SVC_Handler",
+105
+],
+"10000226": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"SVC_Handler",
+105
+],
+"1000022a": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"SVC_Handler",
+105
+],
+"1000022c": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"SVC_Handler",
+105
+],
+"10000230": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"SVC_Handler",
+106
+],
+"10000234": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"SVC_Handler",
+106
+],
+"10000238": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"SVC_Handler",
+106
+],
+"1000023c": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"SVC_Handler",
+106
+],
+"10000240": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"SVC_Handler",
+106
+],
+"10000244": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"SVC_Handler",
+106
+],
+"10000248": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"SVC_Handler",
+107
+],
+"1000024a": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"SVC_Handler",
+107
+],
+"10000250": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"SysTick_Handler",
+110
+],
+"10000252": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"SysTick_Handler",
+111
+],
+"10000254": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"SysTick_Handler",
+112
+],
+"10000256": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"SysTick_Handler",
+111
+],
+"1000025a": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"SysTick_Handler",
+112
+],
+"1000025c": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"SysTick_Handler",
+111
+],
+"1000025e": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"SysTick_Handler",
+111
+],
+"10000262": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"SysTick_Handler",
+112
+],
+"10000266": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"SysTick_Handler",
+112
+],
+"1000026a": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"SysTick_Handler",
+112
+],
+"1000026e": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"SysTick_Handler",
+112
+],
+"10000272": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"SysTick_Handler",
+113
+],
+"1000027c": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"use_process_stack",
+127
+],
+"1000027e": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"use_process_stack",
+128
+],
+"10000282": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"use_process_stack",
+128
+],
+"10000286": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"use_process_stack",
+128
+],
+"1000028a": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"use_process_stack",
+128
+],
+"1000028e": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"use_process_stack",
+128
+],
+"10000292": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"use_process_stack",
+134
+],
+"10000298": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"work",
+137
+],
+"1000029a": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"work",
+137
+],
+"1000029c": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"work",
+139
+],
+"1000029e": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"work",
+139
+],
+"100002a2": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"work",
+140
+],
+"100002a6": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"work",
+140
+],
+"100002a8": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"work",
+141
+],
+"100002aa": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"work",
+141
+],
+"100002ae": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"work",
+142
+],
+"100002b0": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"work",
+142
+],
+"100002b2": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"work",
+142
+],
+"100002b4": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"work",
+142
+],
+"100002b8": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"work",
+142
+],
+"100002ba": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"work",
+143
+],
+"100002bc": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"work",
+143
+],
+"100002c0": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"work",
+100
+],
+"100002c2": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"work",
+146
+],
+"100002c8": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+152
+],
+"100002ca": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+151
+],
+"100002ce": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+151
+],
+"100002d0": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+153
+],
+"100002d2": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+149
+],
+"100002d4": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+156
+],
+"100002d6": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+155
+],
+"100002d8": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+151
+],
+"100002da": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+149
+],
+"100002dc": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+152
+],
+"100002de": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+153
+],
+"100002e0": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+157
+],
+"100002e2": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+157
+],
+"100002e6": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+157
+],
+"100002e8": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+157
+],
+"100002ea": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+157
+],
+"100002ee": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+156
+],
+"100002f0": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+156
+],
+"100002f2": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+157
+],
+"100002f4": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+156
+],
+"100002f6": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+158
+],
+"100002fa": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+160
+],
+"100002fc": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+160
+],
+"10000300": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+160
+],
+"10000302": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+160
+],
+"10000304": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+160
+],
+"10000308": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+160
+],
+"1000030a": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+160
+],
+"1000030c": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+160
+],
+"10000310": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+160
+],
+"10000312": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+160
+],
+"10000314": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+160
+],
+"10000318": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+162
+],
+"1000031c": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+160
+],
+"1000031e": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+162
+],
+"10000320": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+117
+],
+"10000322": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+117
+],
+"10000324": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+161
+],
+"10000326": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+118
+],
+"10000328": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+161
+],
+"1000032c": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+162
+],
+"1000032e": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+119
+],
+"10000330": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+117
+],
+"10000334": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+120
+],
+"10000336": [
+"/home/claude/simgdb/tests/firmware/src/state.c",
+"main",
+121
+]
+}

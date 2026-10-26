@@ -1,0 +1,1157 @@
+{
+"1000": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+18
+],
+"1002": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+18
+],
+"1004": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+18
+],
+"1008": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+19
+],
+"100c": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+19
+],
+"1010": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+19
+],
+"1014": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"1016": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"101a": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"101c": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"101e": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"1022": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"1024": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"1026": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"1028": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"102a": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+0
+],
+"102c": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+0
+],
+"102e": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"1032": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"1036": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"103a": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"103c": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"103e": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"1040": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1044": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1048": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"104a": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"104e": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1052": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1056": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"105a": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"105c": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1060": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1062": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1066": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"106a": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"106c": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1070": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1072": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1076": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"107a": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"107c": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1080": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"1082": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"1084": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1086": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"1088": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"108c": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"108e": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1092": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1096": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"109a": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"109e": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"10a2": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"10a4": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"10a6": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"10a8": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"10ac": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"10b0": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"10b4": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"10b8": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"10ba": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"10bc": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"10be": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"10c2": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"10c6": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"10ca": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"10cc": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"10ce": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"10d0": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+13
+],
+"10d4": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+14
+],
+"10d8": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+14
+],
+"10da": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+14
+],
+"10dc": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+13
+],
+"10e0": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+21
+],
+"10e2": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+13
+],
+"10e6": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+21
+],
+"10e8": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"10ea": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"10ec": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"10ee": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"10f2": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"10f4": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"10f6": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"10f8": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"10fa": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+21
+],
+"10fc": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+21
+],
+"10fe": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"1102": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"1106": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"110a": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"110c": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"110e": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"1110": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1112": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1116": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"111a": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"111c": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1120": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1124": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1126": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1128": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"112c": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1130": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1132": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1136": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"113a": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"113e": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1142": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1144": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1148": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"114a": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"114e": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"1150": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"1152": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1154": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"1156": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"115a": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"115c": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"115e": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1162": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1166": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"116a": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"116e": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1170": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"1172": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1174": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1178": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"117c": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"1180": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1184": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1186": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+11
+],
+"1188": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"118a": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"118e": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1192": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1196": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"1198": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"119a": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"119c": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+12
+],
+"119e": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+13
+],
+"11a2": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+14
+],
+"11a6": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+22
+],
+"11a8": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+22
+],
+"11ac": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+22
+],
+"11b0": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+23
+],
+"11b2": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+23
+],
+"11b4": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+23
+],
+"11b8": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+23
+],
+"11ba": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"A",
+23
+],
+"11bc": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"11c0": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"11c4": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"11c8": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"11ca": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+13
+],
+"11ce": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"11d0": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"11d2": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"11d6": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"11d8": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+14
+],
+"11dc": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+14
+],
+"11de": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+14
+],
+"11e0": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+13
+],
+"11e4": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+21
+],
+"11e6": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+13
+],
+"11ea": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+21
+],
+"11ec": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"11ee": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"11f2": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"11f6": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"11fa": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"11fe": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"1202": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"1204": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"1208": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"120a": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"120e": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"1212": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"1216": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"1218": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"121a": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"121e": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"1220": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"1222": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"1224": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+13
+],
+"1228": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+14
+],
+"122c": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"1230": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"1234": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"1236": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+22
+],
+"1238": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"123a": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+22
+],
+"123e": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"1242": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"1244": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+22
+],
+"1248": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"124c": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"124e": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"1250": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"1252": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"1254": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"1256": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"1258": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"125a": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"125e": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"1260": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+14
+],
+"1264": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+14
+],
+"1266": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+14
+],
+"1268": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+21
+],
+"126a": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+13
+],
+"126e": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+21
+],
+"1270": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"1274": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"1278": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"127c": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"127e": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"1280": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+12
+],
+"1282": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+13
+],
+"1286": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+14
+],
+"128a": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+22
+],
+"128c": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+22
+],
+"1290": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+22
+],
+"1294": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+23
+],
+"1296": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+23
+],
+"1298": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+23
+],
+"129a": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+28
+],
+"129e": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+28
+],
+"12a0": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+28
+],
+"12a4": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+28
+],
+"12a6": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+28
+],
+"12a8": [
+"/home/claude/tarmac_to_cachegrind/tests/firmware/line0.c",
+"line0_start",
+29
+]
+}

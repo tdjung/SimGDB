@@ -7,6 +7,8 @@
 //! and those stores are in the trace, so it is deliberately not part of the
 //! image. `.bss` has no file bytes and is not part of it either.
 
+pub mod source;
+
 use std::path::Path;
 
 use object::{Object, ObjectSegment, ObjectSymbol, SymbolKind};
@@ -19,6 +21,8 @@ pub enum ElfError {
     Parse(#[from] object::Error),
     #[error("malformed ELF: {0}")]
     Malformed(&'static str),
+    #[error("cannot read debug information: {0}")]
+    Dwarf(String),
 }
 
 #[derive(Clone, Debug)]

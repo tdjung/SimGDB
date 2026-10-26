@@ -7,5 +7,11 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+simgdb-isa.workspace = true
+serde.workspace = true
+addr2line = "0.25.1"
 object.workspace = true
 thiserror.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

@@ -194,6 +194,11 @@ PC → (파일, 라인, 함수) 결과를 비교하는 테스트로 일치를 �
 - line 0(`file.c:?`, `??:0`): ① 앞 명령어가 이어서 실행되고 같은 inline 함수면 그 라인 ② 아니면 같은 흐름의 다음 명령어 라인
   ③ inline이면 호출 라인 ④ 미해결. 흐름 끊김: 무조건 `b`, `bx`, `pop {..pc}`, `ldm {..pc}`, `ldr/mov pc`, `tbb/tbh`.
 - 데이터 영역 제외: GNU `.word`/ASCII dump, LLVM raw byte + `.word`.
+- SimGDB 구현: DWARF는 `addr2line` crate(gimli), 명령어 목록은 ELF 코드를 ISA 분류기로 직접 읽어 만듭니다
+  (`$t`/`$d` mapping symbol로 코드·데이터 구분, 다른 심볼에서 이웃 끊음, IT 블록 안의 분기는 조건부).
+- DWARF에 함수가 없는 코드는 가장 가까운 앞쪽 함수 심볼 이름을 씁니다(GNU addr2line과 같음).
+- DWARF 5 range list로 기술된 inline 호출도 frame으로 봅니다(GNU addr2line 2.42는 못 보고, llvm-addr2line은 봄).
+- 비교 기준과 결과: `tests/attribution/README.md`.
 
 ## 7. 저장소 구조
 
