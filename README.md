@@ -26,6 +26,7 @@ simgdb index trace.log --elf firmware.elf -o trace.idx --report
 # 질의 (JSON)
 simgdb info trace.idx
 simgdb query trace.idx registers --at 1000
+simgdb query trace.idx locate --at 1000      # PC, 소스 줄, call stack
 simgdb query trace.idx memory --addr 0x20000000 --len 64 --time 13350000
 
 # GDB 서버

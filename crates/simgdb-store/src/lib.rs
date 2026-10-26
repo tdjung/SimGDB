@@ -19,7 +19,9 @@
 //! instruction from point 0; memory reads from the point of the reading
 //! instruction (the value was there before it read it).
 
+pub mod calls;
 mod index;
+pub mod sources;
 mod table;
 
 use std::collections::BTreeMap;
@@ -32,7 +34,7 @@ use simgdb_model::TimeUnit;
 pub use index::{IndexOptions, build};
 pub use table::{BATCH, Col, Table};
 
-pub const FORMAT_VERSION: u32 = 1;
+pub const FORMAT_VERSION: u32 = 2;
 
 /// Instruction flags.
 pub const FLAG_FAILED: u8 = 1;
@@ -86,6 +88,8 @@ pub struct Capabilities {
     pub exception_stacking_writes: bool,
     pub time_unit: Option<TimeUnit>,
     pub elf: bool,
+    /// Source lines from DWARF.
+    pub source_lines: bool,
 }
 
 /// One kind of line the parser did not interpret, with sample lines.
@@ -137,6 +141,8 @@ pub struct Report {
     pub time_monotonic: bool,
     /// Registers (by name) that were never written.
     pub registers_never_written: Vec<String>,
+    /// Source attribution of the ELF code.
+    pub sources: sources::SourceSummary,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -194,6 +200,27 @@ pub struct Dataset {
     pub exc_line: Col<UInt64Type>,
     /// ELF load image, sorted by address.
     pub image: Vec<(u64, Vec<u8>)>,
+    pub insn_frame: Col<UInt32Type>,
+    pub call_kind: Col<UInt8Type>,
+    pub call_index: Col<UInt64Type>,
+    pub call_entry: Col<UInt64Type>,
+    pub call_return: Col<UInt64Type>,
+    pub call_pc: Col<UInt64Type>,
+    pub call_return_pc: Col<UInt64Type>,
+    pub call_number: Col<UInt32Type>,
+    pub call_parent: Col<UInt32Type>,
+    pub call_depth: Col<UInt32Type>,
+    pub src_pc: Col<UInt64Type>,
+    pub src_file: Col<UInt32Type>,
+    pub src_function: Col<UInt32Type>,
+    pub src_line: Col<UInt32Type>,
+    pub src_placement: Col<UInt8Type>,
+    pub src_frame_start: Col<UInt32Type>,
+    pub src_frame_count: Col<UInt32Type>,
+    pub fr_function: Col<UInt32Type>,
+    pub fr_file: Col<UInt32Type>,
+    pub fr_line: Col<UInt32Type>,
+    pub strings: Vec<String>,
 }
 
 impl Dataset {
@@ -221,6 +248,11 @@ impl Dataset {
         for k in 0..meta.registers.len() {
             cp_regs.push((cp.col(&format!("v{k}"))?, cp.col(&format!("k{k}"))?, cp.col(&format!("w{k}"))?));
         }
+        let calls = t("calls")?;
+        let src = t("sources")?;
+        let fr = t("frames")?;
+        let strings =
+            t("strings")?.binary("s")?.into_iter().map(|b| String::from_utf8_lossy(&b).into_owned()).collect();
         let image_addr = img.col::<UInt64Type>("addr")?;
         let image_data = img.binary("data")?;
         let image = (0..image_addr.len()).map(|i| image_addr.get(i)).zip(image_data).collect();
@@ -259,6 +291,27 @@ impl Dataset {
             exc_target: exc.col("target")?,
             exc_line: exc.col("line")?,
             image,
+            insn_frame: insn.col("frame")?,
+            call_kind: calls.col("kind")?,
+            call_index: calls.col("call_index")?,
+            call_entry: calls.col("entry_index")?,
+            call_return: calls.col("return_index")?,
+            call_pc: calls.col("call_pc")?,
+            call_return_pc: calls.col("return_pc")?,
+            call_number: calls.col("number")?,
+            call_parent: calls.col("parent")?,
+            call_depth: calls.col("depth")?,
+            src_pc: src.col("pc")?,
+            src_file: src.col("file")?,
+            src_function: src.col("function")?,
+            src_line: src.col("line")?,
+            src_placement: src.col("placement")?,
+            src_frame_start: src.col("frame_start")?,
+            src_frame_count: src.col("frame_count")?,
+            fr_function: fr.col("function")?,
+            fr_file: fr.col("file")?,
+            fr_line: fr.col("line")?,
+            strings,
             meta,
         })
     }

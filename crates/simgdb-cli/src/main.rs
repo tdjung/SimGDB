@@ -80,6 +80,8 @@ struct At {
 enum Query {
     /// All registers.
     Registers(At),
+    /// PC, source line (with inline frames) and call stack.
+    Locate(At),
     /// Memory bytes.
     Memory {
         #[arg(long, value_parser = parse_u64)]
@@ -170,6 +172,10 @@ fn run(cli: Cli) -> Result<(), String> {
                     let i = resolve(&engine, at)?;
                     json!({"point": engine.point(i).map_err(|e| e.to_string())?,
                            "registers": engine.registers(i).map_err(|e| e.to_string())?})
+                }
+                Query::Locate(at) => {
+                    let i = resolve(&engine, at)?;
+                    serde_json::to_value(engine.locate(i).map_err(|e| e.to_string())?).unwrap()
                 }
                 Query::Memory { addr, len, at } => {
                     let i = resolve(&engine, at)?;

@@ -420,3 +420,175 @@ impl Engine {
         (reads, writes)
     }
 }
+
+/// Source position of an instruction (ARCHITECTURE §6).
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub struct SourcePos {
+    pub file: String,
+    pub line: u32,
+    /// Function the code physically lives in (outermost).
+    pub function: String,
+    /// How a line-0 instruction got its line: dwarf, previous, next,
+    /// call_site, unresolved.
+    pub placement: &'static str,
+    /// Inline chain, innermost first; one entry when nothing is inlined.
+    pub inline: Vec<InlineFrame>,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub struct InlineFrame {
+    pub function: String,
+    pub file: String,
+    pub line: u32,
+}
+
+/// One entry of a call stack, innermost first.
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub struct StackFrame {
+    /// `call`, `exception` or `top` (the code the trace started in): how
+    /// execution got into the code this entry is in.
+    pub kind: &'static str,
+    /// Where execution is in this entry: the current PC for the innermost
+    /// entry, the call (or interrupted) PC for the others. `None` when an
+    /// interrupted PC is not known.
+    pub pc: Option<u64>,
+    /// Where `pc` comes from: `current` (the PC at the point), `call` (the
+    /// call instruction), `stacked` (the return address the exception entry
+    /// stacked), `returned` (where the exception returned to; used when the
+    /// stacked value is not in the trace) or `unknown`.
+    pub pc_from: &'static str,
+    pub source: Option<SourcePos>,
+    /// Point where this entry's frame was entered, and where it returns.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub entered_at: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub returns_at: Option<u64>,
+    /// Return address of a call entry: where its caller continues.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub returns_to: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub exception: Option<u32>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct Location {
+    pub point: Point,
+    pub pc: Value<u64>,
+    pub source: Option<SourcePos>,
+    /// From the trace flow (calls, returns, exceptions); needs no stack memory.
+    pub call_stack: Vec<StackFrame>,
+}
+
+impl Engine {
+    /// Source position of `pc`, if the ELF has code there.
+    pub fn source(&self, pc: u64) -> Option<SourcePos> {
+        let ds = &self.ds;
+        let n = ds.src_pc.len();
+        let i = ds.src_pc.partition_point(0, n, |p| p < pc);
+        if i >= n || ds.src_pc.get(i) != pc {
+            return None;
+        }
+        let s = |id: u32| ds.strings.get(id as usize).cloned().unwrap_or_else(|| "???".into());
+        let start = ds.src_frame_start.get(i) as usize;
+        let count = ds.src_frame_count.get(i) as usize;
+        let inline = (start..start + count)
+            .map(|k| InlineFrame {
+                function: s(ds.fr_function.get(k)),
+                file: s(ds.fr_file.get(k)),
+                line: ds.fr_line.get(k),
+            })
+            .collect();
+        Some(SourcePos {
+            file: s(ds.src_file.get(i)),
+            line: ds.src_line.get(i),
+            function: s(ds.src_function.get(i)),
+            placement: simgdb_store::sources::PLACEMENTS[ds.src_placement.get(i) as usize],
+            inline,
+        })
+    }
+
+    /// Call stack at `index`, innermost first.
+    pub fn call_stack(&self, index: u64) -> Result<Vec<StackFrame>, EngineError> {
+        use simgdb_store::calls::{FRAME_CALL, TOP_LEVEL};
+        self.check(index)?;
+        let ds = &self.ds;
+        let kind = |f: u32| match f {
+            TOP_LEVEL => "top",
+            f if ds.call_kind.get(f as usize) == FRAME_CALL => "call",
+            _ => "exception",
+        };
+        // The frame active at the end point is the last instruction's.
+        let mut f = if index < self.end() {
+            ds.insn_frame.get(index as usize)
+        } else if self.end() > 0 {
+            ds.insn_frame.get(self.end() as usize - 1)
+        } else {
+            TOP_LEVEL
+        };
+        let mut pc = self.pc(index)?.value;
+        let mut pc_from = if pc.is_some() { "current" } else { "unknown" };
+        let mut out = Vec::new();
+        loop {
+            let (entered_at, returns_at, returns_to, exception) = if f == TOP_LEVEL {
+                (None, None, None, None)
+            } else {
+                let r = ds.call_return.get(f as usize);
+                let n = ds.call_number.get(f as usize);
+                let call = ds.call_kind.get(f as usize) == FRAME_CALL;
+                (
+                    Some(ds.call_entry.get(f as usize)),
+                    (r != NONE).then_some(r),
+                    call.then(|| ds.call_return_pc.get(f as usize)),
+                    (!call && n != u32::MAX).then_some(n),
+                )
+            };
+            out.push(StackFrame {
+                kind: kind(f),
+                pc,
+                pc_from,
+                source: pc.and_then(|p| self.source(p)),
+                entered_at,
+                returns_at,
+                returns_to,
+                exception,
+            });
+            if f == TOP_LEVEL || out.len() > 4096 {
+                break;
+            }
+            // Where the caller is: the call instruction, or for an exception
+            // the instruction that ran when it returned.
+            (pc, pc_from) = if ds.call_kind.get(f as usize) == FRAME_CALL {
+                (Some(ds.call_pc.get(f as usize)), "call")
+            } else {
+                self.interrupted_pc(f as usize)
+            };
+            f = ds.call_parent.get(f as usize);
+        }
+        Ok(out)
+    }
+
+    /// PC an exception frame interrupted: the return address stacked on
+    /// entry (what was running, even if the handler later switches context),
+    /// else where the exception returned to.
+    fn interrupted_pc(&self, f: usize) -> (Option<u64>, &'static str) {
+        let ds = &self.ds;
+        let entry = ds.call_entry.get(f);
+        let (state, _) = self.replay(entry);
+        if let Some((slot, len)) = self.isa.exception_return_slot(&state) {
+            let bytes = self.memory(slot, len, entry).unwrap_or_default();
+            if !bytes.is_empty() && bytes.iter().all(|b| b.value.is_some()) {
+                let v = bytes.iter().rev().fold(0u64, |a, b| (a << 8) | b.value.unwrap() as u64);
+                return (Some(v & !1), "stacked");
+            }
+        }
+        let r = ds.call_return.get(f);
+        if r != NONE && r < self.end() { (Some(ds.insn_pc.get(r as usize)), "returned") } else { (None, "unknown") }
+    }
+
+    /// Where execution is at `index`: PC, source line and call stack.
+    pub fn locate(&self, index: u64) -> Result<Location, EngineError> {
+        let pc = self.pc(index)?;
+        let source = pc.value.and_then(|p| self.source(p));
+        Ok(Location { point: self.point(index)?, pc, source, call_stack: self.call_stack(index)? })
+    }
+}

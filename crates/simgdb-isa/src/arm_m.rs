@@ -237,8 +237,21 @@ impl Isa for ArmM {
         Some((base, size))
     }
 
+    fn exception_return_slot(&self, after: &RegState) -> Option<(u64, u64)> {
+        // The additional state context (Armv8-M) sits below the basic frame,
+        // whose ReturnAddress is the seventh word.
+        let lr = after.get(LR, 32)?;
+        let (base, _) = self.exception_frame(after)?;
+        let additional = if lr & (1 << 6) != 0 && lr & (1 << 5) == 0 { 0x28 } else { 0 };
+        Some((base + additional + 0x18, 4))
+    }
+
     fn address_limit(&self) -> u64 {
         1 << 32
+    }
+
+    fn flow(&self, opcode: u32, width: u8) -> crate::Flow {
+        crate::thumb::classify_opcode(opcode, width)
     }
 }
 

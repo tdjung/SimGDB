@@ -108,6 +108,22 @@ set var <전역변수> = 1
 
 trace 끝을 지나 `continue`하면 `No more reverse-execution history.`로 멈추는 것이 정상입니다.
 
+### call stack 대조
+
+gdb에서 깊은 함수(가능하면 인터럽트 핸들러 안)에 breakpoint를 걸고 `continue`한 뒤 `simgdb-time`으로 index `I`를 얻고
+`bt`를 적어 둡니다. 그다음:
+
+```bash
+bin/simgdb query real.idx locate --at I
+```
+
+기대 결과:
+
+- `call_stack`의 각 항목 `source.function`이 `bt`의 함수와 같은 순서입니다(gdb는 `main`에서 멈추고, inline 함수는
+  `source.inline`에 들어 있습니다). 예외 항목(`"kind": "exception"`) 다음 자리가 gdb의 `<signal handler called>`입니다.
+- 줄 번호는 같거나, 함수 첫 명령어 등에서 한 줄 다를 수 있습니다(ARCHITECTURE §6의 line table 규칙 차이).
+- 다르면 `locate` 출력과 `bt` 출력을 함께 알려 주세요. RTOS 문맥 전환이 있는 펌웨어라면 그 사실도 알려 주세요.
+
 ## 6. 함께 알려 주시면 좋은 것 (Step 0)
 
 - ES `tic`이 무엇을 세는지(코어 클럭인지 전역 tick인지), 클럭이 멈추면 카운터도 멈추는지, 시뮬레이션 중 주파수가 바뀌는지.

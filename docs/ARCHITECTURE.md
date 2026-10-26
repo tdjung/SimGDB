@@ -97,10 +97,10 @@ Step 3까지 고려한 구조입니다. 구현은 단계별로 하지만 §2의 
 | `exceptions` | index, kind(entry/return), number | | 열 파일 |
 | `checkpoints` | index, 레지스터 전체(값 + 알려짐 여부) | 간격 설정 가능. 메모리는 쓰기 이력으로 복원 | 열 파일 |
 | 역색인 | pc → indexes, addr → write indexes | 정렬 배열 + 이진 탐색 | 열 파일 |
-| **파생: `calls`** | 호출 index, 복귀 index, 호출 PC, 대상, 깊이 | trace 흐름(호출·복귀·예외)으로 만듦. AI의 `call_tree`, backtrace 교차 확인 | 열 파일 |
+| **파생: `calls`** | 종류(call/exception), 호출 index, 진입 index, 복귀 index, 호출 PC, 복귀 주소, 예외 번호, 부모, 깊이 | trace 흐름(호출·복귀·예외)으로 만듦(스택 메모리 불필요). `instructions.frame`이 명령어마다 안쪽 frame을 가리킴. `locate`의 call stack, AI의 `call_tree` | 열 파일 |
 | **파생: `pc_hits`** | pc, 실행 횟수, 첫/마지막 index | 요약 먼저 응답 | 열 파일 |
 | `signals` (Step 2) | sim_time, signal_id, value | 필요한 신호만, SFR·bus 등 | 열 파일 |
-| `sources` (공유) | pc → file, line, function, inline frame | ELF 기준, line 0 규칙 적용 | 열 파일 |
+| `sources` (공유) | pc → file, line, function, line 0 배치 방식, inline frame(`frames`), 이름 표(`strings`) | ELF 기준, line 0 규칙 적용 | 열 파일 |
 | `variables` (공유) | 전역변수 이름 → 주소, 크기, 타입 | 엔진 DWARF(§2.12) | 열 파일 |
 | 메타데이터 | ISA, core, ELF 경로·해시, 시간 단위·변환 표, 공급자 버전, capability, 진단 요약 | | SQLite |
 | 주석·호출 로그·작업 | bookmark, 메모, MCP 호출 로그, 비동기 작업 상태 | 사람과 AI가 동시에 씀 | SQLite |
@@ -198,6 +198,8 @@ PC → (파일, 라인, 함수) 결과를 비교하는 테스트로 일치를 �
   (`$t`/`$d` mapping symbol로 코드·데이터 구분, 다른 심볼에서 이웃 끊음, IT 블록 안의 분기는 조건부).
 - DWARF에 함수가 없는 코드는 가장 가까운 앞쪽 함수 심볼 이름을 씁니다(GNU addr2line과 같음).
 - DWARF 5 range list로 기술된 inline 호출도 frame으로 봅니다(GNU addr2line 2.42는 못 보고, llvm-addr2line은 봄).
+- 한 주소에 line table 행이 여럿이면 마지막 행을 씁니다(addr2line과 같음). gdb는 마지막 `is_stmt` 행을 쓰므로
+  함수 첫 명령어 등에서 gdb와 한 줄 다를 수 있습니다(예: gdb는 `{` 줄, SimGDB는 첫 문장 줄).
 - 비교 기준과 결과: `tests/attribution/README.md`.
 
 ## 7. 저장소 구조

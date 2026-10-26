@@ -7,6 +7,8 @@
 pub mod arm_m;
 pub mod thumb;
 
+pub use thumb::Flow;
+
 use serde::Serialize;
 
 /// Index into `Isa::registers()`.
@@ -108,8 +110,13 @@ pub trait Isa: Send + Sync {
     /// right after entry: `(base, size)`. `None` when that state does not
     /// say (e.g. the stack selector is unknown).
     fn exception_frame(&self, after_entry: &RegState) -> Option<(u64, u64)>;
+    /// Where an exception entry stacked the interrupted PC, and its size in
+    /// bytes, from the register state right after entry.
+    fn exception_return_slot(&self, after_entry: &RegState) -> Option<(u64, u64)>;
     /// Addresses are below this limit (e.g. 2^32 for a 32-bit ISA).
     fn address_limit(&self) -> u64;
+    /// Control-flow class of an executed instruction from its trace encoding.
+    fn flow(&self, opcode: u32, width: u8) -> Flow;
 }
 
 pub fn by_name(name: &str) -> Option<Box<dyn Isa>> {

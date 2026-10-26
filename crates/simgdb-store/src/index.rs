@@ -8,6 +8,7 @@ use simgdb_elf::Elf;
 use simgdb_isa::{Isa, RegState, RegWrite, TraceRegName};
 use simgdb_tarmac::{Event, Parser, Record};
 
+use crate::calls::Calls;
 use crate::table::{Column, write};
 use crate::{
     Capabilities, FLAG_FAILED, FLAG_FETCH_FAILED, FORMAT_VERSION, MEM_CLOBBER, MEM_FOREIGN, MEM_READ, MEM_WRITE, Meta,
@@ -79,6 +80,9 @@ struct Builder {
     e_kind: Vec<u8>,
     e_target: Vec<u64>,
     e_line: Vec<u64>,
+    // innermost call frame at each point, and the call table
+    frame: Vec<u32>,
+    calls: Calls,
 }
 
 /// An exception entry whose post-entry stack pointer is not known yet: its
@@ -204,6 +208,11 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
                     flags |= FLAG_FETCH_FAILED;
                     report.fetch_failed += 1;
                 }
+                let frame = b.calls.at_instruction(at, i.pc);
+                b.frame.push(frame);
+                if let (false, Some(op)) = (i.failed, i.opcode) {
+                    b.calls.after_instruction(at, i.pc, i.width, isa.flow(op, i.width));
+                }
                 b.pc.push(i.pc);
                 b.opcode.push(i.opcode.unwrap_or(0));
                 b.width.push(i.width);
@@ -272,8 +281,10 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
                 // resolve them before the entry changes the mode.
                 report.derived_register_writes += block.resolve(isa, &mut b, &mut state, &mut last_write_row, at);
                 if reset {
+                    b.calls.reset(at);
                     continue;
                 }
+                b.calls.exception(at, number);
                 if let Some(p) = pending.take() {
                     report.exception_frames_unplaced += finish_entry(&mut b, p, &state, isa) as u64;
                 }
@@ -328,7 +339,12 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
         .collect();
 
     write_tables(&b, &opts.out, nregs, elf.as_ref())?;
+    let sources = match &opts.elf {
+        Some(p) => crate::sources::write(p, &opts.out)?,
+        None => crate::sources::write_empty(&opts.out)?,
+    };
 
+    report.sources = sources;
     let meta = Meta {
         format_version: FORMAT_VERSION,
         isa: isa.name().to_string(),
@@ -348,6 +364,7 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
             exception_stacking_writes: stacking_seen,
             time_unit: report.time_unit.clone(),
             elf: elf.is_some(),
+            source_lines: report.sources.instructions > 0,
         },
         report,
     };
@@ -424,6 +441,22 @@ fn write_tables(b: &Builder, out: &Path, nregs: usize, elf: Option<&Elf>) -> Res
             ("flags", Column::U8(b.flags.clone())),
             ("time", Column::U64(b.time.clone())),
             ("line", Column::U64(b.line.clone())),
+            ("frame", Column::U32(b.frame.clone())),
+        ],
+    )?;
+    let c = &b.calls;
+    write(
+        &out.join("calls.arrow"),
+        &[
+            ("kind", Column::U8(c.kind.clone())),
+            ("call_index", Column::U64(c.call_index.clone())),
+            ("entry_index", Column::U64(c.entry_index.clone())),
+            ("return_index", Column::U64(c.return_index.clone())),
+            ("call_pc", Column::U64(c.call_pc.clone())),
+            ("return_pc", Column::U64(c.return_pc.clone())),
+            ("number", Column::U32(c.number.clone())),
+            ("parent", Column::U32(c.parent.clone())),
+            ("depth", Column::U32(c.depth.clone())),
         ],
     )?;
     write(

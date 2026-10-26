@@ -47,6 +47,12 @@ fn main() {
         }),
     );
     report("memory 256 B of .bss, random point", time(&mut |i| drop(e.memory(0x2000_0018, 256, i).unwrap())));
+    let mut depth = 0;
+    report(
+        "locate (source line + call stack)",
+        time(&mut |i| depth = depth.max(e.locate(i).unwrap().call_stack.len())),
+    );
+    println!("{:<40} {depth}", "deepest call stack seen");
     let pcs: Vec<u64> = points.iter().map(|&i| e.pc(i).unwrap().value.unwrap()).collect();
     report(
         "next execution of a PC (breakpoint)",
