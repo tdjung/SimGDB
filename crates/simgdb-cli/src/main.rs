@@ -44,6 +44,9 @@ enum Command {
         /// Stop at the first line that does not parse.
         #[arg(long)]
         strict: bool,
+        /// Site configuration (TOML): Tarmac notation, register aliases, memory regions, time map. See docs/USAGE.md.
+        #[arg(long)]
+        config: Option<PathBuf>,
         /// Memory for each index sort before it spills to disk (MiB); the index directory needs room for the spill.
         #[arg(long, default_value_t = 384)]
         sort_memory_mb: usize,
@@ -259,7 +262,23 @@ fn resolve(engine: &Engine, at: At) -> Result<u64, String> {
 
 fn run(cli: Cli) -> Result<(), String> {
     match cli.command {
-        Command::Index { trace, elf, out, isa, core, checkpoint_interval, report, mask, strict, sort_memory_mb } => {
+        Command::Index {
+            trace,
+            elf,
+            out,
+            isa,
+            core,
+            checkpoint_interval,
+            report,
+            mask,
+            strict,
+            config,
+            sort_memory_mb,
+        } => {
+            let config = match config {
+                Some(p) => Some(simgdb_store::config::SiteConfig::load(&p).map_err(|e| e.to_string())?),
+                None => None,
+            };
             let isa = simgdb_isa::by_name(&isa).ok_or_else(|| format!("unknown ISA {isa}"))?;
             let started = std::time::Instant::now();
             let meta = build(
@@ -273,6 +292,7 @@ fn run(cli: Cli) -> Result<(), String> {
                     mask_samples: mask,
                     strict,
                     sort_records: sort_memory_mb.max(1) * (1 << 20) / 24,
+                    config,
                     ..Default::default()
                 },
             )
@@ -334,9 +354,13 @@ fn run(cli: Cli) -> Result<(), String> {
                     }
                     vcd::Time::Cycles { period: n.parse().map_err(|_| format!("bad period {p}"))?, unit: u.into() }
                 }
+                (false, None, Some(simgdb_model::TimeUnit::Cycle(_))) if engine.time_map().is_some() => {
+                    vcd::Time::Map(engine.time_map().unwrap().clone())
+                }
                 (false, None, Some(simgdb_model::TimeUnit::Cycle(u))) => {
                     return Err(format!(
-                        "this trace is timed in cycles ({u}); give --cycle-period (e.g. 10ns) or --index-time"
+                        "this trace is timed in cycles ({u}); give --cycle-period (e.g. 10ns), a [time] map in the \
+                         index --config file, or --index-time"
                     ));
                 }
                 (false, Some(_), _) => return Err("--cycle-period is for traces timed in cycles".into()),

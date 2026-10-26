@@ -207,12 +207,22 @@ fn opcode(s: &str) -> Option<Option<u32>> {
     None
 }
 
+/// Site-specific notation (from the configuration file): record keywords
+/// read as known ones, and record keywords to ignore.
+#[derive(Clone, Debug, Default)]
+pub struct Notation {
+    /// e.g. `XW4` -> `MW4`.
+    pub record_aliases: std::collections::HashMap<String, String>,
+    pub ignore: std::collections::HashSet<String>,
+}
+
 #[derive(Default)]
 pub struct Parser {
     time: Option<u64>,
     unit: Option<TimeUnit>,
     /// Column where the address of the last LD/ST diagram started, and its type.
     continuation: Option<(usize, bool)>,
+    notation: Notation,
 }
 
 const IGNORED: &[&str] = &["BR", "CADI", "P", "CACHE", "TTW", "INFO_EXCEPTION_REASON", "SIGNAL", "INFO"];
@@ -220,6 +230,10 @@ const IGNORED: &[&str] = &["BR", "CADI", "P", "CACHE", "TTW", "INFO_EXCEPTION_RE
 impl Parser {
     pub fn new() -> Self {
         Parser::default()
+    }
+
+    pub fn with_notation(notation: Notation) -> Self {
+        Parser { notation, ..Default::default() }
     }
 
     pub fn parse(&mut self, raw: &str) -> Result<Line, ParseError> {
@@ -266,6 +280,11 @@ impl Parser {
             return Ok(self.line(core, Record::Blank));
         };
         let rest = &toks[i + 1..];
+        if self.notation.ignore.contains(kind.s) {
+            return Ok(self.line(core, Record::Ignored(kind.s.to_string())));
+        }
+        let kind_s = self.notation.record_aliases.get(kind.s).cloned();
+        let kind = Tok { s: kind_s.as_deref().unwrap_or(kind.s), pos: kind.pos };
         let record = match kind.s {
             "IT" | "IS" | "IF" => self.it(kind.s, rest)?,
             "ES" => self.es(line, rest)?,

@@ -125,3 +125,34 @@ fn cycle_traces_need_a_period() {
     assert!(!out.status.success());
     assert!(String::from_utf8_lossy(&out.stderr).contains("--cycle-period"));
 }
+
+#[test]
+fn time_map_from_the_config_matches_a_period() {
+    let dir = tempfile::tempdir().unwrap();
+    let config = dir.path().join("site.toml");
+    std::fs::write(&config, "[time]\nunit = \"ns\"\nsegments = [{ from_cycle = 0, time = 0, period = 10 }]\n").unwrap();
+    let trace = root().join("traces/state_m4.m4rtl.log.gz");
+    let (a, b) = (dir.path().join("a"), dir.path().join("b"));
+    let s = |p: &Path| p.to_str().unwrap().to_string();
+    simgdb(&["index", &s(&trace), "-o", &s(&a), "--config", &s(&config)]);
+    simgdb(&["index", &s(&trace), "-o", &s(&b)]);
+    let (va, vb) = (dir.path().join("a.vcd"), dir.path().join("b.vcd"));
+    simgdb(&["track", &s(&a), "-o", &s(&va)]);
+    simgdb(&["track", &s(&b), "-o", &s(&vb), "--cycle-period", "10ns"]);
+    let body = |p: &Path| {
+        std::fs::read_to_string(p)
+            .unwrap()
+            .lines()
+            .filter(|l| !l.starts_with("$comment"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+    assert_eq!(body(&va), body(&vb));
+    // A bad config is refused with the reason.
+    std::fs::write(&config, "[time]\nunit = \"cycles\"\nsegments = []\n").unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_simgdb"))
+        .args(["index", &s(&trace), "-o", &s(&dir.path().join("c")), "--config", &s(&config)])
+        .output()
+        .unwrap();
+    assert!(!out.status.success() && String::from_utf8_lossy(&out.stderr).contains("time map unit"));
+}

@@ -81,6 +81,11 @@ impl Engine {
         Ok(Engine { ds, isa })
     }
 
+    /// The time map from the site configuration, if any.
+    pub fn time_map(&self) -> Option<&simgdb_model::TimeMap> {
+        self.ds.meta.config.as_ref().and_then(|c| c.time.as_ref())
+    }
+
     pub fn isa(&self) -> &dyn Isa {
         self.isa.as_ref()
     }
@@ -139,7 +144,13 @@ impl Engine {
             (index < self.end()).then(|| self.ds.insn_time.get(index as usize)).filter(|&t| t != NONE).map(|value| {
                 SimTime { value, unit: self.ds.meta.capabilities.time_unit.clone().unwrap_or(TimeUnit::None) }
             });
-        Ok(Point { run: self.ds.meta.run, core: self.ds.meta.core, index, sim_time })
+        let time = match (&sim_time, self.ds.meta.config.as_ref().and_then(|c| c.time.as_ref())) {
+            (Some(SimTime { value, unit: TimeUnit::Cycle(_) }), Some(map)) => map
+                .time(*value)
+                .map(|v| simgdb_model::DerivedTime { value: v, unit: map.unit.clone(), source: "time_map".into() }),
+            _ => None,
+        };
+        Ok(Point { run: self.ds.meta.run, core: self.ds.meta.core, index, sim_time, time })
     }
 
     /// First point whose instruction time is at or after `time` (same unit as

@@ -15,6 +15,12 @@ simgdb index trace.log --elf firmware.elf -o trace.idx --report > report.json
   - `capabilities`: 이 trace로 할 수 있는 것(메모리 값, 소스 줄 등).
   - `exception_frames_unplaced`, `exceptions_inferred`: 예외 처리에서 추정이 들어간 횟수.
 - 멀티코어 trace는 `--core N`으로 한 코어씩 만듭니다.
+- **현장 설정 파일**(`--config simgdb.toml`, 예: `dist/simgdb.toml.example`): 실행 파일을 다시 만들지 않고 바꿀 수 있는 것들입니다.
+  - `[tarmac]` `record_aliases`(현장 레코드 이름 → 아는 이름), `ignore`(무시할 레코드 종류)
+  - `[registers]` `aliases`(trace 레지스터 이름 → SimGDB 이름)
+  - `[memory]` `volatile`(주변장치처럼 값을 믿을 수 없는 영역)
+  - `[time]` cycle → 절대 시간 표(구간별 주기). 있으면 시점마다 `time`(출처 `time_map`)이 붙고 `track`도 이 표를 씁니다.
+  보고서의 `unrecognised`, `unmodelled_registers`에 나온 이름은 대부분 여기서 해결됩니다. 설정은 인덱스에 함께 저장됩니다.
 - 메모리: 인덱서는 trace 길이와 관계없이 수백 MB 안에서 동작합니다. 정렬 메모리는 `--sort-memory-mb`(기본 384)로 조절하고,
   그만큼 디스크에 임시 파일을 씁니다. 인덱스 크기는 대략 trace의 1.5배이고, 만드는 동안 메모리 색인 크기만큼의 여유가 더 필요합니다.
 
@@ -192,8 +198,9 @@ VCD의 `sw` scope에 신호가 생깁니다.
 | `index` | 명령어 index(`simgdb-goto`에 그대로 씀) |
 | `mark_…` | `--mark`로 준 줄·함수·PC를 실행하는 동안 1 |
 
-- 시간 축은 trace에 기록된 시간 그대로입니다(ps, ns 등). cycle로 기록된 trace는 `--cycle-period`로 주기를 줘야 하고,
-  주지 않으면 거부합니다(조용히 바꾸지 않음). 주파수가 바뀌는 구간은 아직 다루지 않습니다. `--index-time`은 명령어 index를 시간으로 씁니다.
+- 시간 축은 trace에 기록된 시간 그대로입니다(ps, ns 등). cycle로 기록된 trace는 `--cycle-period`로 주기를 주거나 인덱스의
+  설정 파일에 `[time]` 표가 있어야 하고, 둘 다 없으면 거부합니다(조용히 바꾸지 않음). 주파수가 바뀌면 `[time]` 표에 구간을 나눠 적습니다.
+  `--index-time`은 명령어 index를 시간으로 씁니다.
 - 같은 시간에 명령어가 여럿이면 VCD에는 마지막 값만 보입니다(끝에 개수를 알려 줌).
 - GTKWave에서는 `function` 신호에 `sw.vcd.gtkw-filter`를 Translate Filter File로 걸면 함수 이름으로 보입니다.
   Verdi(nWave)에서는 번호로 보이며, 이름은 `.names.csv`를 참고합니다.

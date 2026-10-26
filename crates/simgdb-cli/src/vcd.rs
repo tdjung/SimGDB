@@ -14,6 +14,8 @@ pub enum Time {
     Cycles { period: u64, unit: String },
     /// The instruction index as time (1 ns per instruction).
     Index,
+    /// Recorded cycles through the configured time map.
+    Map(simgdb_model::TimeMap),
 }
 
 pub struct Summary {
@@ -79,6 +81,9 @@ pub fn write<W: Write>(
             (format!("1 {unit}"), format!("trace cycles x {period} {unit} (period given with --cycle-period)"))
         }
         Time::Index => ("1 ns".to_string(), "instruction index as time (1 ns per instruction), not real time".into()),
+        Time::Map(m) => {
+            (format!("1 {}", m.unit), format!("trace cycles through the time map ({} segments)", m.segments.len()))
+        }
     };
     writeln!(w, "$date simgdb track $end")?;
     writeln!(w, "$version simgdb {} $end", env!("CARGO_PKG_VERSION"))?;
@@ -98,6 +103,7 @@ pub fn write<W: Write>(
             Time::Trace { .. } => r.time,
             Time::Cycles { period, .. } => r.time.map(|t| t.saturating_mul(*period)),
             Time::Index => Some(r.index),
+            Time::Map(m) => r.time.and_then(|t| m.time(t)),
         };
         let Some(mut t) = t else { continue };
         match now {

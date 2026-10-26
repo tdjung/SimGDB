@@ -55,6 +55,62 @@ pub struct Point {
     /// Time stamp of instruction `index`; `None` at the end point or when the
     /// trace has no time stamps.
     pub sim_time: Option<SimTime>,
+    /// Absolute time derived from a cycle stamp through the configured time
+    /// map (D16); absent when there is no map.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub time: Option<DerivedTime>,
+}
+
+/// A time computed from a cycle count with the time map.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DerivedTime {
+    pub value: u64,
+    pub unit: String,
+    /// Always `time_map`: says the value is computed, not recorded.
+    pub source: String,
+}
+
+/// Piecewise map from cycle counts to time (frequency changes, clock
+/// gating): each segment holds from its `from_cycle` until the next one.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TimeMap {
+    /// Time unit of `time` and `period` (`fs`, `ps`, `ns`, `us`, `ms`, `s`).
+    pub unit: String,
+    pub segments: Vec<TimeSegment>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TimeSegment {
+    pub from_cycle: u64,
+    /// Time at `from_cycle`.
+    pub time: u64,
+    /// Time per cycle from here on.
+    pub period: u64,
+}
+
+impl TimeMap {
+    /// Checks the map is usable: a known unit and segments in cycle order.
+    pub fn validate(&self) -> Result<(), String> {
+        if !["fs", "ps", "ns", "us", "ms", "s"].contains(&self.unit.as_str()) {
+            return Err(format!("time map unit must be fs, ps, ns, us, ms or s, not {:?}", self.unit));
+        }
+        if self.segments.is_empty() {
+            return Err("time map has no segments".into());
+        }
+        if self.segments.windows(2).any(|w| w[0].from_cycle >= w[1].from_cycle) {
+            return Err("time map segments must be in increasing from_cycle order".into());
+        }
+        Ok(())
+    }
+
+    /// Time of `cycle`, or `None` before the first segment.
+    pub fn time(&self, cycle: u64) -> Option<u64> {
+        let k = self.segments.partition_point(|s| s.from_cycle <= cycle);
+        let s = self.segments.get(k.checked_sub(1)?)?;
+        Some(s.time + (cycle - s.from_cycle) * s.period)
+    }
 }
 
 /// Where a value came from (D5).

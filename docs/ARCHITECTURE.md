@@ -43,6 +43,7 @@ Step 3까지 고려한 구조입니다. 구현은 단계별로 하지만 §2의 
      표는 구간 목록 `(cycle 시작, 시각 시작, 주기)`이고 배율 하나가 아닙니다(주파수 변경, clock gating).
      표의 출처: 테스트벤치의 주파수 변경 기록, 사용자가 준 표, Step 2의 waveform–trace 자동 비교(D9).
      표가 없으면 `time`은 `unknown`이고 cycle 기준 기능은 그대로 동작합니다.
+     (구현: 설정 파일 `[time]`의 구간 목록. 시점에 `time{value, unit, source: "time_map"}`으로 붙고 `track`이 씁니다.)
    - Step 1은 run 하나, core 하나여도 모든 API가 이 형식을 씁니다.
 2. **인덱스형 저장소**: 재생(replay)이 아니라 테이블 + 역색인 + checkpoint.
    - AI 질의(`find_executions`, `last_write`)는 범위 전체를 훑으므로 재생 방식으로는 느립니다.

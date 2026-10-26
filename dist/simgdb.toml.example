@@ -1,0 +1,25 @@
+# SimGDB 현장 설정 파일 예 (simgdb index --config simgdb.toml)
+# 필요한 부분만 남기고 지우세요. 모르는 키는 오류로 알려 줍니다(오타 방지).
+
+[tarmac]
+# 현장 trace의 레코드 이름을 SimGDB가 아는 이름으로 읽습니다(report.json의 unrecognised에 나온 것).
+# 예: XW4 줄을 4바이트 메모리 쓰기(MW4)로 읽기
+record_aliases = { XW4 = "MW4" }
+# 상태에 영향이 없는 레코드 종류(무시하고 ignored로 셈)
+ignore = ["CSR"]
+
+[registers]
+# trace의 레지스터 이름(대소문자 무시) -> SimGDB 레지스터 이름(report.json의 unmodelled_registers에 나온 것)
+aliases = { sp_main = "msp", sp_process = "psp" }
+
+[memory]
+# 코어 접근 없이 값이 바뀌는 영역(주변장치). 주면 기본값(0x40000000-0x60000000, 0xA0000000 이상)을 대신합니다.
+volatile = [[0x40000000, 0x60000000], [0xA0000000, 0x100000000]]
+
+[time]
+# 시간이 cycle로 기록된 trace의 절대 시간: 구간마다 (시작 cycle, 그때 시각, 주기). 주파수가 바뀌면 구간을 나눕니다.
+unit = "ns"
+segments = [
+  { from_cycle = 0, time = 0, period = 10 },
+  # { from_cycle = 2000000, time = 20000000, period = 20 },
+]

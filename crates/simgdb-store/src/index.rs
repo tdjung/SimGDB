@@ -31,6 +31,8 @@ pub struct IndexOptions {
     pub batch_rows: usize,
     /// Records an index sort holds in memory before spilling a run to disk.
     pub sort_records: usize,
+    /// Site configuration (notation, register aliases, memory regions, time map).
+    pub config: Option<crate::config::SiteConfig>,
 }
 
 impl Default for IndexOptions {
@@ -45,6 +47,7 @@ impl Default for IndexOptions {
             strict: false,
             batch_rows: crate::table::BATCH,
             sort_records: 16 << 20,
+            config: None,
         }
     }
 }
@@ -257,7 +260,13 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
     let mut report = Report { time_monotonic: true, ..Default::default() };
     let mut state = RegState::new(nregs);
     let mut last_write_row = vec![NONE; nregs];
-    let mut parser = Parser::new();
+    if let Some(c) = &opts.config {
+        c.validate(isa).map_err(StoreError::Trace)?;
+    }
+    let mut parser = match &opts.config {
+        Some(c) => Parser::with_notation(c.notation()),
+        None => Parser::new(),
+    };
     let mut core = opts.core;
     let mut current_core: Option<u32> = None;
     let mut pending: Option<PendingEntry> = None;
@@ -360,7 +369,11 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
                 report.instructions += 1;
             }
             Record::Register(r) => {
-                let name = TraceRegName { name: &r.name, bank: r.bank.as_deref() };
+                let aliased = opts.config.as_ref().and_then(|c| c.register_alias(&r.name));
+                let name = match aliased {
+                    Some(to) => TraceRegName { name: to, bank: None },
+                    None => TraceRegName { name: &r.name, bank: r.bank.as_deref() },
+                };
                 let Some(reg) = isa.lookup(&name) else {
                     *report.unmodelled_registers.entry(r.name.to_ascii_lowercase()).or_default() += 1;
                     continue;
@@ -490,7 +503,10 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
         instructions,
         checkpoint_interval: opts.checkpoint_interval,
         registers: isa.registers().iter().map(|r| r.name.to_string()).collect(),
-        volatile_regions: isa.volatile_regions().to_vec(),
+        volatile_regions: match opts.config.as_ref().and_then(|c| c.memory.volatile.as_ref()) {
+            Some(v) => v.iter().map(|r| (r[0], r[1])).collect(),
+            None => isa.volatile_regions().to_vec(),
+        },
         capabilities: Capabilities {
             register_writes: report.register_writes > 0,
             memory_values: report.memory_reads + report.memory_writes > 0,
@@ -502,6 +518,7 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
             source_lines: report.sources.instructions > 0,
         },
         report,
+        config: opts.config.clone(),
     };
     let db_path = opts.out.join("meta.sqlite");
     let _ = std::fs::remove_file(&db_path);

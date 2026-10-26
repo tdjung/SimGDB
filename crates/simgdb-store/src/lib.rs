@@ -21,6 +21,7 @@
 
 pub mod annotations;
 pub mod calls;
+pub mod config;
 mod index;
 pub mod sort;
 pub mod sources;
@@ -165,6 +166,9 @@ pub struct Meta {
     pub volatile_regions: Vec<(u64, u64)>,
     pub capabilities: Capabilities,
     pub report: Report,
+    /// The site configuration the index was built with.
+    #[serde(default)]
+    pub config: Option<config::SiteConfig>,
 }
 
 /// A dataset opened for reading.
