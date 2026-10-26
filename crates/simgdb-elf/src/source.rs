@@ -163,6 +163,14 @@ pub fn listing(bytes: &[u8]) -> Result<Listing, ElfError> {
 
 /// Attribute every instruction of the ELF code.
 pub fn attribute(path: &Path) -> Result<BTreeMap<u64, Attribution>, ElfError> {
+    attribute_with_problems(path).map(|(s, _)| s)
+}
+
+/// Like `attribute`, but debug information that cannot be read does not
+/// stop it: those addresses fall back to the symbol table, and the problems
+/// are returned (first few, with counts) for the report.
+pub fn attribute_with_problems(path: &Path) -> Result<(BTreeMap<u64, Attribution>, Vec<String>), ElfError> {
+    let mut problems = Problems::default();
     let bytes = std::fs::read(path).map_err(|e| ElfError::Io(path.display().to_string(), e))?;
     let listing = listing(&bytes)?;
     let file = object::File::parse(&*bytes)?;
@@ -172,12 +180,30 @@ pub fn attribute(path: &Path) -> Result<BTreeMap<u64, Attribution>, ElfError> {
         .map(|s| (s.address() & !1, s.size(), s.name().unwrap_or("").to_string()))
         .collect();
     functions.sort();
-    let loader = addr2line::Loader::new(path).map_err(|e| ElfError::Dwarf(e.to_string()))?;
+    let loader = match addr2line::Loader::new(path) {
+        Ok(l) => Some(l),
+        Err(e) => {
+            problems.add(format!("line table and inline frames not read ({e}); functions come from symbols"));
+            None
+        }
+    };
     let mut sources = BTreeMap::new();
     for &pc in &listing.pcs {
         let mut frames = Vec::new();
-        if let Ok(mut iter) = loader.find_frames(pc) {
-            while let Ok(Some(f)) = iter.next() {
+        let found = loader.as_ref().map(|l| l.find_frames(pc));
+        if let Some(Err(e)) = &found {
+            problems.add(format!("source lookup failed at some addresses: {e}"));
+        }
+        if let Some(Ok(mut iter)) = found {
+            loop {
+                let f = match iter.next() {
+                    Ok(Some(f)) => f,
+                    Ok(None) => break,
+                    Err(e) => {
+                        problems.add(format!("inline frames cut short at some addresses: {e}"));
+                        break;
+                    }
+                };
                 let function = f.function.as_ref().and_then(|n| n.demangle().ok()).map(|n| n.into_owned());
                 let (file, line) = match &f.location {
                     Some(l) => (known(l.file), l.line.unwrap_or(0)),
@@ -212,7 +238,26 @@ pub fn attribute(path: &Path) -> Result<BTreeMap<u64, Attribution>, ElfError> {
         );
     }
     place_line_zero(&mut sources, &listing);
-    Ok(sources)
+    Ok((sources, problems.list()))
+}
+
+/// Distinct problem messages with how often each happened.
+#[derive(Default)]
+pub struct Problems(Vec<(String, u64)>);
+
+impl Problems {
+    pub fn add(&mut self, msg: String) {
+        let len = self.0.len();
+        match self.0.iter_mut().find(|(m, _)| *m == msg) {
+            Some((_, n)) => *n += 1,
+            None if len < 10 => self.0.push((msg, 1)),
+            None => {}
+        }
+    }
+
+    pub fn list(self) -> Vec<String> {
+        self.0.into_iter().map(|(m, n)| if n > 1 { format!("{m} (x{n})") } else { m }).collect()
+    }
 }
 
 /// The nearest function symbol at or below `pc`, as binutils addr2line

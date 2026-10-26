@@ -14,6 +14,8 @@ simgdb index trace.log --elf firmware.elf -o trace.idx --report > report.json
   - `unrecognised`: 해석하지 못한 줄 종류와 샘플. 비어 있어야 정상입니다.
   - `capabilities`: 이 trace로 할 수 있는 것(메모리 값, 소스 줄 등).
   - `exception_frames_unplaced`, `exceptions_inferred`: 예외 처리에서 추정이 들어간 횟수.
+  - `sources.problems`: ELF 디버그 정보 중 읽지 못한 부분. 인덱싱은 계속되고, 읽은 부분만 씁니다
+    (못 읽은 곳의 함수 이름은 심볼 표에서 가져옴).
 - 멀티코어 trace는 `--core N`으로 한 코어씩 만듭니다.
 - **현장 설정 파일**(`--config simgdb.toml`, 예: `dist/simgdb.toml.example`): 실행 파일을 다시 만들지 않고 바꿀 수 있는 것들입니다.
   - `[tarmac]` `record_aliases`(현장 레코드 이름 → 아는 이름), `ignore`(무시할 레코드 종류)

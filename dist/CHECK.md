@@ -57,6 +57,8 @@ du -sh real.idx
   - `capabilities`에서 `register_writes`, `memory_writes`, `exceptions`, `exception_stacking_writes`, `time_unit`을 확인합니다.
   - `unmodelled_registers`는 SimGDB가 아직 다루지 않는 레지스터 이름입니다(FPU 등).
 - 전달 부탁: `report.json`, `time` 결과, `du -sh` 결과.
+- `report.sources.problems`가 있으면 ELF 디버그 정보 일부를 못 읽은 것입니다. 다음 출력도 함께 알려 주세요:
+  `arm-none-eabi-readelf -p .comment firmware.elf`, `arm-none-eabi-readelf -S firmware.elf | grep -i debug`.
 - `unrecognised`나 `unmodelled_registers`에 이름이 나오면, 새 실행 파일 없이 설정 파일로 고칠 수 있는 경우가 많습니다
   (`simgdb.toml.example` 참고: 레코드 이름 바꾸기·무시, 레지스터 이름 바꾸기). 고친 설정으로 `--config simgdb.toml`을 붙여
   다시 인덱싱하고 `report.json`을 다시 봅니다. 어떤 이름을 무엇으로 바꿨는지도 알려 주세요.

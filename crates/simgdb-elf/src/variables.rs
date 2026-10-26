@@ -619,23 +619,61 @@ impl<'a> Reader_<'a, '_> {
 
 /// Every fixed-address variable of the ELF, sorted by name then address.
 pub fn variables(path: &Path) -> Result<Variables, ElfError> {
+    variables_with_problems(path).map(|(v, _)| v)
+}
+
+/// Like `variables`, but a compile unit that cannot be read is skipped (and
+/// reported) instead of failing the whole ELF.
+pub fn variables_with_problems(path: &Path) -> Result<(Variables, Vec<String>), ElfError> {
+    let mut problems = crate::source::Problems::default();
     let bytes = std::fs::read(path).map_err(|e| ElfError::Io(path.display().to_string(), e))?;
     let file = object::File::parse(&*bytes)?;
-    let sections: HashMap<&str, std::borrow::Cow<[u8]>> =
-        file.sections().filter_map(|s| Some((s.name().ok()?, s.uncompressed_data().ok()?))).collect();
+    let little = file.is_little_endian();
+    // `.zdebug_*` (GNU-style compressed) holds the same as `.debug_*`.
+    let sections: HashMap<String, std::borrow::Cow<[u8]>> = file
+        .sections()
+        .filter_map(|s| {
+            let name = s.name().ok()?;
+            let name = match name.strip_prefix(".zdebug_") {
+                Some(rest) => format!(".debug_{rest}"),
+                None => name.to_string(),
+            };
+            Some((name, s.uncompressed_data().ok()?))
+        })
+        .collect();
     let empty: &[u8] = &[];
+    if !little {
+        problems.add("big-endian ELF: variables are not read".into());
+        return Ok((Variables::default(), problems.list()));
+    }
     let load = |id: gimli::SectionId| -> Result<R<'_>, gimli::Error> {
         let data = sections.get(id.name()).map(|d| d.as_ref()).unwrap_or(empty);
         Ok(gimli::EndianSlice::new(data, gimli::LittleEndian))
     };
-    let dwarf = gimli::Dwarf::load(load).map_err(|e| ElfError::Dwarf(e.to_string()))?;
+    let dwarf = match gimli::Dwarf::load(load) {
+        Ok(d) => d,
+        Err(e) => {
+            problems.add(format!("variables not read: {e}"));
+            return Ok((Variables::default(), problems.list()));
+        }
+    };
     let mut r = Reader_ { dwarf: &dwarf, out: Variables::default(), ids: HashMap::new() };
     let mut units = dwarf.units();
-    while let Some(header) = units.next().map_err(|e| ElfError::Dwarf(e.to_string()))? {
-        let unit = dwarf.unit(header).map_err(|e| ElfError::Dwarf(e.to_string()))?;
-        r.unit(&unit);
+    loop {
+        let header = match units.next() {
+            Ok(Some(h)) => h,
+            Ok(None) => break,
+            Err(e) => {
+                problems.add(format!("compile units after a damaged or unsupported one were not read: {e}"));
+                break;
+            }
+        };
+        match dwarf.unit(header) {
+            Ok(unit) => r.unit(&unit),
+            Err(e) => problems.add(format!("a compile unit was skipped: {e}")),
+        }
     }
     r.out.variables.sort_by(|a, b| (&a.name, a.addr).cmp(&(&b.name, b.addr)));
     r.out.variables.dedup_by(|a, b| a.name == b.name && a.addr == b.addr);
-    Ok(r.out)
+    Ok((r.out, problems.list()))
 }

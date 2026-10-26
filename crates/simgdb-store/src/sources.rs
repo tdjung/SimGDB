@@ -13,7 +13,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
-use simgdb_elf::source::{Placement, attribute};
+use simgdb_elf::source::{Placement, attribute_with_problems};
 use simgdb_elf::variables::Variables;
 
 use crate::StoreError;
@@ -40,6 +40,9 @@ pub struct SourceSummary {
     /// Fixed-address variables read from DWARF.
     #[serde(default)]
     pub variables: u64,
+    /// Debug information that could not be read (the rest was used).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub problems: Vec<String>,
 }
 
 #[derive(Default)]
@@ -61,7 +64,7 @@ impl Strings {
 }
 
 pub fn write(elf: &Path, out: &Path) -> Result<SourceSummary, StoreError> {
-    let attributions = attribute(elf)?;
+    let (attributions, mut problems) = attribute_with_problems(elf)?;
     let mut strings = Strings::default();
     let (mut pc, mut file, mut function, mut line, mut placement, mut start, mut count) =
         (vec![], vec![], vec![], vec![], vec![], vec![], vec![]);
@@ -91,7 +94,9 @@ pub fn write(elf: &Path, out: &Path) -> Result<SourceSummary, StoreError> {
         .map(|s| SymbolEntry { name: s.name, addr: s.addr, size: s.size, function: s.is_function })
         .collect();
     write_json(out, "symbols.json", &symbols)?;
-    let variables = simgdb_elf::variables::variables(elf)?;
+    let (variables, var_problems) = simgdb_elf::variables::variables_with_problems(elf)?;
+    problems.extend(var_problems);
+    summary.problems = problems;
     summary.variables = variables.variables.len() as u64;
     write_variables(out, &variables)?;
     Ok(summary)

@@ -121,6 +121,12 @@ impl Engine {
         if matches!(c.time_unit, Some(TimeUnit::Cycle(_))) {
             limitations.push("time stamps are cycles: absolute time needs a time map (not given)".into());
         }
+        if !m.report.sources.problems.is_empty() {
+            limitations.push(format!(
+                "debug information partly unreadable (source lines/variables may be missing): {}",
+                m.report.sources.problems.join("; ")
+            ));
+        }
         if !m.report.registers_never_written.is_empty() {
             limitations.push(format!("never written, always unknown: {}", m.report.registers_never_written.join(", ")));
         }

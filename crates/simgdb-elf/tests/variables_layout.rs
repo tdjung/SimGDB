@@ -33,3 +33,19 @@ fn layouts_match_gdb_for_each_dwarf_version() {
         assert!(vars.resolve("gs.in[0x4000000000000000]").is_err(), "no wrap-around");
     }
 }
+
+/// Damaged or unsupported debug information must not stop indexing: what
+/// can be read is used and the problems are reported. (damaged_dwarf.elf is
+/// layout_dwarf4.elf with a compile unit header that runs past the end of
+/// .debug_info, which made `simgdb index` fail with "Hit the end of input".)
+#[test]
+fn damaged_debug_information_is_reported_not_fatal() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/variables");
+    let elf = root.join("elf/damaged_dwarf.elf");
+    let (_, problems) = simgdb_elf::variables::variables_with_problems(&elf).unwrap();
+    assert!(problems.iter().any(|p| p.contains("end of input")), "{problems:?}");
+    let (sources, problems) = simgdb_elf::source::attribute_with_problems(&elf).unwrap();
+    assert!(!problems.is_empty());
+    // Functions still come from the symbol table.
+    assert!(sources.values().any(|a| a.function == "use"), "{:?}", sources.values().next());
+}
