@@ -1,0 +1,112 @@
+Reset_Handler () at startup.c:11
+11	    while (dst < &__data_end) *dst++ = *src++;
+Breakpoint 1 at 0xe0: file state.c, line 58.
+
+Breakpoint 1, build_list (n=6) at state.c:58
+58	    head = 0;
+Hardware watchpoint 2: head
+
+Hardware watchpoint 2: head
+
+Old value = (struct record *) 0x0 <vectors>
+New value = (struct record *) 0x20000098 <pool+120>
+0x00000164 in build_list (n=6) at state.c:68
+68	}
+=== watch_1
+r0             0x3dee7b20          1039039264
+r1             0x1                 1
+r2             0x200000b0          536871088
+r3             0x20000098          536871064
+r4             0x20000098          536871064
+r5             0x350               848
+r6             0x20000018          536870936
+r7             0x12                18
+r8             0x12345678          305419896
+r9             0x200000b0          536871088
+r10            0x6                 6
+r11            0x12                18
+r12            0x0                 0
+sp             0x2000ffa0          0x2000ffa0
+lr             0x12                18
+pc             0x164               0x164 <build_list+132>
+xpsr           0x61000000          1627389952
+msp            0x2000ffa0          536936352
+psp            0x0                 0
+control        0x0                 0
+#0  0x00000164 in build_list (n=6) at state.c:68
+#1  0x00000292 in work (round=0) at state.c:139
+#2  0x000002d6 in main () at state.c:157
+n = 6
+No locals.
+=== /
+
+Hardware watchpoint 2: head
+
+Old value = (struct record *) 0x20000098 <pool+120>
+New value = (struct record *) 0x0 <vectors>
+build_list (n=6) at state.c:59
+59	    for (int i = 0; i < n; i++) {
+=== watch_2
+r0             0x6                 6
+r1             0x88e715be          -1998121538
+r2             0x338               824
+r3             0x0                 0
+r4             0x1                 1
+r5             0x271e8f77          656314231
+r6             0x20000018          536870936
+r7             0x0                 0
+r8             0x0                 0
+r9             0x0                 0
+r10            0x6                 6
+r11            0x0                 0
+r12            0xc8                200
+sp             0x2000ffa0          0x2000ffa0
+lr             0x293               659
+pc             0xf0                0xf0 <build_list+16>
+xpsr           0x21000000          553648128
+msp            0x2000ffa0          536936352
+psp            0x0                 0
+control        0x0                 0
+#0  build_list (n=6) at state.c:59
+#1  0x00000292 in work (round=1) at state.c:139
+#2  0x000002d6 in main () at state.c:157
+n = 6
+i = 0
+=== /
+
+Hardware watchpoint 2: head
+
+Old value = (struct record *) 0x0 <vectors>
+New value = (struct record *) 0x20000098 <pool+120>
+0x00000164 in build_list (n=6) at state.c:68
+68	}
+=== watch_3
+r0             0x3dee7b20          1039039264
+r1             0x1                 1
+r2             0x200000b0          536871088
+r3             0x20000098          536871064
+r4             0x20000098          536871064
+r5             0x350               848
+r6             0x20000018          536870936
+r7             0x12                18
+r8             0x12345678          305419896
+r9             0x200000b0          536871088
+r10            0x6                 6
+r11            0x12                18
+r12            0xc8                200
+sp             0x2000ffa0          0x2000ffa0
+lr             0x12                18
+pc             0x164               0x164 <build_list+132>
+xpsr           0x61000000          1627389952
+msp            0x2000ffa0          536936352
+psp            0x0                 0
+control        0x0                 0
+#0  0x00000164 in build_list (n=6) at state.c:68
+#1  0x00000292 in work (round=1) at state.c:139
+#2  0x000002d6 in main () at state.c:157
+n = 6
+No locals.
+=== /
+Num     Type           Disp Enb Address    What
+2       hw watchpoint  keep y              head
+	breakpoint already hit 3 times

@@ -35,10 +35,12 @@ use gdbstub::target::ext::base::singlethread::{
     SingleThreadBase, SingleThreadRangeStepping, SingleThreadRangeSteppingOps, SingleThreadResume,
     SingleThreadResumeOps, SingleThreadSingleStep, SingleThreadSingleStepOps,
 };
-use gdbstub::target::ext::breakpoints::{Breakpoints, BreakpointsOps, SwBreakpoint, SwBreakpointOps};
+use gdbstub::target::ext::breakpoints::{
+    Breakpoints, BreakpointsOps, HwWatchpoint, HwWatchpointOps, SwBreakpoint, SwBreakpointOps, WatchKind,
+};
 use gdbstub::target::ext::monitor_cmd::{ConsoleOutput, MonitorCmd, MonitorCmdOps, outputln};
 use gdbstub::target::{Target, TargetError, TargetResult};
-use simgdb_engine::Engine;
+use simgdb_engine::{Access, Engine, Watch};
 use simgdb_model::TimeUnit;
 
 /// Register file layout for the GDB connection, taken from the ISA once.
@@ -136,6 +138,9 @@ pub struct Session {
     /// Current point.
     index: u64,
     breakpoints: BTreeSet<u64>,
+    /// GDB's hardware watchpoints (`watch`, `rwatch`, `awatch`): address,
+    /// length, kind. They fire on accesses recorded in the trace.
+    watchpoints: Vec<(u64, u64, WatchKind)>,
     resume: Option<Resume>,
     /// Bookmarks shared with MCP clients (absent if it could not be opened).
     annotations: Option<simgdb_store::annotations::Annotations>,
@@ -198,7 +203,15 @@ impl Session {
             .collect();
         let big_endian = engine.endian() == simgdb_isa::Endian::Big;
         let _ = LAYOUT.set(Layout { xml, regs, big_endian });
-        Session { engine, index: 0, breakpoints: BTreeSet::new(), resume: None, annotations: None, end_as_pause: false }
+        Session {
+            engine,
+            index: 0,
+            breakpoints: BTreeSet::new(),
+            watchpoints: Vec::new(),
+            resume: None,
+            annotations: None,
+            end_as_pause: false,
+        }
     }
 
     /// Report reaching either end of the trace as a plain stop (SIGTRAP, as
@@ -252,10 +265,33 @@ impl Session {
             (at_end, at_begin)
         };
         let bps: Vec<u64> = self.breakpoints.iter().copied().collect();
+        let watches: Vec<Watch> = self
+            .watchpoints
+            .iter()
+            .map(|&(addr, len, kind)| Watch {
+                addr,
+                len,
+                read: kind != WatchKind::Write,
+                write: kind != WatchKind::Read,
+            })
+            .collect();
+        // GDB on Arm treats watchpoints as non-steppable: the target stops
+        // before the accessing instruction, and GDB itself steps over it
+        // (watchpoints removed) and then compares the old and new values.
+        // Backward, the mirror image: stop after the instruction, and
+        // GDB's reverse step undoes it.
+        let access = |forward: bool| -> Option<Access> {
+            if watches.is_empty() { None } else { self.engine.next_access(&watches, self.index, forward) }
+        };
+        let watch_stop =
+            |a: Access| BaseStopReason::Watch { tid: (), kind: self.watchpoints[a.watch].2, addr: a.addr as u32 };
         match self.resume.take().unwrap_or(Resume::Step) {
             Resume::Step => {
                 if self.index >= self.last() {
                     return at_end;
+                }
+                if let Some(a) = access(true).filter(|a| a.instruction == self.index) {
+                    return watch_stop(a);
                 }
                 self.index += 1;
                 BaseStopReason::DoneStep
@@ -264,12 +300,20 @@ impl Session {
                 if self.index == 0 {
                     return at_begin;
                 }
+                if let Some(a) = access(false).filter(|a| a.instruction + 1 == self.index) {
+                    return watch_stop(a);
+                }
                 self.index -= 1;
                 BaseStopReason::DoneStep
             }
             Resume::Range(start, end) => {
+                let hit = access(true);
                 let mut i = self.index;
                 loop {
+                    if let Some(a) = hit.filter(|a| a.instruction == i) {
+                        self.index = i;
+                        return watch_stop(a);
+                    }
                     if i >= self.last() {
                         self.index = self.last();
                         return at_end;
@@ -283,26 +327,41 @@ impl Session {
                     }
                 }
             }
-            Resume::Continue => match self.engine.next_execution(&bps, self.index, true) {
-                Some(i) if i <= self.last() => {
-                    self.index = i;
-                    BaseStopReason::SwBreak(())
+            Resume::Continue => {
+                let bp = self.engine.next_execution(&bps, self.index, true).filter(|&i| i <= self.last());
+                // A breakpoint fires before an access by the same instruction.
+                match (bp, access(true).filter(|a| a.instruction <= self.last())) {
+                    (_, Some(a)) if bp.is_none_or(|b| a.instruction < b) => {
+                        self.index = a.instruction;
+                        watch_stop(a)
+                    }
+                    (Some(i), _) => {
+                        self.index = i;
+                        BaseStopReason::SwBreak(())
+                    }
+                    _ => {
+                        self.index = self.last();
+                        cont_end
+                    }
                 }
-                _ => {
-                    self.index = self.last();
-                    cont_end
+            }
+            Resume::ReverseContinue => {
+                let bp = self.engine.next_execution(&bps, self.index, false);
+                match (bp, access(false)) {
+                    (_, Some(a)) if bp.is_none_or(|b| a.instruction >= b) => {
+                        self.index = a.instruction + 1;
+                        watch_stop(a)
+                    }
+                    (Some(i), _) => {
+                        self.index = i;
+                        BaseStopReason::SwBreak(())
+                    }
+                    _ => {
+                        self.index = 0;
+                        cont_begin
+                    }
                 }
-            },
-            Resume::ReverseContinue => match self.engine.next_execution(&bps, self.index, false) {
-                Some(i) => {
-                    self.index = i;
-                    BaseStopReason::SwBreak(())
-                }
-                None => {
-                    self.index = 0;
-                    cont_begin
-                }
-            },
+            }
         }
     }
 
@@ -457,6 +516,22 @@ impl ReverseCont<()> for Session {
 impl Breakpoints for Session {
     fn support_sw_breakpoint(&mut self) -> Option<SwBreakpointOps<'_, Self>> {
         Some(self)
+    }
+
+    fn support_hw_watchpoint(&mut self) -> Option<HwWatchpointOps<'_, Self>> {
+        Some(self)
+    }
+}
+
+impl HwWatchpoint for Session {
+    fn add_hw_watchpoint(&mut self, addr: u32, len: u32, kind: WatchKind) -> TargetResult<bool, Self> {
+        self.watchpoints.push((addr as u64, len as u64, kind));
+        Ok(true)
+    }
+
+    fn remove_hw_watchpoint(&mut self, addr: u32, len: u32, kind: WatchKind) -> TargetResult<bool, Self> {
+        let found = self.watchpoints.iter().position(|&w| w == (addr as u64, len as u64, kind));
+        Ok(found.map(|k| self.watchpoints.remove(k)).is_some())
     }
 }
 

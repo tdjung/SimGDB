@@ -140,7 +140,7 @@ Step 0-2 평가 결과에 따라 범위를 조정합니다(상용 도구가 충�
   **통과 run과 실패 run의 첫 분기점(first divergence)** 찾기.
 - **멀티코어**: core별 trace, 시뮬레이션 시간 기준 전체 순서, 공유 메모리 쓰기 추적.
 - **SW+HW 조건**: `find_first(line == X && signal("irq") == 1)`, 조건부 breakpoint에 HW 신호.
-- **watchpoint**: 질의 기반(`writes_to`)을 GDB `Z2`/`Z3`/`Z4`로도 제공.
+- ~~**watchpoint**: 질의 기반(`writes_to`)을 GDB `Z2`/`Z3`/`Z4`로도 제공.~~ 사용자 요청으로 앞당겨 구현함(`watch`/`rwatch`/`awatch`, 역방향 포함).
 - **연동**: tarmac_to_cachegrind의 coverage index·branch coverage, performance_profiler 화면과 연결
   (예: never 분기 클릭 → 그 분기를 탈 뻔한 run과 시점).
 - **서버 측 AI 분석**: Undo `explain`과 같은 분석 에이전트, 회귀 실패 자동 분류, 보고서.

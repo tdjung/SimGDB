@@ -92,6 +92,8 @@ fn packets() {
         },
     )
     .unwrap();
+    let check = Engine::open(dir.path()).unwrap();
+    let (ticks, seed) = (check.variable("ticks").unwrap().addr, check.variable("seed").unwrap().addr);
     let notes = simgdb_store::annotations::Annotations::open(&dir.path().join("annotations.sqlite")).unwrap();
     let mut session = simgdb_gdb::Session::new(Engine::open(dir.path()).unwrap()).with_annotations(notes);
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
@@ -179,8 +181,50 @@ fn packets() {
     let end = c.send("vCont;c");
     assert!(end.contains("replaylog:end"), "{end}");
 
+    watchpoints(&mut c, &check, ticks, seed);
+
     c.send("D");
     server.join().unwrap();
+}
+
+fn index_of(c: &mut Client) -> u64 {
+    let t = c.monitor("time");
+    t.split_whitespace().nth(1).and_then(|n| n.parse().ok()).unwrap_or_else(|| panic!("{t}"))
+}
+
+/// Z2/Z3: the stop comes before the accessing instruction (GDB on Arm steps
+/// over it itself), going backward after it. Checked against the engine's
+/// own write records of the same index.
+fn watchpoints(c: &mut Client, check: &Engine, ticks: u64, seed: u64) {
+    let writes = |from: u64, to: u64| -> Vec<u64> {
+        let range = simgdb_engine::Range { from, to };
+        let page = check.writes_to(ticks, 4, range, 100, 0).unwrap().writes;
+        page.items.iter().filter(|w| w.kind == "write").map(|w| w.written_by).collect()
+    };
+    c.monitor("goto 100");
+    assert_eq!(c.send(&format!("Z2,{ticks:x},4")), "OK");
+    let stop = c.send("vCont;c");
+    assert!(stop.starts_with("T05") && stop.contains(&format!("watch:{ticks:x}")), "{stop}");
+    let i = index_of(c);
+    assert_eq!(writes(100, i), vec![i], "the first write after index 100 is by instruction {i}");
+    // A step with the watchpoint in place stops at the access again.
+    assert!(c.send("vCont;s").contains("watch:"));
+    assert_eq!(index_of(c), i);
+    // GDB removes it to step over.
+    assert_eq!(c.send(&format!("z2,{ticks:x},4")), "OK");
+    c.send("vCont;s");
+    assert_eq!(index_of(c), i + 1);
+    // Backward: the stop is after the access, here at once.
+    assert_eq!(c.send(&format!("Z2,{ticks:x},4")), "OK");
+    assert!(c.send("bc").contains("watch:"));
+    assert_eq!(index_of(c), i + 1);
+    assert_eq!(c.send(&format!("z2,{ticks:x},4")), "OK");
+    // Read watchpoint on `seed` (read, never written after startup).
+    assert_eq!(c.send(&format!("Z3,{seed:x},4")), "OK");
+    let stop = c.send("vCont;c");
+    assert!(stop.contains(&format!("rwatch:{seed:x}")), "{stop}");
+    assert!(index_of(c) > i);
+    assert_eq!(c.send(&format!("z3,{seed:x},4")), "OK");
 }
 
 fn hex(s: &str) -> String {

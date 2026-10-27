@@ -1,0 +1,253 @@
+Reset_Handler () at startup.c:11
+11	    while (dst < &__data_end) *dst++ = *src++;
+Breakpoint 1 at 0x100000e8: file state.c, line 58.
+
+Breakpoint 1, build_list (n=6) at state.c:58
+58	    head = 0;
+Hardware read watchpoint 2: seed
+
+Hardware read watchpoint 2: seed
+
+Value = 305419896
+0x10000112 in build_list (n=6) at state.c:63
+63	        r->value = mix(seed, table[i]);
+=== rwatch_1
+r0             0x6                 6
+r1             0x7                 7
+r2             0x0                 0
+r3             0x0                 0
+r4             0x0                 0
+r5             0x0                 0
+r6             0x38000018          939524120
+r7             0x12                18
+r8             0x12345678          305419896
+r9             0x38000004          939524100
+r10            0x6                 6
+r11            0x0                 0
+r12            0x0                 0
+sp             0x3800ffa0          0x3800ffa0
+lr             0xc                 12
+pc             0x10000112          0x10000112 <build_list+42>
+xpsr           0x21000000          553648128
+msp            0x3800ffa0          939589536
+psp            0x0                 0
+control        0x0                 0
+#0  0x10000112 in build_list (n=6) at state.c:63
+#1  0x100002a2 in work (round=0) at state.c:139
+#2  0x100002e6 in main () at state.c:157
+n = 6
+r = <optimized out>
+i = 0
+=== /
+
+Hardware read watchpoint 2: seed
+
+Value = 305419896
+0x1000025c in SysTick_Handler () at state.c:111
+111	    uint32_t t = ++ticks;
+=== rwatch_2
+r0             0x0                 0
+r1             0x12345678          305419896
+r2             0x38000050          939524176
+r3             0x38000000          939524096
+r4             0x38000018          939524120
+r5             0x10000354          268436308
+r6             0x38000018          939524120
+r7             0x12                18
+r8             0x12345678          305419896
+r9             0x3800000a          939524106
+r10            0x38000038          939524152
+r11            0x9                 9
+r12            0x0                 0
+sp             0x3800ff78          0x3800ff78
+lr             0xfffffff9          -7
+pc             0x1000025c          0x1000025c <SysTick_Handler+12>
+xpsr           0x8100000f          -2130706417
+msp            0x3800ff78          939589496
+psp            0x0                 0
+control        0x0                 0
+#0  0x1000025c in SysTick_Handler () at state.c:111
+#1  <signal handler called>
+#2  build_list (n=6) at state.c:63
+#3  0x100002a2 in work (round=0) at state.c:139
+#4  0x100002e6 in main () at state.c:157
+No arguments.
+t = <optimized out>
+=== /
+Hardware access (read/write) watchpoint 3: svc_calls
+
+Hardware access (read/write) watchpoint 3: svc_calls
+
+Value = 0
+0x1000022a in SVC_Handler () at state.c:105
+105	    svc_calls++;
+=== awatch_1
+r0             0x88e715a9          -1998121559
+r1             0xdeadbeef          -559038737
+r2             0x0                 0
+r3             0x38000018          939524120
+r4             0x0                 0
+r5             0x1034              4148
+r6             0x0                 0
+r7             0x0                 0
+r8             0x0                 0
+r9             0x0                 0
+r10            0x0                 0
+r11            0x0                 0
+r12            0xc8                200
+sp             0x3800ffb0          0x3800ffb0
+lr             0xfffffff9          -7
+pc             0x1000022a          0x1000022a <SVC_Handler+6>
+xpsr           0x6100000b          1627389963
+msp            0x3800ffb0          939589552
+psp            0x0                 0
+control        0x0                 0
+#0  0x1000022a in SVC_Handler () at state.c:105
+#1  <signal handler called>
+#2  work (round=0) at state.c:145
+#3  0x100002e6 in main () at state.c:157
+No arguments.
+No locals.
+=== /
+
+Hardware access (read/write) watchpoint 3: svc_calls
+
+Old value = 0
+New value = 1
+SVC_Handler () at state.c:106
+106	    ring[svc_calls & 7] = 0x5c000000u | svc_calls;
+=== awatch_2
+r0             0x88e715a9          -1998121559
+r1             0xdeadbeef          -559038737
+r2             0x1                 1
+r3             0x38000018          939524120
+r4             0x0                 0
+r5             0x1034              4148
+r6             0x0                 0
+r7             0x0                 0
+r8             0x0                 0
+r9             0x0                 0
+r10            0x0                 0
+r11            0x0                 0
+r12            0xc8                200
+sp             0x3800ffb0          0x3800ffb0
+lr             0xfffffff9          -7
+pc             0x10000230          0x10000230 <SVC_Handler+12>
+xpsr           0x100000b           16777227
+msp            0x3800ffb0          939589552
+psp            0x0                 0
+control        0x0                 0
+#0  SVC_Handler () at state.c:106
+#1  <signal handler called>
+#2  work (round=0) at state.c:145
+#3  0x100002e6 in main () at state.c:157
+No arguments.
+No locals.
+=== /
+
+Hardware access (read/write) watchpoint 3: svc_calls
+
+Value = 1
+0x10000234 in SVC_Handler () at state.c:106
+106	    ring[svc_calls & 7] = 0x5c000000u | svc_calls;
+=== awatch_3
+r0             0x88e715a9          -1998121559
+r1             0xdeadbeef          -559038737
+r2             0x1                 1
+r3             0x38000018          939524120
+r4             0x0                 0
+r5             0x1034              4148
+r6             0x0                 0
+r7             0x0                 0
+r8             0x0                 0
+r9             0x0                 0
+r10            0x0                 0
+r11            0x0                 0
+r12            0xc8                200
+sp             0x3800ffb0          0x3800ffb0
+lr             0xfffffff9          -7
+pc             0x10000234          0x10000234 <SVC_Handler+16>
+xpsr           0x100000b           16777227
+msp            0x3800ffb0          939589552
+psp            0x0                 0
+control        0x0                 0
+#0  0x10000234 in SVC_Handler () at state.c:106
+#1  <signal handler called>
+#2  work (round=0) at state.c:145
+#3  0x100002e6 in main () at state.c:157
+No arguments.
+No locals.
+=== /
+Hardware watchpoint 4: ring[3]
+
+Hardware watchpoint 4: ring[3]
+
+Old value = 2959855858
+New value = 2959856376
+0x10000272 in SysTick_Handler () at state.c:113
+113	}
+=== watch_ring
+r0             0xb06bd2f8          -1335110920
+r1             0x12345678          305419896
+r2             0x3                 3
+r3             0xb06bd2f3          -1335110925
+r4             0x38000024          939524132
+r5             0x105e              4190
+r6             0x0                 0
+r7             0x0                 0
+r8             0x0                 0
+r9             0x0                 0
+r10            0x0                 0
+r11            0x0                 0
+r12            0xc8                200
+sp             0x3800ffa8          0x3800ffa8
+lr             0x1000026b          268436075
+pc             0x10000272          0x10000272 <SysTick_Handler+34>
+xpsr           0x8100000f          -2130706417
+msp            0x3800ffa8          939589544
+psp            0x0                 0
+control        0x0                 0
+#0  0x10000272 in SysTick_Handler () at state.c:113
+#1  <signal handler called>
+#2  fill_bytes (start=1 '\001') at state.c:81
+#3  0x100002ae in work (round=1) at state.c:141
+#4  0x100002e6 in main () at state.c:157
+No arguments.
+t = <optimized out>
+=== /
+
+Hardware watchpoint 4: ring[3]
+
+Old value = 2959856376
+New value = 2959856870
+0x10000272 in SysTick_Handler () at state.c:113
+113	}
+=== watch_ring_2
+r0             0xb06bd4e6          -1335110426
+r1             0x12345678          305419896
+r2             0x3                 3
+r3             0xb06bd4f5          -1335110411
+r4             0x38000024          939524132
+r5             0x7                 7
+r6             0x0                 0
+r7             0x0                 0
+r8             0x0                 0
+r9             0x0                 0
+r10            0x0                 0
+r11            0x0                 0
+r12            0xc8                200
+sp             0x3800ff98          0x3800ff98
+lr             0x1000026b          268436075
+pc             0x10000272          0x10000272 <SysTick_Handler+34>
+xpsr           0x8100000f          -2130706417
+msp            0x3800ff98          939589528
+psp            0x0                 0
+control        0x0                 0
+#0  0x10000272 in SysTick_Handler () at state.c:113
+#1  <signal handler called>
+#2  depth (n=7, acc=<optimized out>) at state.c:53
+#3  0x100002b8 in work (round=2) at state.c:142
+#4  0x100002e6 in main () at state.c:157
+No arguments.
+t = <optimized out>
+=== /

@@ -15,6 +15,8 @@
 | `exceptions` | SysTick·SVC 핸들러 안에서 정지, 예외 frame을 거치는 backtrace |
 | `psp` | thread 모드가 PSP로 바뀐 뒤 SP/MSP/PSP, PSP에 쌓인 예외 frame을 거치는 backtrace |
 | `reverse` | `reverse-stepi`, `reverse-continue`. 앞으로 실행한 정답의 같은 지점 출력과 비교 |
+| `watch` | `watch`(Z2): 멈춘 위치와 이전/새 값, `reverse-continue`로 쓰기 직전까지 되돌아간 뒤 `stepi`로 정답 상태에 도착 |
+| `watch_kinds` | `rwatch`(Z3), `awatch`(Z4), 예외 핸들러가 쓰는 배열 원소의 `watch` |
 | `fp` (`m4f`만) | S/D 레지스터와 FPSCR, float 인자·반환값(`finish`), 호출자 frame의 S16–S31(`vpush`의 CFI로 복원), FP 문맥 예외 frame을 지나는 backtrace |
 
 시나리오 첫머리의 `@cores m4 m35p m4be`는 그 코어에만 실행한다는 뜻입니다. 앞의 네 시나리오는 `m4` 실행에 맞춘 breakpoint

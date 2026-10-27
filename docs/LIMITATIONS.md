@@ -27,6 +27,8 @@ Step 0의 실제 Tarmac 조사 결과에 따라 갱신합니다.
 - **최적화된 코드**: 변수가 레지스터에서 사라진 구간(`<optimized out>`), inline·tail call로 인한 backtrace 차이는 일반 GDB와 같습니다.
 - **reset이나 trace 중간 시작**: 기록 시작 시점의 레지스터·메모리는 Tarmac이 처음 쓰기 전까지 `unknown`(메모리는 ELF 초기값 가능).
 - **멀티코어**: Step 3 전까지는 core별로 따로 봅니다.
+- **watchpoint**: trace에 기록된 읽기·쓰기에서만 멈춥니다. 기록되지 않은 접근(예외 stacking 저장이 없는 trace, 읽기를 기록하지
+  않는 trace의 읽기, DMA·다른 코어의 쓰기)은 보드와 달리 멈추지 않습니다.
 - **시간**: trace에 기록된 값(`ps`/`ns` 또는 ES `tic` 사이클)을 그대로 보여 줍니다. 사이클 trace의 절대 시간은
   시간 변환 표가 있을 때만 계산하고, 없으면 `unknown`입니다(주파수 변경·clock gating 때문에 고정 배율을 쓰지 않음).
   waveform과 시간을 맞추려면(Step 2) 변환 표가 필요합니다.

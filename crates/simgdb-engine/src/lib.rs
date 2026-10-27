@@ -76,6 +76,28 @@ pub struct Info {
     pub limitations: Vec<String>,
 }
 
+/// A watched memory range and which recorded accesses to it count.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Watch {
+    pub addr: u64,
+    pub len: u64,
+    pub read: bool,
+    pub write: bool,
+}
+
+/// A recorded access found by `Engine::next_access`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Access {
+    /// Index of the instruction that made it: it runs from point
+    /// `instruction` to point `instruction + 1`.
+    pub instruction: u64,
+    /// The first watched byte found (of the first watch, on a tie).
+    pub addr: u64,
+    /// Which of the watches.
+    pub watch: usize,
+    pub write: bool,
+}
+
 impl Engine {
     pub fn open(dir: &Path) -> Result<Engine, EngineError> {
         let ds = Dataset::open(dir)?;
@@ -433,6 +455,69 @@ impl Engine {
                     Some(b) => b.max(f),
                     None => f,
                 });
+            }
+        }
+        best
+    }
+
+    /// The nearest instruction after point `from` (`forward`: the one that
+    /// runs from `from` on) or before it that reads or writes, as recorded
+    /// in the trace, a byte of a watched range. Only recorded accesses count:
+    /// bytes marked unknown at an exception entry or by another core's
+    /// store are not this core's accesses.
+    pub fn next_access(&self, watches: &[Watch], from: u64, forward: bool) -> Option<Access> {
+        let ds = &self.ds;
+        // Instruction i's write rows have `at` = i + 1 (visible after it),
+        // its read rows `at` = i (the value before it ran).
+        let insn = |row: usize, watch: &Watch| {
+            let at = ds.mem_at.get(row);
+            match ds.mem_kind.get(row) {
+                MEM_WRITE if watch.write => Some((at.checked_sub(1)?, true)),
+                MEM_READ if watch.read => Some((at, false)),
+                _ => None,
+            }
+        };
+        let n = ds.mi_addr.len();
+        let mut best: Option<Access> = None;
+        for (w, watch) in watches.iter().enumerate() {
+            for addr in watch.addr..watch.addr.saturating_add(watch.len) {
+                let lo = ds.mi_addr.partition_point(0, n, |a| a < addr);
+                let hi = ds.mi_addr.partition_point(lo, n, |a| a <= addr);
+                let found = if forward {
+                    // Rows with `at` >= from hold every instruction >= from.
+                    let mut pos = ds.mi_at.partition_point(lo, hi, |at| at < from);
+                    loop {
+                        if pos >= hi {
+                            break None;
+                        }
+                        let hit = insn(ds.mi_row.get(pos) as usize, watch).filter(|&(i, _)| i >= from);
+                        if hit.is_some() {
+                            break hit;
+                        }
+                        pos += 1;
+                    }
+                } else {
+                    let mut pos = ds.mi_at.partition_point(lo, hi, |at| at <= from);
+                    loop {
+                        if pos <= lo {
+                            break None;
+                        }
+                        pos -= 1;
+                        let hit = insn(ds.mi_row.get(pos) as usize, watch).filter(|&(i, _)| i < from);
+                        if hit.is_some() {
+                            break hit;
+                        }
+                    }
+                };
+                let Some((instruction, write)) = found else { continue };
+                let better = match &best {
+                    None => true,
+                    Some(b) if forward => instruction < b.instruction,
+                    Some(b) => instruction > b.instruction,
+                };
+                if better {
+                    best = Some(Access { instruction, addr, watch: w, write });
+                }
             }
         }
         best

@@ -153,7 +153,7 @@ API는 두 층입니다(§2.11). `locate`, `state.*`, `diff`는 한 시점 층�
 | `?`, `g`, `p`, `m` | 현재 시점의 엔진 상태. 모르는 값은 `xx`(unavailable) |
 | `s`, `c`, `vCont` | 인덱스로 다음 시점 계산 |
 | `bs`, `bc` | 역방향 (GDB reverse execution) |
-| `Z0`/`z0` (Step 1), `Z2`–`Z4` (Step 3) | breakpoint는 PC 역색인, watchpoint는 쓰기 질의 |
+| `Z0`/`z0`, `Z2`–`Z4` | breakpoint는 PC 역색인, watchpoint는 메모리 바이트 색인(기록된 읽기·쓰기). Arm GDB 방식대로 접근하는 명령어 **앞**에서 멈추고(역방향은 뒤), 넘어가기는 GDB가 함. Step 3 예정이던 것을 앞당김 |
 | `G`, `P`, `M`, `X` | 거부 (읽기 전용) |
 | `qRcmd` (`monitor …`) | `time`, `goto`, `hits`, `info source`, `bookmark` |
 

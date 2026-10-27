@@ -121,6 +121,9 @@ Microsoft C/C++(cppdbg):
 ```
 
 - breakpoint, 계속, step over/into/out, call stack, 변수·watch, 레지스터, 메모리 보기가 됩니다.
+- **값이 바뀔 때 멈추기**: 조사식(Watch)이나 변수 창의 항목에서 "Break on Value Change"(cppdbg의 data breakpoint)를 쓰면
+  gdb `watch`와 같습니다. 배열 원소·구조체 멤버는 펼친 항목에서 고릅니다(cppdbg는 맨 위 조사식에는 이 메뉴를 주지 않을 수 있음).
+  PSP를 쓰기 전 구간에서 멈추면 cppdbg가 스택을 못 읽어 세션을 끝낼 수 있으니 `--no-psp-unwind`로 serve 하세요(아래 PSP 참고).
 - 거꾸로 가기 버튼은 확장에 따라 없을 수 있습니다. 디버그 콘솔에서 gdb 명령으로 합니다
   (cortex-debug: `reverse-next`, cppdbg: `-exec reverse-next`). `monitor …` 명령도 같은 방식입니다.
 - `launch`로 펌웨어를 내려받는 설정(`-target-download`, `load`)은 쓰기라서 거부됩니다. 위처럼 attach 방식을 씁니다.
@@ -147,6 +150,10 @@ Microsoft C/C++(cppdbg):
   SimGDB는 실제로 실행될 때 한 번 멈춥니다. 그래서 `ignore`나 hit 횟수(`info breakpoints`의 "already hit")가
   보드보다 작을 수 있습니다. 멈춘 시점의 레지스터·메모리 값은 같습니다.
 - **`next`/`finish` 도중 인터럽트**: 보드와 같이 핸들러를 건너뛰고 원래 함수에서 멈춥니다.
+- **watchpoint**(`watch`, `rwatch`, `awatch`, 역방향 포함)는 trace에 **기록된** 접근에서만 멈춥니다. 쓰기는 메모리 쓰기 기록,
+  읽기는 읽기 기록(`MR`/`LD`/`MNR` 등)이 있어야 하고, 예외 stacking 저장이 trace에 없으면 그 저장에서는 멈추지 않습니다.
+  다른 코어의 쓰기와 예외 진입 때 `unknown`으로 표시만 한 바이트도 접근으로 세지 않습니다. `watch`는 gdb가 값이 바뀌었을 때만
+  알립니다(같은 값을 다시 쓰면 그냥 지나감). `reverse-continue`는 그 접근 직전(이전 값)에서 멈춥니다.
 - **FPU 레지스터**: 보드와 같이 `d0`–`d15`, `fpscr`과 gdb가 만드는 `s0`–`s31`로 보입니다(`info registers float`, `p $s4`).
   D 레지스터의 두 절반(S 두 개)을 모두 알아야 값이 보이고, 하나라도 모르면 둘 다 `<unavailable>`입니다. 절반씩 보려면
   `simgdb query trace.idx registers --at N`을 씁니다. FP 문맥이 쌓인 예외 frame에서는 gdb backtrace가 멈춥니다
