@@ -61,6 +61,10 @@ tools/summarize_reports.sh /path/to/tests                               # summar
   awk -F'\t' 'NR>1 {print $7, $8}' summary.tsv | sort | uniq -c # reset부터 시작? / 명령어가 쓴 시스템 레지스터
   grep FAILED summary.tsv
   ```
+- `brief_summary.sh [summary.tsv]`: 화면에서 보고 옮겨 적을 수 있게 trace 이름(log1, log2 …)마다 열 줄 정도로 줄인 요약.
+  N 개수·F 실패, R reset 시작(True/False/모름), C CONTROL 기록 없음·Cm 그중 코드에 `MSR CONTROL` 없음·Cr 그중 reset 시작,
+  P PSP 기록 없음·Pm 그중 코드가 `MSR PSP` 실행, E 해석 오류 있음·U 모르는 레코드 있음·W 짝 없는 버스 쓰기,
+  T 평균/최대 시간, S 많이 나온 "기록 없는 레지스터" 조합 3개, X 다수와 다른 테스트 3개(이유와 함께).
 
 ## 2. gdb / VS Code
 

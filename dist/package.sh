@@ -12,7 +12,7 @@ cargo zigbuild --release -p simgdb-cli --target $target.2.17
 rm -rf "$out/$name" && mkdir -p "$out/$name/bin" "$out/$name/tools" \
   "$out/$name/selftest/tests/firmware/traces" "$out/$name/selftest/tests/gdb"
 cp target/$target/release/simgdb "$out/$name/bin/" && strip "$out/$name/bin/simgdb"
-cp tools/simgdb.gdb tools/index_all.sh tools/summarize_reports.sh "$out/$name/tools/"
+cp tools/simgdb.gdb tools/index_all.sh tools/summarize_reports.sh tools/brief_summary.sh "$out/$name/tools/"
 cp tests/firmware/state_*.elf "$out/$name/selftest/tests/firmware/"
 cp tests/firmware/traces/state_*.fm.log.gz tests/firmware/traces/state_*.m4rtl.log.gz \
   tests/firmware/traces/state_*.es.log.gz "$out/$name/selftest/tests/firmware/traces/"
