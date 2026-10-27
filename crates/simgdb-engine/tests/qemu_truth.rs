@@ -29,6 +29,12 @@ fn truth(core: &str) -> serde_json::Value {
 struct Tally {
     reg_known: u64,
     reg_unknown: u64,
+    /// Floating-point registers (S0-S31, FPSCR) among `reg_known` and
+    /// `reg_unknown`. Most are never written by the firmware, so they stay
+    /// unknown (their reset value is UNKNOWN; QEMU happens to hold 0).
+    fp_known: u64,
+    fp_unknown: u64,
+    unknown_by_register: BTreeMap<String, u64>,
     mem: BTreeMap<String, u64>,
     mismatches: Vec<String>,
 }
@@ -63,11 +69,13 @@ fn check_with(core: &str, dialect: &str, endian: Option<simgdb_isa::Endian>) -> 
             tally.mismatches.push(format!("index {index}: pc {:?} vs {:#x}", pc.value, p["pc"].as_u64().unwrap()));
         }
         for (name, want) in p["registers"].as_object().unwrap() {
+            let fp = name == "fpscr" || name.starts_with('s') && name[1..].bytes().all(|b| b.is_ascii_digit());
             let reg = engine.register_id(name).unwrap();
             let v = engine.register(index, reg).unwrap();
             match v.value {
                 Some(got) if v.known_mask.is_none() => {
                     tally.reg_known += 1;
+                    tally.fp_known += fp as u64;
                     let want = want.as_u64().unwrap();
                     if got != want {
                         tally
@@ -75,7 +83,11 @@ fn check_with(core: &str, dialect: &str, endian: Option<simgdb_isa::Endian>) -> 
                             .push(format!("index {index}: {name} = {got:#x}, gdb {want:#x} ({:?})", v.evidence));
                     }
                 }
-                _ => tally.reg_unknown += 1,
+                _ => {
+                    tally.reg_unknown += 1;
+                    tally.fp_unknown += fp as u64;
+                    *tally.unknown_by_register.entry(name.clone()).or_default() += 1;
+                }
             }
         }
         for (start, hex) in p["memory"].as_object().unwrap() {
@@ -111,7 +123,9 @@ fn reconstruction_matches_gdbstub() {
     println!("|---|---|---:|---|---:|");
     // m4be: the m4 firmware built big-endian (BE8), run on QEMU patched for
     // big-endian M-profile data (tests/firmware/qemu/qemu-m-bigend.patch).
-    for core in ["m4", "m35p", "m4be"] {
+    // m4f: hard-float build; its traces write the FP registers as whole D
+    // registers (fm), D registers with one half `-` (m4rtl) and S registers (es).
+    for core in ["m4", "m35p", "m4be", "m4f"] {
         for dialect in ["fm", "m4rtl", "es"] {
             let t = check(core, dialect);
             let total = t.reg_known + t.reg_unknown;
@@ -130,7 +144,19 @@ fn reconstruction_matches_gdbstub() {
             for mm in t.mismatches.iter().take(10) {
                 failures.push(format!("{core} {dialect}: {mm}"));
             }
-            assert!(t.reg_known * 10 >= total * 7, "{core} {dialect}: too few registers known");
+            let core_known = t.reg_known - t.fp_known;
+            let core_total = total - t.fp_known - t.fp_unknown;
+            // m4f runs FP code first, before r8-r12 are ever written.
+            let tenths = if core == "m4f" { 6 } else { 7 };
+            assert!(
+                core_known * 10 >= core_total * tenths,
+                "{core} {dialect}: too few registers known: {core_known}/{core_total}, unknown {:?}",
+                t.unknown_by_register
+            );
+            if core == "m4f" {
+                // FP registers the firmware uses, compared at most points.
+                assert!(t.fp_known > 300, "{core} {dialect}: {} FP register values compared", t.fp_known);
+            }
         }
     }
     assert!(failures.is_empty(), "values differ from gdb:\n{}", failures.join("\n"));

@@ -1,5 +1,6 @@
 # Forward stops are recorded on both targets; @reverse lines run only on
 # SimGDB and must land on states the forward run already printed.
+@cores m4 m35p m4be
 break mix
 continue
 @dump rev_1

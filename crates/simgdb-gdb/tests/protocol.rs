@@ -113,11 +113,15 @@ fn packets() {
 
     // Point 0: PC known, most registers not yet written (xx), SP known.
     let g = c.send("g");
-    assert_eq!(g.len(), 23 * 8);
+    // r0-r12, sp, lr, pc, xpsr; msp, psp, primask, basepri, faultmask,
+    // control, msplim, psplim (4 bytes each); d0-d15 (8 bytes); fpscr.
+    assert_eq!(g.len(), 2 * (25 * 4 + 16 * 8 + 4));
     assert_eq!(&g[15 * 8..16 * 8], "44000000", "pc");
     assert_eq!(&g[0..8], "xxxxxxxx", "r0 unknown before the trace writes it");
     assert_eq!(&g[13 * 8..14 * 8], "00000120", "sp from the reset record");
     assert_eq!(c.send("p0"), "xxxxxxxx");
+    assert_eq!(&g[25 * 8..], "x".repeat(2 * (16 * 8 + 4)), "this firmware never writes FP registers");
+    assert_eq!(c.send("p1a"), "x".repeat(16), "d1: 8 bytes, unknown");
     assert_eq!(c.send("pf"), "44000000");
 
     // Memory: flash from the ELF image; RAM never written is an error.

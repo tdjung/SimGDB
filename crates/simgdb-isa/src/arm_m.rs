@@ -1,6 +1,6 @@
 //! Arm M-profile (Armv7-M, Armv8-M Mainline): Cortex-M4, Cortex-M35P.
 
-use crate::{Isa, RegDef, RegId, RegState, RegWrite, TraceRegName};
+use crate::{Fields, GdbRegister, Isa, RegDef, RegId, RegState, RegWrite, TraceRegName};
 
 pub struct ArmM;
 
@@ -15,6 +15,11 @@ pub const PRIMASK: RegId = 19;
 pub const BASEPRI: RegId = 20;
 pub const FAULTMASK: RegId = 21;
 pub const CONTROL: RegId = 22;
+pub const MSPLIM: RegId = 23;
+pub const PSPLIM: RegId = 24;
+/// S0..S31 are `S0 + n`; D<n> is S<2n+1>:S<2n>.
+pub const S0: RegId = 25;
+pub const FPSCR: RegId = 57;
 
 const CORE: &str = "org.gnu.gdb.arm.m-profile";
 /// Feature of MSP, PSP and the special registers. With this standard name
@@ -33,13 +38,29 @@ const SYSTEM: &str = "org.gnu.gdb.arm.m-system";
 /// is not affected). Without any PSP write such frames cannot occur.
 const SYSTEM_NO_PSP: &str = "org.simgdb.arm.m-system";
 
+/// Floating-point registers (FPv4-SP, FPv5: S0-S31 and FPSCR). Stored as
+/// the single-precision registers because traces write either form and a
+/// `D` record may write one half only (`R D2 --------37800000`), so each
+/// half is known on its own (queries, `monitor`, MCP).
+///
+/// GDB gets the standard `org.gnu.gdb.arm.vfp` feature, D0-D15 and FPSCR,
+/// and makes S0-S31 from them itself. GDB needs the D registers: compilers
+/// describe `vpush {d8-d9}` in the call frame information by D register,
+/// and GDB cannot unwind such a frame without them (nor show callers'
+/// S16-S31). The cost: a D register whose halves are not both known is
+/// unavailable to GDB, and so are both its S registers.
+const FP: &str = "org.gnu.gdb.arm.vfp";
+
+const D_NAMES: [&str; 16] =
+    ["d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15"];
+
 macro_rules! reg {
     ($name:expr, $feature:expr, $ty:expr) => {
         RegDef { name: $name, bits: 32, feature: $feature, gdb_type: $ty }
     };
 }
 
-static REGISTERS: [RegDef; 23] = [
+static REGISTERS: [RegDef; 58] = [
     reg!("r0", CORE, "int"),
     reg!("r1", CORE, "int"),
     reg!("r2", CORE, "int"),
@@ -63,6 +84,42 @@ static REGISTERS: [RegDef; 23] = [
     reg!("basepri", SYSTEM, "int"),
     reg!("faultmask", SYSTEM, "int"),
     reg!("control", SYSTEM, "int"),
+    // Armv8-M stack limits; never written on Armv7-M.
+    reg!("msplim", SYSTEM, "int"),
+    reg!("psplim", SYSTEM, "int"),
+    reg!("s0", FP, "ieee_single"),
+    reg!("s1", FP, "ieee_single"),
+    reg!("s2", FP, "ieee_single"),
+    reg!("s3", FP, "ieee_single"),
+    reg!("s4", FP, "ieee_single"),
+    reg!("s5", FP, "ieee_single"),
+    reg!("s6", FP, "ieee_single"),
+    reg!("s7", FP, "ieee_single"),
+    reg!("s8", FP, "ieee_single"),
+    reg!("s9", FP, "ieee_single"),
+    reg!("s10", FP, "ieee_single"),
+    reg!("s11", FP, "ieee_single"),
+    reg!("s12", FP, "ieee_single"),
+    reg!("s13", FP, "ieee_single"),
+    reg!("s14", FP, "ieee_single"),
+    reg!("s15", FP, "ieee_single"),
+    reg!("s16", FP, "ieee_single"),
+    reg!("s17", FP, "ieee_single"),
+    reg!("s18", FP, "ieee_single"),
+    reg!("s19", FP, "ieee_single"),
+    reg!("s20", FP, "ieee_single"),
+    reg!("s21", FP, "ieee_single"),
+    reg!("s22", FP, "ieee_single"),
+    reg!("s23", FP, "ieee_single"),
+    reg!("s24", FP, "ieee_single"),
+    reg!("s25", FP, "ieee_single"),
+    reg!("s26", FP, "ieee_single"),
+    reg!("s27", FP, "ieee_single"),
+    reg!("s28", FP, "ieee_single"),
+    reg!("s29", FP, "ieee_single"),
+    reg!("s30", FP, "ieee_single"),
+    reg!("s31", FP, "ieee_single"),
+    reg!("fpscr", FP, "int"),
 ];
 
 /// GDB types follow the descriptions QEMU and GDB ship for M-profile, so
@@ -86,12 +143,27 @@ fn alias(name: &str) -> Option<RegId> {
         "basepri" | "basepri_s" => BASEPRI,
         "faultmask" | "faultmask_s" => FAULTMASK,
         "control" | "control_s" => CONTROL,
+        "msplim" | "msplim_s" => MSPLIM,
+        "psplim" | "psplim_s" => PSPLIM,
+        "fpscr" => FPSCR,
         _ => {
-            let n = name.strip_prefix('r')?.parse::<u16>().ok()?;
-            if n <= 12 { n } else { return None }
+            let (limit, base) = match name.as_bytes().first()? {
+                b'r' => (12, 0),
+                b's' => (31, S0),
+                _ => return None,
+            };
+            base + number(&name[1..]).filter(|&n| n <= limit)?
         }
     };
     Some(r)
+}
+
+/// Decimal register number (digits only: `r1a` and `r+1` are not registers).
+fn number(s: &str) -> Option<u16> {
+    if s.is_empty() || !s.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    s.parse().ok()
 }
 
 impl ArmM {
@@ -144,6 +216,13 @@ impl Isa for ArmM {
         alias(&lower)
     }
 
+    fn lookup_fields(&self, name: &TraceRegName<'_>) -> Option<Fields> {
+        if let Some(n) = name.name.strip_prefix(['d', 'D']).and_then(number).filter(|&n| n <= 15) {
+            return Some(Fields::pair(S0 + 2 * n, S0 + 2 * n + 1, 32));
+        }
+        self.lookup(name).map(Fields::one)
+    }
+
     fn resolve(&self, state: &RegState, written: &[bool]) -> Vec<RegWrite> {
         let (sp, msp, psp) = (SP as usize, MSP as usize, PSP as usize);
         let copy = |reg: RegId, from: usize| RegWrite {
@@ -190,7 +269,8 @@ impl Isa for ArmM {
             "<?xml version=\"1.0\"?>\n<!DOCTYPE target SYSTEM \"gdb-target.dtd\">\n<target version=\"1.0\">\n<architecture>arm</architecture>\n",
         );
         let mut feature = "";
-        for (n, r) in REGISTERS.iter().enumerate() {
+        for (n, g) in self.gdb_registers().iter().enumerate() {
+            let r = &REGISTERS[g.first as usize];
             if r.feature != feature {
                 if !feature.is_empty() {
                     xml.push_str("</feature>\n");
@@ -199,13 +279,33 @@ impl Isa for ArmM {
                 let name = if feature == SYSTEM { system } else { feature };
                 xml.push_str(&format!("<feature name=\"{name}\">\n"));
             }
+            // As GDB's own arm/vfp descriptions: D registers as doubles in
+            // the float group by type, FPSCR an integer in the float group.
+            let (bits, ty, group) = if g.count == 2 {
+                (64, "ieee_double", "float")
+            } else {
+                (r.bits, r.gdb_type, if r.feature == FP { "float" } else { "general" })
+            };
             xml.push_str(&format!(
-                "<reg name=\"{}\" bitsize=\"{}\" regnum=\"{}\" type=\"{}\" group=\"general\"/>\n",
-                r.name, r.bits, n, r.gdb_type
+                "<reg name=\"{}\" bitsize=\"{bits}\" regnum=\"{n}\" type=\"{ty}\" group=\"{group}\"/>\n",
+                g.name
             ));
         }
         xml.push_str("</feature>\n</target>\n");
         xml
+    }
+
+    fn gdb_registers(&self) -> Vec<GdbRegister> {
+        let one = |n: RegId| GdbRegister { name: REGISTERS[n as usize].name, first: n, count: 1 };
+        (0..S0)
+            .map(one)
+            .chain(D_NAMES.iter().enumerate().map(|(n, &name)| GdbRegister {
+                name,
+                first: S0 + 2 * n as RegId,
+                count: 2,
+            }))
+            .chain([one(FPSCR)])
+            .collect()
     }
 
     fn volatile_regions(&self) -> &'static [(u64, u64)] {
@@ -305,12 +405,16 @@ impl Isa for ArmM {
             4 if opcode & 0xfff0_f300 == 0xf380_8000 => match opcode & 0xff {
                 0x08 => &[MSP],
                 0x09 => &[PSP],
+                0x0a => &[MSPLIM],
+                0x0b => &[PSPLIM],
                 0x10 => &[PRIMASK],
                 0x11 | 0x12 => &[BASEPRI],
                 0x13 => &[FAULTMASK],
                 0x14 => &[CONTROL],
                 _ => &[],
             },
+            // VMSR FPSCR, Rt: 1110 1110 1110 0001 | Rt 1010 0001 0000.
+            4 if opcode & 0xffff_0fff == 0xeee1_0a10 => &[FPSCR],
             _ => &[],
         }
     }
@@ -337,8 +441,22 @@ mod tests {
         assert_eq!(lookup("XPSR", None), Some(XPSR));
         assert_eq!(lookup("psr", None), Some(XPSR));
         assert_eq!(lookup("MSP_S", None), Some(MSP));
-        assert_eq!(lookup("d0", None), None);
         assert_eq!(lookup("r16", None), None);
+        assert_eq!(lookup("sp_process", None), Some(PSP));
+        assert_eq!(lookup("S0", None), Some(S0));
+        assert_eq!(lookup("s31", None), Some(S0 + 31));
+        assert_eq!(lookup("s32", None), None);
+        assert_eq!(lookup("FPSCR", None), Some(FPSCR));
+        assert_eq!(lookup("MSPLIM_S", None), Some(MSPLIM));
+        // A D register is two S registers, not one register.
+        assert_eq!(lookup("d0", None), None);
+        let fields = |n: &str| ArmM.lookup_fields(&TraceRegName { name: n, bank: None });
+        assert_eq!(fields("D2"), Some(Fields::pair(S0 + 4, S0 + 5, 32)));
+        assert_eq!(fields("d15").unwrap().iter().collect::<Vec<_>>(), vec![(S0 + 30, 0), (S0 + 31, 32)]);
+        assert_eq!(fields("d16"), None);
+        assert_eq!(fields("r3"), Some(Fields::one(3)));
+        assert_eq!(REGISTERS[FPSCR as usize].name, "fpscr");
+        assert_eq!(REGISTERS[(S0 + 31) as usize].name, "s31");
     }
 
     fn state(writes: &[(RegId, u64)]) -> RegState {
@@ -449,6 +567,10 @@ mod tests {
         // mrs r0, CONTROL reads it; ldr r0,[r1] is no MSR.
         assert!(ArmM.system_register_writes(0xf3ef_8014, 4).is_empty());
         assert!(ArmM.system_register_writes(0x6808, 2).is_empty());
+        // msr MSPLIM, r0 / vmsr fpscr, r3; vmrs r3, fpscr reads it.
+        assert_eq!(ArmM.system_register_writes(0xf380_880a, 4), &[MSPLIM]);
+        assert_eq!(ArmM.system_register_writes(0xeee1_3a10, 4), &[FPSCR]);
+        assert!(ArmM.system_register_writes(0xeef1_3a10, 4).is_empty());
     }
 
     #[test]
@@ -478,5 +600,13 @@ mod tests {
         assert!(ArmM.target_xml(&["r0".to_string()]).contains("org.gnu.gdb.arm.m-system"));
         assert!(xml.contains("name=\"xpsr\" bitsize=\"32\" regnum=\"16\""));
         assert!(xml.contains("name=\"control\" bitsize=\"32\" regnum=\"22\""));
+        // GDB's VFP feature: D0-D15 over S0-S31, then FPSCR; no S registers.
+        assert!(xml.contains("<feature name=\"org.gnu.gdb.arm.vfp\">"));
+        assert!(xml.contains("name=\"d2\" bitsize=\"64\" regnum=\"27\" type=\"ieee_double\" group=\"float\""));
+        assert!(xml.contains("name=\"fpscr\" bitsize=\"32\" regnum=\"41\" type=\"int\" group=\"float\""));
+        assert!(!xml.contains("name=\"s4\""));
+        let g = ArmM.gdb_registers();
+        assert_eq!((g.len(), g[27]), (42, GdbRegister { name: "d2", first: S0 + 4, count: 2 }));
+        assert_eq!(xml.matches("<reg ").count(), g.len());
     }
 }

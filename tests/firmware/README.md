@@ -8,6 +8,7 @@
 | `src/state.c`, `src/startup.c`, `src/link_*.ld` | 테스트 펌웨어. `.data` 초기화, 바이트/하프워드/더블워드 저장, 재귀, 함수 포인터, SVC·SysTick 예외, 도중에 PSP로 전환(예외 frame이 두 스택에 쌓임) |
 | `state_m4.elf`, `state_m35p.elf` | Cortex-M4(`mps2-an386`), Cortex-M35P 빌드(QEMU는 `mps2-an505` Cortex-M33으로 실행, 같은 Armv8-M Mainline) |
 | `state_m4be.elf` | 같은 Cortex-M4 빌드의 big-endian(BE8) 판. 아래 "Big-endian" 참고 |
+| `src/fp.c`, `state_m4f.elf` | 같은 Cortex-M4 빌드의 hard-float(FPv4-SP) 판. 아래 "부동소수점" 참고 |
 | `qemu/qemu-m-bigend.patch` | QEMU 10.2.4에 M-profile big-endian 데이터를 넣는 시험용 패치(`QEMU_ARM_M_BIGEND=1`일 때만 동작) |
 | `qemu/trace_plugin.c` | QEMU TCG 플러그인: 명령어마다 레지스터 상태, 메모리 접근 값, 예외 진입과 쌓인 frame을 기록 |
 | `qemu/make_traces.py` | 플러그인 로그를 Tarmac 세 방언으로 만들고, gdbstub으로 정답을 기록 |
@@ -24,6 +25,9 @@
 | `fm` | Fast Models 계열 `IT`/`IS`, `R r13`, `MR4`/`MW4`, `E ... CoreEvent_IRQ` | ps, 2000번째 명령어부터 주기 절반(주파수 변경) | 예외 stacking 저장 기록 **없음** |
 | `m4rtl` | Cortex-M4 RTL 계열 `IT (pc:seq)`, `MNW4___D`(바이트 메모리 순서), `R r13 v (MSP)`, `R psr`, 가끔 `IF` 중복 | cyc | 예외 stacking 저장 기록 **있음** |
 | `es` | `ES (pc:opcode)`, `CCFAIL`, `LD`/`ST` 16바이트 그림, `ES EXC [n]`, 대문자 레지스터 이름 | tic | 예외 stacking 저장 기록 **없음** |
+
+`m4f`(아래 "부동소수점")에서는 FP 레지스터를 방언마다 다른 형식으로 씁니다: `fm`은 D 레지스터 전체(`R D7 404000003f800000`),
+`m4rtl`은 쓰지 않은 절반을 `-`로 둔 D 레지스터(`R D7 --------3f800000`, Cortex-M4 RTL trace와 같은 형식), `es`는 S 레지스터(`R S14 3f800000`).
 
 ## 정답이 독립적인 이유
 
@@ -45,6 +49,20 @@ QEMU=/path/to/qemu-system-arm QEMU_SRC=/path/to/qemu ./build.sh
 
 필요한 것: arm-none-eabi-gcc/objdump, QEMU 10.1 이상(`--enable-plugins`), Python과 Arm을 지원하는 gdb
 (`gdb-multiarch` 또는 `GDB=arm-none-eabi-gdb`), glib 헤더. 개발 환경에서는 QEMU 10.2.4를 소스에서 빌드해 썼습니다.
+
+## 부동소수점 (`m4f`)
+
+`state.c`를 hard-float(`-mfloat-abi=hard -mfpu=fpv4-sp-d16`)로 빌드하고 `src/fp.c`를 더합니다. `startup.c`를 `-Dmain=fp_main`으로
+컴파일하므로 reset handler가 먼저 `fp_main`을 부릅니다: FPU를 켜고(CPACR), SysTick이 도는 동안 float 계산(S 레지스터, 호출을 건너
+살아 있는 값은 `vpush {d8-d9}`로 저장되는 S16–S31, float 저장, `VMSR`로 FPSCR 변경)을 한 뒤 원래 `main`을 부릅니다.
+FP 명령어를 한 번 실행하면 thread 모드에서 CONTROL.FPCA가 유지되므로 이후의 모든 예외가 FP 문맥 frame(0x68바이트)을
+MSP와, 전환 뒤에는 PSP에 쌓습니다. 핸들러는 FP를 쓰지 않으므로 lazy stacking이 frame의 FP 부분을 실제로 쓰지는 않습니다.
+
+플러그인은 `fp=on` 인자로 gdbstub의 D0–D15와 FPSCR을 함께 기록하고(S0–S31로 나눠 적음), 정답 gdb는 `info registers`의 raw 값으로
+S 레지스터와 FPSCR을 읽습니다. 앞의 세 펌웨어(`m4`, `m35p`, `m4be`)와 그 trace는 바뀌지 않습니다.
+
+빌드 도구: `m4`, `m35p`, `m4f`는 Ubuntu의 arm-none-eabi-gcc 13.2.1, `m4be`는 xPack arm-none-eabi-gcc 14.2.1로 만들었습니다.
+다른 버전으로 다시 빌드하면 ELF가 달라지므로 trace와 정답도 함께 다시 만듭니다.
 
 ## Big-endian (`m4be`)
 

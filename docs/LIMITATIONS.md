@@ -35,8 +35,18 @@ Step 0의 실제 Tarmac 조사 결과에 따라 갱신합니다.
 
 - **레지스터**: trace에 쓰기 기록이 나온 뒤부터 알려짐. 그 전에는 `unknown`. `x` 자리가 있는 값은 일부만 알려짐(GDB에는 unavailable).
   `-` 자리는 그 기록이 쓰지 않은 부분으로, 이전 값을 유지합니다(`R D2 --------37800000`처럼 일부만 바뀐 기록).
-- **FPU 레지스터(`S`/`D`/`Q`, `FPSCR`, `FPCCR`)와 Armv8-M `MSPLIM`/`PSPLIM`**: 아직 모델링하지 않습니다. 읽기는 하되
-  보고서 `unmodelled_registers`에 개수만 남고, gdb의 `info registers`·변수(레지스터에 있는 float)에는 나오지 않습니다.
+- **FPU 레지스터**: `S0`–`S31`과 `FPSCR`를 모델링합니다. trace의 `R S4 …`, `R D2 <16자리>`(`D2` = `S5:S4`),
+  `R D2 --------37800000`(`-` 쪽 절반은 쓰지 않음)을 모두 받아 S 레지스터 단위로 저장하므로, 절반만 기록돼도 그 S 레지스터는 알려집니다.
+  질의·MCP·`monitor`에서는 `s0`…`s31`, `fpscr`로 봅니다.
+  - gdb에는 표준 `org.gnu.gdb.arm.vfp`(D0–D15, FPSCR)로 보내고, gdb가 S0–S31을 거기서 만듭니다. 컴파일러가 `vpush {d8-d9}`를
+    D 레지스터로 기록하므로 gdb가 frame을 풀고 호출자의 S16–S31을 보여 주려면 D 레지스터가 필요하기 때문입니다.
+    **대가**: 두 절반 중 하나라도 모르는 D 레지스터는 gdb에서 `<unavailable>`이고, 그 안의 S 레지스터 둘도 그렇습니다
+    (`simgdb query … registers`는 아는 쪽을 보여 줌).
+  - **FP 문맥이 쌓인 예외 frame(EXC_RETURN bit 4 = 0)을 지나는 gdb backtrace는 그 frame에서 멈춥니다.** gdb가 이 frame을 풀 때
+    메모리에 매핑된 `FPCCR`(0xE000EF34)을 읽는데, PPB 주변장치 값은 trace로 알 수 없기 때문입니다
+    (`warning: Could not fetch required FPCCR content`). SimGDB 자체의 call stack(`monitor where`, MCP `call_tree`)은 영향이 없습니다.
+  - `FPCCR`, `FPCAR`, `FPDSCR` 기록과 Q 레지스터, Non-secure 뱅크는 아직 모델링하지 않습니다(`unmodelled_registers`).
+- **Armv8-M `MSPLIM`/`PSPLIM`**: 기록되면 레지스터로 보입니다(검사는 하지 않음). Armv7-M에서는 늘 `unknown`입니다.
 - **SP와 MSP/PSP**: trace가 어느 쪽을 쓰든(`r13`, `r13 (MSP)`, `r13 (PSP) 값`, `SP_main`, `r13_mn`, `MSP` …) 모드(IPSR)와
   CONTROL.SPSEL로 나머지를 맞춥니다. 모드를 모르면 어느 쪽이 바뀌었는지 알 수 없으므로, 낡았을 수 있는 쪽을 `unknown`으로 둡니다.
   알려지지 않은 PSP로 전환하면 SP도 `unknown`입니다.
@@ -46,8 +56,9 @@ Step 0의 실제 Tarmac 조사 결과에 따라 갱신합니다.
   없으면 나중에 쓰기 없이 읽힌 값(`inferred`), 그것도 없으면 `unknown`. `.data`의 RAM 주소는 startup 복사가 trace에 나온 뒤부터 알려짐.
 - **예외 진입**: 코어가 스택에 frame을 쌓는 저장이 trace에 없으면 frame 영역을 `unknown`으로 표시합니다(옛 값을 보여 주지 않음).
   진입 전 SP 아래 216바이트(가장 큰 frame, 살아 있는 데이터 없음)와, 진입 후 EXC_RETURN이 가리키는 스택의 frame 크기만큼입니다
-  (기본 32바이트, FP 문맥이면 더 큼). 저장이 trace에 있으면 그 값을 씁니다. SP나 EXC_RETURN을 몰라 frame 위치를 정할 수 없으면
-  보고서의 `exception_frames_unplaced`에 셉니다.
+  (기본 32바이트, FP 문맥이면 0x68바이트, Armv8-M의 Secure FP 문맥은 trace로 알 수 없어 있다고 가정). 진입 전 SP를 알면 frame은
+  거기서 끝나므로 그 위(중단된 코드의 스택)는 건드리지 않습니다. 저장이 trace에 있으면 그 값을 씁니다. SP나 EXC_RETURN을 몰라
+  frame 위치를 정할 수 없으면 보고서의 `exception_frames_unplaced`에 셉니다.
 - **멀티코어 trace**: 한 번에 한 코어를 인덱싱합니다. 다른 코어가 쓴 메모리 바이트는 그 시점부터 `unknown`입니다.
 - **주소 범위**: ISA 주소 범위(M-profile 32비트)를 벗어난 접근은 해석 오류로 보고하고 쓰지 않습니다.
 - **주변장치 영역**(`0x40000000–0x5FFFFFFF`, `0xA0000000` 이상): 항상 `unknown`. 마지막 접근은 증거로만 보여 줍니다.

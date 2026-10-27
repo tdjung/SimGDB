@@ -44,14 +44,22 @@ use simgdb_model::TimeUnit;
 /// Register file layout for the GDB connection, taken from the ISA once.
 struct Layout {
     xml: &'static str,
-    count: usize,
+    /// GDB's registers in target-description order, each made of one or
+    /// more registers of the ISA's register file, and its size in bytes.
+    regs: Vec<(simgdb_isa::GdbRegister, usize)>,
     /// GDB reads register bytes in the target's data byte order (it takes
     /// that from the ELF it loaded).
     big_endian: bool,
 }
 
-fn reg_bytes(v: u32) -> [u8; 4] {
-    if layout().big_endian { v.to_be_bytes() } else { v.to_le_bytes() }
+/// The first `size` bytes of `v` in the target's byte order.
+fn reg_bytes(v: u64, size: usize) -> Vec<u8> {
+    let le = v.to_le_bytes();
+    let mut b = le[..size].to_vec();
+    if layout().big_endian {
+        b.reverse();
+    }
+    b
 }
 
 static LAYOUT: OnceLock<Layout> = OnceLock::new();
@@ -65,8 +73,9 @@ pub enum Arch32 {}
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Regs {
-    /// `None` = unknown at this point: sent as `xx` (GDB shows `<unavailable>`).
-    pub values: Vec<Option<u32>>,
+    /// In GDB's register order. `None` = unknown at this point: sent as
+    /// `xx` (GDB shows `<unavailable>`).
+    pub values: Vec<Option<u64>>,
     pc: u32,
 }
 
@@ -78,10 +87,10 @@ impl Registers for Regs {
     }
 
     fn gdb_serialize(&self, mut write_byte: impl FnMut(Option<u8>)) {
-        for v in &self.values {
+        for (v, (_, size)) in self.values.iter().zip(&layout().regs) {
             match v {
-                Some(v) => reg_bytes(*v).iter().for_each(|b| write_byte(Some(*b))),
-                None => (0..4).for_each(|_| write_byte(None)),
+                Some(v) => reg_bytes(*v, *size).iter().for_each(|b| write_byte(Some(*b))),
+                None => (0..*size).for_each(|_| write_byte(None)),
             }
         }
     }
@@ -97,7 +106,7 @@ pub struct Reg(pub usize);
 
 impl RegId for Reg {
     fn from_raw_id(id: usize) -> Option<(Self, Option<NonZeroUsize>)> {
-        (id < layout().count).then(|| (Reg(id), NonZeroUsize::new(4)))
+        layout().regs.get(id).map(|(_, size)| (Reg(id), NonZeroUsize::new(*size)))
     }
 }
 
@@ -177,10 +186,18 @@ impl Session {
         } else {
             engine.ds.meta.report.registers_never_written.clone()
         };
-        let xml: &'static str = Box::leak(engine.isa().target_xml(&unknown).into_boxed_str());
-        let count = engine.isa().registers().len();
+        let isa = engine.isa();
+        let xml: &'static str = Box::leak(isa.target_xml(&unknown).into_boxed_str());
+        let regs = isa
+            .gdb_registers()
+            .into_iter()
+            .map(|g| {
+                let bits: u32 = (g.first..g.first + g.count).map(|r| isa.registers()[r as usize].bits).sum();
+                (g, bits as usize / 8)
+            })
+            .collect();
         let big_endian = engine.endian() == simgdb_isa::Endian::Big;
-        let _ = LAYOUT.set(Layout { xml, count, big_endian });
+        let _ = LAYOUT.set(Layout { xml, regs, big_endian });
         Session { engine, index: 0, breakpoints: BTreeSet::new(), resume: None, annotations: None, end_as_pause: false }
     }
 
@@ -204,6 +221,18 @@ impl Session {
 
     pub fn index(&self) -> u64 {
         self.index
+    }
+
+    /// GDB register `g` from its parts' values (lowest bits first); known
+    /// only when every part is.
+    fn compose(&self, g: &simgdb_isa::GdbRegister, value: impl Fn(u16) -> Option<u64>) -> Option<u64> {
+        let regs = self.engine.isa().registers();
+        let (mut v, mut shift) = (0u64, 0u32);
+        for r in g.first..g.first + g.count {
+            v |= value(r)? << shift;
+            shift += regs[r as usize].bits;
+        }
+        Some(v)
     }
 
     pub fn set_index(&mut self, index: u64) {
@@ -318,8 +347,10 @@ impl Target for Session {
 impl SingleThreadBase for Session {
     fn read_registers(&mut self, regs: &mut Regs) -> TargetResult<(), Self> {
         let values = self.engine.registers(self.index).map_err(engine_err)?;
-        regs.values = values.iter().map(|r| r.value.is_known().then(|| r.value.value.unwrap() as u32)).collect();
-        regs.pc = regs.values.get(self.engine.isa().pc() as usize).copied().flatten().unwrap_or(0);
+        let known: Vec<Option<u64>> =
+            values.iter().map(|r| r.value.is_known().then(|| r.value.value.unwrap())).collect();
+        regs.values = layout().regs.iter().map(|(g, _)| self.compose(g, |r| known[r as usize])).collect();
+        regs.pc = known[self.engine.isa().pc() as usize].unwrap_or(0) as u32;
         Ok(())
     }
 
@@ -356,13 +387,15 @@ impl SingleThreadBase for Session {
 
 impl SingleRegisterAccess<()> for Session {
     fn read_register(&mut self, _tid: (), reg: Reg, buf: &mut [u8]) -> TargetResult<usize, Self> {
-        let v = self.engine.register(self.index, reg.0 as u16).map_err(engine_err)?;
-        if !v.is_known() {
-            return Ok(0);
+        let Some((g, size)) = layout().regs.get(reg.0) else { return Ok(0) };
+        let mut parts = Vec::with_capacity(g.count as usize);
+        for r in g.first..g.first + g.count {
+            let v = self.engine.register(self.index, r).map_err(engine_err)?;
+            parts.push(v.is_known().then(|| v.value.unwrap()));
         }
-        let bytes = reg_bytes(v.value.unwrap() as u32);
-        buf[..4].copy_from_slice(&bytes);
-        Ok(4)
+        let Some(v) = self.compose(g, |r| parts[(r - g.first) as usize]) else { return Ok(0) };
+        buf[..*size].copy_from_slice(&reg_bytes(v, *size));
+        Ok(*size)
     }
 
     fn write_register(&mut self, _tid: (), _reg: Reg, _val: &[u8]) -> TargetResult<(), Self> {

@@ -15,7 +15,9 @@
  *                                           stack EXC_RETURN selects)
  *
  * Snapshots are full (not diffs) so the generator, not this plugin, decides
- * which register writes a trace shows. Requires QEMU >= 10.1 (register and
+ * which register writes a trace shows. With the argument fp=on the snapshots
+ * also hold the floating-point registers: s0-s31 (from the gdbstub's d0-d15,
+ * low word = S<2n>) and fpscr. Requires QEMU >= 10.1 (register and
  * memory-value plugin APIs, discontinuity callbacks).
  *
  * Build: cc -shared -fPIC -O2 $(pkg-config --cflags glib-2.0)
@@ -35,8 +37,13 @@ static const char *wanted[] = {
     "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
     "r11", "r12", "sp", "lr", "xpsr", "msp", "psp", "primask", "basepri",
     "faultmask", "control",
+    /* fp=on only (FIRST_FP on) */
+    "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10",
+    "d11", "d12", "d13", "d14", "d15", "fpscr",
 };
 #define NWANTED (sizeof(wanted) / sizeof(wanted[0]))
+#define FIRST_FP 22
+static size_t nwanted = FIRST_FP;
 
 static struct qemu_plugin_register *handles[NWANTED];
 static GByteArray *buf;
@@ -48,29 +55,37 @@ typedef struct {
     char *text;
 } Insn;
 
-static uint32_t read_reg(int k)
+static uint64_t read_reg(int k)
 {
-    uint32_t v = 0;
+    uint64_t v = 0;
     if (!handles[k]) {
         return 0;
     }
     g_byte_array_set_size(buf, 0);
     int n = qemu_plugin_read_register(handles[k], buf);
-    if (n >= 4) {
+    if (n == 4 || n == 8) {
         /* The gdbstub's register byte order: little-endian, or big-endian
          * under QEMU_ARM_M_BIGEND (tests/firmware/qemu/qemu-m-bigend.patch). */
-        const uint8_t *d = buf->data;
-        v = big_endian ? (uint32_t)d[0] << 24 | (uint32_t)d[1] << 16 | (uint32_t)d[2] << 8 | d[3]
-                       : (uint32_t)d[3] << 24 | (uint32_t)d[2] << 16 | (uint32_t)d[1] << 8 | d[0];
+        for (int i = 0; i < n; i++) {
+            v |= (uint64_t)buf->data[big_endian ? n - 1 - i : i] << (8 * i);
+        }
     }
     return v;
 }
 
 static void dump_regs(char tag)
 {
-    for (size_t k = 0; k < NWANTED; k++) {
-        if (handles[k]) {
-            fprintf(out, "%c %s %08" PRIx32 "\n", tag, wanted[k], read_reg(k));
+    for (size_t k = 0; k < nwanted; k++) {
+        if (!handles[k]) {
+            continue;
+        }
+        uint64_t v = read_reg(k);
+        if (wanted[k][0] == 'd') {
+            int n = atoi(wanted[k] + 1);
+            fprintf(out, "%c s%d %08" PRIx32 "\n", tag, 2 * n, (uint32_t)v);
+            fprintf(out, "%c s%d %08" PRIx32 "\n", tag, 2 * n + 1, (uint32_t)(v >> 32));
+        } else {
+            fprintf(out, "%c %s %08" PRIx32 "\n", tag, wanted[k], (uint32_t)v);
         }
     }
 }
@@ -80,7 +95,7 @@ static void vcpu_init(qemu_plugin_id_t id, unsigned int vcpu_index)
     GArray *regs = qemu_plugin_get_registers();
     for (guint i = 0; i < regs->len; i++) {
         qemu_plugin_reg_descriptor *d = &g_array_index(regs, qemu_plugin_reg_descriptor, i);
-        for (size_t k = 0; k < NWANTED; k++) {
+        for (size_t k = 0; k < nwanted; k++) {
             if (!handles[k] && strcmp(d->name, wanted[k]) == 0) {
                 handles[k] = d->handle;
             }
@@ -122,7 +137,7 @@ static void discon(qemu_plugin_id_t id, unsigned int vcpu_index,
     dump_regs('P');
     /* The frame is on the stack EXC_RETURN names: PSP if LR bit 2 is set. */
     uint32_t lr = 0, msp = 0, psp = 0;
-    for (size_t k = 0; k < NWANTED; k++) {
+    for (size_t k = 0; k < FIRST_FP; k++) {
         if (strcmp(wanted[k], "lr") == 0) {
             lr = read_reg(k);
         } else if (strcmp(wanted[k], "msp") == 0) {
@@ -183,6 +198,8 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_
     for (int i = 0; i < argc; i++) {
         if (g_str_has_prefix(argv[i], "out=")) {
             path = argv[i] + 4;
+        } else if (strcmp(argv[i], "fp=on") == 0) {
+            nwanted = NWANTED;
         }
     }
     out = path ? fopen(path, "w") : stdout;

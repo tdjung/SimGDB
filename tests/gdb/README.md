@@ -15,6 +15,10 @@
 | `exceptions` | SysTick·SVC 핸들러 안에서 정지, 예외 frame을 거치는 backtrace |
 | `psp` | thread 모드가 PSP로 바뀐 뒤 SP/MSP/PSP, PSP에 쌓인 예외 frame을 거치는 backtrace |
 | `reverse` | `reverse-stepi`, `reverse-continue`. 앞으로 실행한 정답의 같은 지점 출력과 비교 |
+| `fp` (`m4f`만) | S/D 레지스터와 FPSCR, float 인자·반환값(`finish`), 호출자 frame의 S16–S31(`vpush`의 CFI로 복원), FP 문맥 예외 frame을 지나는 backtrace |
+
+시나리오 첫머리의 `@cores m4 m35p m4be`는 그 코어에만 실행한다는 뜻입니다. 앞의 네 시나리오는 `m4` 실행에 맞춘 breakpoint
+위치(인터럽트가 끼어들지 않는 곳)를 쓰므로 `m4f`에는 `fp`만 실행합니다.
 
 `@dump`는 레지스터, backtrace, 인자, 지역변수를 출력합니다. `@reverse` 명령은 SimGDB에서만 실행합니다
 (QEMU는 역방향 실행을 지원하지 않음).
@@ -35,13 +39,19 @@ cargo build --release -p simgdb-cli
 GDB=arm-none-eabi-gdb python3 tests/gdb/gdb_tests.py check --core m4 --dialect m4rtl --simgdb target/release/simgdb
 ```
 
-`--core`는 `m4`, `m35p`, `m4be`(같은 m4 펌웨어의 big-endian/BE8 빌드)입니다.
+`--core`는 `m4`, `m35p`, `m4be`(같은 m4 펌웨어의 big-endian/BE8 빌드), `m4f`(hard-float 빌드)입니다.
 
 정답 다시 만들기(QEMU 10.1 이상 필요, `m4be`는 `tests/firmware/qemu/qemu-m-bigend.patch`를 적용한 QEMU):
 
 ```bash
 QEMU=/path/to/qemu-system-arm GDB=arm-none-eabi-gdb python3 tests/gdb/gdb_tests.py expected --core m4
 ```
+
+## 알려진 차이
+
+- **FP 문맥 예외 frame을 지나는 backtrace**: gdb는 이 frame을 풀 때 `FPCCR`(0xE000EF34, 메모리에 매핑된 레지스터)을 읽습니다.
+  SimGDB는 주변장치 값을 모르므로 gdb가 `warning: Could not fetch required FPCCR content`를 내고 그 frame에서 멈춥니다.
+  모르는 값으로 보고 허용합니다(`docs/LIMITATIONS.md`).
 
 ## 알려진 차이 (시나리오에서 피함)
 

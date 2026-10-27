@@ -165,7 +165,8 @@ fn check(core: &str, dialect: &str) -> (usize, usize) {
 
 #[test]
 fn call_stacks_match_gdb() {
-    for core in ["m4", "m35p", "m4be"] {
+    // m4f: every exception stacks an extended (FP) frame.
+    for core in ["m4", "m35p", "m4be", "m4f"] {
         for dialect in ["fm", "m4rtl", "es"] {
             let (points, deepest) = check(core, dialect);
             eprintln!("{core} {dialect}: {points} points, deepest {deepest} frames");

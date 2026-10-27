@@ -1,4 +1,5 @@
 # Breakpoint, next, step, finish, stepi and data inspection in thread mode.
+@cores m4 m35p m4be
 break build_list
 continue
 @dump steps_a

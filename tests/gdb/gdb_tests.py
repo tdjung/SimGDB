@@ -11,6 +11,7 @@ compared:
             simgdb binary and gdb.
 
 Scenario files (scenarios/*.gdb) hold one gdb command per line, plus:
+  @cores A B      run this scenario only for these cores (first such line)
   @dump LABEL     print a labelled state block (registers, backtrace, args, locals)
   @reverse CMD    run CMD on SimGDB only (QEMU has no reverse execution); every
                   labelled block printed after a reverse command must equal the
@@ -42,16 +43,21 @@ FIRMWARE = HERE.parent / "firmware"
 # m4be: the m4 firmware built big-endian (BE8). Its expected output needs a
 # QEMU with tests/firmware/qemu/qemu-m-bigend.patch (run with QEMU_ARM_M_BIGEND).
 MACHINES = {"m4": ("mps2-an386", "cortex-m4"), "m35p": ("mps2-an505", "cortex-m33"),
-            "m4be": ("mps2-an386", "cortex-m4")}
+            "m4be": ("mps2-an386", "cortex-m4"),
+            # m4f: the m4 firmware built hard-float with tests/firmware/src/fp.c.
+            "m4f": ("mps2-an386", "cortex-m4")}
 ICOUNT = "shift=5,align=off,sleep=off"
 DUMP = ["info registers r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12 sp lr pc xpsr msp psp control",
         "bt", "info args", "info locals"]
-UNKNOWN = re.compile(r"<unavailable>|Cannot access memory|<error: |Backtrace stopped|is not available")
+# GDB reads FPCCR (memory-mapped, 0xE000EF34) to unwind an extended (FP)
+# exception frame; SimGDB does not know that peripheral register's value.
+UNKNOWN = re.compile(r"<unavailable>|Cannot access memory|<error: |Backtrace stopped|is not available|"
+                     r"Could not fetch required FPCCR content")
 # GDB prints `x=x@entry=V` when it can prove the value equals the entry value,
 # which needs registers SimGDB may not know; `x=V` says the same value.
 ENTRY = re.compile(r"\b(\w+)=\1@entry=")
 NOISE = re.compile(r"^(Remote debugging using|\[Inferior \d|Kill the program|Detaching from|Ending remote|"
-                   r"\[Switching to|warning: |A program is being debugged)")
+                   r"\[Switching to|warning: (?!Could not fetch required FPCCR)|A program is being debugged)")
 
 
 def free_port():
@@ -72,12 +78,22 @@ def wait_port(port, proc):
     raise RuntimeError("target did not listen on port {}".format(port))
 
 
+def scenarios(core):
+    """Scenario files that apply to `core` (see `@cores`)."""
+    out = []
+    for path in sorted((HERE / "scenarios").glob("*.gdb")):
+        cores = [l.split()[1:] for l in path.read_text().splitlines() if l.startswith("@cores ")]
+        if not cores or core in cores[0]:
+            out.append(path)
+    return out
+
+
 def commands(scenario, reverse):
     out = []
     marked = False
     for line in scenario.read_text().splitlines():
         line = line.strip()
-        if not line or line.startswith("#"):
+        if not line or line.startswith("#") or line.startswith("@cores "):
             continue
         if line.startswith("@reverse "):
             if not reverse:
@@ -120,7 +136,7 @@ def expected(args):
             env["QEMU_ARM_M_BIGEND"] = "1"
         subprocess.run(base + ["-icount", "{},rr=record,rrfile={}".format(ICOUNT, rr)], check=True, timeout=300,
                        env=env)
-        for scenario in sorted((HERE / "scenarios").glob("*.gdb")):
+        for scenario in scenarios(args.core):
             port = free_port()
             q = subprocess.Popen(base + ["-icount", "{},rr=replay,rrfile={}".format(ICOUNT, rr),
                                          "-gdb", "tcp::{}".format(port), "-S"], stderr=subprocess.DEVNULL, env=env)
@@ -158,6 +174,15 @@ def psp_unknown(lines):
     return False
 
 
+def before_backtrace_unknown(lines, end):
+    """GDB warned about something unknown just before printing the backtrace
+    that ends at `end` (it warns before frame #0, e.g. about FPCCR)."""
+    k = end
+    while k > 0 and lines[k - 1].startswith("#"):
+        k -= 1
+    return k > 0 and k < end and bool(UNKNOWN.search(lines[k - 1]))
+
+
 def compare(want, got, truncated_ok):
     """(failures, tolerated) between two line lists. With `truncated_ok`, a
     backtrace may end early (the trace has no exception stacking records, so
@@ -175,7 +200,7 @@ def compare(want, got, truncated_ok):
         # (some gdb builds stop silently) below a handler while PSP is still
         # unknown: GDB's M-profile unwinder needs PSP for every exception frame.
         if op == "delete" and all(l.startswith("#") for l in theirs) and b0 > 0 and (
-                UNKNOWN.search(got[b0 - 1])
+                UNKNOWN.search(got[b0 - 1]) or before_backtrace_unknown(got, b0)
                 or (got[b0 - 1].startswith("#") and (truncated_ok or psp_unknown(got[:b0])))):
             tolerated += len(theirs)
             continue
@@ -192,7 +217,7 @@ def check(args):
         idx = Path(tmp) / "idx"
         subprocess.run([args.simgdb, "index", str(trace), "--elf", str(elf), "-o", str(idx)], check=True,
                        stderr=subprocess.DEVNULL)
-        for scenario in sorted((HERE / "scenarios").glob("*.gdb")):
+        for scenario in scenarios(args.core):
             want_text = (HERE / "expected" / args.core / (scenario.stem + ".txt")).read_text()
             port = free_port()
             s = subprocess.Popen([args.simgdb, "serve", str(idx), "--listen", "127.0.0.1:{}".format(port), "--once"],

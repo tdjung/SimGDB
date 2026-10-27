@@ -23,7 +23,12 @@ registers against the canonical log and the script fails if they differ.
 A big-endian (BE8) ELF runs with QEMU_ARM_M_BIGEND=1 under a QEMU with
 qemu/qemu-m-bigend.patch: QEMU's M-profile models only little-endian data.
 
-Usage: make_traces.py ELF {m4|m35p} OUT_DIR [--points N]
+Core m4f is the m4 board with the floating-point registers recorded too
+(S0-S31, FPSCR), for a hard-float build. The dialects write them in three
+forms: whole D registers (fm), D registers with `-` for the half not written
+(m4rtl, like Cortex-M4 RTL traces), and S registers (es).
+
+Usage: make_traces.py ELF {m4|m4f|m35p} OUT_DIR [--points N]
 Environment: QEMU, PLUGIN, GDB, OBJDUMP override the tool paths.
 """
 
@@ -39,10 +44,16 @@ import sys
 import tempfile
 import time
 
-MACHINES = {"m4": ("mps2-an386", "cortex-m4"), "m35p": ("mps2-an505", "cortex-m33")}
+MACHINES = {"m4": ("mps2-an386", "cortex-m4"), "m4f": ("mps2-an386", "cortex-m4"),
+            "m35p": ("mps2-an505", "cortex-m33")}
 ICOUNT = "shift=5,align=off,sleep=off"
 REGS = ["r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12",
         "sp", "lr", "xpsr", "msp", "psp", "primask", "basepri", "faultmask", "control"]
+FP_REGS = ["s%d" % n for n in range(32)] + ["fpscr"]
+
+
+def is_s(name):
+    return name[0] == "s" and name[1:].isdigit()
 CONDITIONS = ("eq", "ne", "cs", "cc", "mi", "pl", "vs", "vc", "hi", "ls", "ge", "lt", "gt", "le")
 ALIASES = {"hs": "cs", "lo": "cc"}
 
@@ -81,12 +92,13 @@ class Insn:
 
 def run_plugin(elf, core, log, rrfile):
     machine, cpu = MACHINES[core]
+    fp = ",fp=on" if core.endswith("f") else ""
     subprocess.run([tool("QEMU", "qemu-system-arm"), "-M", machine, "-cpu", cpu, "-nographic",
                     "-monitor", "none", "-serial", "none",
                     "-semihosting-config", "enable=on,target=native", "-kernel", str(elf),
                     "-accel", "tcg,one-insn-per-tb=on",
                     "-icount", "{},rr=record,rrfile={}".format(ICOUNT, rrfile),
-                    "-plugin", "{},out={}".format(tool("PLUGIN", "trace_plugin.so"), log)],
+                    "-plugin", "{},out={}{}".format(tool("PLUGIN", "trace_plugin.so"), log, fp)],
                    check=True, timeout=300, env=qemu_env())
 
 
@@ -139,7 +151,8 @@ def pre_entry(insn, after):
 
     `after` is the state after entry. The frame holds r0-r3, r12, lr, the
     return address and xPSR as they were; xPSR bit 9 says a 4-byte alignment
-    pad was inserted above the frame.
+    pad was inserted above the frame. EXC_RETURN bit 4 clear: an extended
+    frame, with room for S0-S15 and FPSCR above the basic one (0x68 bytes).
     """
     exc = insn.exc
     frame = exc["frame"]
@@ -150,7 +163,8 @@ def pre_entry(insn, after):
     pre["xpsr"] = stacked_psr & ~(1 << 9)
     on_psp = after["lr"] & 4
     bank = "psp" if on_psp else "msp"
-    pre[bank] = exc["frame_addr"] + 32 + (4 if stacked_psr & (1 << 9) else 0)
+    size = 0x20 if after["lr"] & 0x10 else 0x68
+    pre[bank] = exc["frame_addr"] + size + (4 if stacked_psr & (1 << 9) else 0)
     pre["sp"] = pre[bank]
     pre["control"] = insn.before["control"]
     return pre
@@ -203,6 +217,7 @@ class Dialect:
 
     stacking = False   # write the exception frame as memory stores
     header = None
+    fp_form = "s"      # "s": S registers; "d": whole D registers; "d-": D, `-` for a half not written
 
     def __init__(self, out):
         self.out = out
@@ -241,8 +256,21 @@ class Dialect:
                 self.registers(t, diff(insn.before, after), after)
 
     def registers(self, t, changes, state):
+        halves = {}
         for name, value in changes:
-            self.register(t, name, value, state)
+            if is_s(name) and self.fp_form != "s":
+                halves.setdefault(int(name[1:]) // 2, set()).add(int(name[1:]) % 2)
+            else:
+                self.register(t, name, value, state)
+        for n, written in sorted(halves.items()):
+            lo, hi = state["s%d" % (2 * n)], state["s%d" % (2 * n + 1)]
+            partial = self.fp_form == "d-" and len(written) == 1
+            text = ("--------" if partial and 1 not in written else "{:08x}".format(hi)) + \
+                ("--------" if partial and 0 not in written else "{:08x}".format(lo))
+            self.raw(t, "D%d" % n, text)
+
+    def register(self, t, name, value, state):
+        self.raw(t, self.names.get(name, name), "{:08x}".format(value))
 
 
 class FastModels(Dialect):
@@ -253,7 +281,9 @@ class FastModels(Dialect):
     """
 
     names = {"sp": "r13", "lr": "r14", "xpsr": "XPSR", "msp": "MSP", "psp": "PSP",
-             "control": "CONTROL", "primask": "PRIMASK", "basepri": "BASEPRI", "faultmask": "FAULTMASK"}
+             "control": "CONTROL", "primask": "PRIMASK", "basepri": "BASEPRI", "faultmask": "FAULTMASK",
+             "fpscr": "FPSCR"}
+    fp_form = "d"
 
     def stamp(self, i):
         return 1_000_000 + (i * 10_000 if i < 2000 else 2000 * 10_000 + (i - 2000) * 5_000)
@@ -262,8 +292,8 @@ class FastModels(Dialect):
         self.emit("{} ps {} ({}) {:08x} {} T thread : {}".format(
             t, "IS" if fail else "IT", i, insn.pc, insn.op, text))
 
-    def register(self, t, name, value, state):
-        self.emit("{} ps R {} {:08x}".format(t, self.names.get(name, name), value))
+    def raw(self, t, name, text):
+        self.emit("{} ps R {} {}".format(t, name, text))
 
     def memory(self, t, rw, addr, size, value):
         self.emit("{} ps M{}{} {:08x} {:0{}x}".format(t, rw, size, addr, value, size * 2))
@@ -279,6 +309,7 @@ class CortexM4Rtl(Dialect):
     and the exception frame written as memory stores."""
 
     stacking = True
+    fp_form = "d-"
 
     def __init__(self, out):
         super().__init__(out)
@@ -306,7 +337,10 @@ class CortexM4Rtl(Dialect):
         elif name == "xpsr":
             self.emit("{:>10} cyc R psr {:08x}".format(t, value))
         else:
-            self.emit("{:>10} cyc R {} {:08x}".format(t, name, value))
+            self.raw(t, name, "{:08x}".format(value))
+
+    def raw(self, t, name, text):
+        self.emit("{:>10} cyc R {} {}".format(t, name, text))
 
     def memory(self, t, rw, addr, size, value):
         data = value.to_bytes(size, order(addr)).hex()  # memory order
@@ -332,7 +366,10 @@ class EmbeddedTrace(Dialect):
             t, insn.pc, insn.op, "CCFAIL " if fail else "", text))
 
     def register(self, t, name, value, state):
-        self.emit("                   R {} {:08x}".format(self.names.get(name, name.upper()), value))
+        self.raw(t, self.names.get(name, name.upper()), "{:08x}".format(value))
+
+    def raw(self, t, name, text):
+        self.emit("                   R {} {}".format(name, text))
 
     def memory(self, t, rw, addr, size, value):
         base = addr & ~15
@@ -360,7 +397,7 @@ DIALECTS = {"fm": FastModels, "m4rtl": CortexM4Rtl, "es": EmbeddedTrace}
 # ---------------------------------------------------------------- ground truth
 
 GDB_SCRIPT = r'''
-import gdb, json
+import gdb, json, re
 gdb.execute("set pagination off")
 gdb.execute("set confirm off")
 gdb.execute("target remote :{port}")
@@ -372,7 +409,13 @@ frame = gdb.selected_frame()
 regs = {{}}
 for name in {regs!r}:
     try:
-        regs[name] = int(frame.read_register(name)) & 0xffffffff
+        if name == "fpscr" or (name[0] == "s" and name[1:].isdigit()):
+            # Bits, not the float value: "s4  1.5  (raw 0x3fc00000)".
+            text = gdb.execute("info registers " + name, to_string=True)
+            m = re.search(r"raw (0x[0-9a-f]+)", text) or re.search(r"\s(0x[0-9a-f]+)", text)
+            regs[name] = int(m.group(1), 16) & 0xffffffff
+        else:
+            regs[name] = int(frame.read_register(name)) & 0xffffffff
     except gdb.error:
         pass
 inferior = gdb.selected_inferior()
@@ -508,8 +551,10 @@ def main(argv):
     ap.add_argument("out", type=Path)
     ap.add_argument("--points", type=int, default=40)
     args = ap.parse_args(argv[1:])
-    global BIG_ENDIAN
+    global BIG_ENDIAN, REGS
     BIG_ENDIAN = args.elf.read_bytes()[5] == 2  # EI_DATA: ELFDATA2MSB
+    if args.core.endswith("f"):
+        REGS = REGS + FP_REGS
     args.out.mkdir(parents=True, exist_ok=True)
     stem = args.out / args.elf.stem
     table = listing(args.elf)

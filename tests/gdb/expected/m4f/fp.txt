@@ -1,0 +1,94 @@
+Reset_Handler () at startup.c:11
+11	    while (dst < &__data_end) *dst++ = *src++;
+Breakpoint 1 at 0x330: file fp.c, line 37.
+
+Breakpoint 1, fscale (x=0.25, k=0.333333343) at fp.c:37
+37	    return x * k + 0.5f;
+
+Breakpoint 1, fscale (x=0.333333313, k=0.15476191) at fp.c:37
+37	    return x * k + 0.5f;
+
+Breakpoint 1, fscale (x=-0.383494556, k=0.583333373) at fp.c:37
+37	    return x * k + 0.5f;
+s0             -0.383494556        (raw 0xbec45966)
+s1             0.583333373         (raw 0x3f155556)
+s16            0.123403437         (raw 0x3dfcbaf1)
+s17            0.583333373         (raw 0x3f155556)
+s18            1.0625              (raw 0x3f880000)
+d0             8.1380290513832077e-05 (raw 0x3f155556bec45966)
+d8             8.1380261232704356e-05 (raw 0x3f1555563dfcbaf1)
+fpscr          0x10                16
+$1 = -0.383494556
+$2 = 0.583333373
+#0  fscale (x=-0.383494556, k=0.583333373) at fp.c:37
+#1  0x00000386 in fp_work (round=0) at fp.c:46
+#2  0x00000402 in fp_run () at fp.c:76
+#3  0x00000456 in fp_main () at fp.c:90
+#4  0x0000008a in Reset_Handler () at startup.c:13
+#5  <signal handler called>
+0x00000386 in fp_work (round=0) at fp.c:47
+47	        a = fvalues[i] * weights[i & 3];
+Value returned is $3 = 0.276294827
+$4 = 0.276294827
+$5 = {0.666666627, 0.306795657, 0, 0, 0, 0, 0, 0}
+#1  0x00000402 in fp_run () at fp.c:76
+76	        acc += fp_work(round);
+s16            0                   (raw 0x00000000)
+s17            0                   (raw 0x00000000)
+$6 = 0
+No symbol "a" in current context.
+No symbol "b" in current context.
+No symbol "keep" in current context.
+Breakpoint 2 at 0x340: file fp.c, line 42.
+
+Breakpoint 2, fp_work (round=1) at fp.c:42
+42	    float a = (float)round + 0.25f;
+
+Breakpoint 2, fp_work (round=2) at fp.c:42
+42	    float a = (float)round + 0.25f;
+s16            -0.161964074        (raw 0xbe25d9e9)
+fpscr          0x800010            8388624
+$7 = 0x800010
+#1  0x00000402 in fp_run () at fp.c:76
+76	        acc += fp_work(round);
+s16            -0.161964074        (raw 0xbe25d9e9)
+d8             1.5761443387472278e-314 (raw 0x00000000be25d9e9)
+$8 = -0.161964074
+$9 = 2
+Breakpoint 3 at 0x17c: file state.c, line 73.
+
+Breakpoint 3, walk_list () at state.c:73
+73	    for (struct record *r = head; r; r = r->next)
+#0  walk_list () at state.c:73
+#1  0x00000296 in work (round=0) at state.c:140
+#2  0x000002d6 in main () at state.c:157
+s16            0.0784939975        (raw 0x3da0c176)
+s17            0                   (raw 0x00000000)
+fpscr          0x10                16
+control        0x4                 4
+$10 = 0.0784939975
+$11 = 16
+Breakpoint 4 at 0x26c: file state.c, line 128.
+
+Breakpoint 4, use_process_stack () at state.c:128
+128	    __asm__ volatile(
+Breakpoint 5 at 0x240: file state.c, line 111.
+
+Breakpoint 5, SysTick_Handler () at state.c:111
+111	    uint32_t t = ++ticks;
+
+Breakpoint 5, SysTick_Handler () at state.c:111
+111	    uint32_t t = ++ticks;
+sp             0x2000ffc8          0x2000ffc8
+msp            0x2000ffc8          536936392
+psp            0x20000458          536872024
+control        0x0                 0
+#0  SysTick_Handler () at state.c:111
+#1  <signal handler called>
+#2  0x00000124 in build_list (n=6) at state.c:62
+#3  0x00000292 in work (round=3) at state.c:139
+#4  0x000002f0 in main () at state.c:160
+s0             0.240458071         (raw 0x3e763aa4)
+s1             0.789285541         (raw 0x3f4a0e9e)
+s16            0.0784939975        (raw 0x3da0c176)
+s17            0                   (raw 0x00000000)

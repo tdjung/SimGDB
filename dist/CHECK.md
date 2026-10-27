@@ -66,7 +66,8 @@ du -sh real.idx
   - `parse_errors.count`가 0입니다. 0이 아니면 `samples`에 해석하지 못한 줄이 있습니다.
   - `unrecognised`가 비어 있습니다. 비어 있지 않으면 거기 나온 레코드 종류를 아직 모르는 것입니다.
   - `capabilities`에서 `register_writes`, `memory_writes`, `exceptions`, `exception_stacking_writes`, `time_unit`을 확인합니다.
-  - `unmodelled_registers`는 SimGDB가 아직 다루지 않는 레지스터 이름입니다(FPU 등).
+  - `unmodelled_registers`는 SimGDB가 아직 다루지 않는 레지스터 이름입니다(`fpccr`, Non-secure 뱅크 등).
+    S/D 레지스터와 `fpscr`, `msplim`/`psplim`은 이제 여기 나오지 않아야 합니다.
   - `bus_copies`가 있으면(Cortex-M4 RTL의 `B…` 레코드): `records`, `matched`, `matched_part`, `matched_reversed`,
     `unmatched_reads`, `unmatched_writes`와, 0이 아닌 쪽의 `unmatched_*_samples` 두세 줄을 알려 주세요.
 - 전달 부탁: `report.json`, `time` 결과, `du -sh` 결과. `report.json`의 `timings_ms`는 단계별 시간(trace 읽기, 버스 사본 점검,

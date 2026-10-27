@@ -245,8 +245,8 @@ fn index_bytes(mi: &mut ExtSorter<3>, cols: &[Column], first: usize, n: usize) -
 /// placeholder clobber row is filled in when the next instruction starts.
 struct PendingEntry {
     row: usize,
-    /// The range below the pre-entry stack pointer was marked.
-    placed_below: bool,
+    /// Pre-entry stack pointer, when known: the range below it was marked.
+    below: Option<u64>,
 }
 
 /// Data byte order, where it came from, and a note when an explicit choice
@@ -529,25 +529,32 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
                             Some(to) => TraceRegName { name: to, bank: None },
                             None => TraceRegName { name: &r.name, bank: r.bank.as_deref() },
                         };
-                        let Some(reg) = isa.lookup(&name) else {
+                        let Some(fields) = isa.lookup_fields(&name) else {
                             *report.unmodelled_registers.entry(r.name.to_ascii_lowercase()).or_default() += 1;
                             continue;
                         };
-                        if reg == isa.pc() {
-                            // The PC comes from instruction records.
-                            continue;
+                        for (reg, shift) in fields.iter() {
+                            if reg == isa.pc() {
+                                // The PC comes from instruction records.
+                                continue;
+                            }
+                            let full = RegState::full_mask(isa.registers()[reg as usize].bits);
+                            // Bits the record does not write (`-` digits) keep
+                            // their value; a field of a wider trace register
+                            // (one half of a `D` register) may not be written.
+                            let (wm, k) = ((r.written >> shift) & full, reg as usize);
+                            if wm == 0 {
+                                continue;
+                            }
+                            let w = RegWrite {
+                                reg,
+                                value: (state.values[k] & !wm) | ((r.value >> shift) & wm),
+                                known: (state.known[k] & !wm) | ((r.known >> shift) & wm),
+                                derived: false,
+                            };
+                            push_write(&mut b, &mut state, &mut last_write_row, &w, at, lineno)?;
+                            block.written[k] = true;
                         }
-                        let full = RegState::full_mask(isa.registers()[reg as usize].bits);
-                        // Bits the record does not write (`-` digits) keep their value.
-                        let (wm, k) = (r.written & full, reg as usize);
-                        let w = RegWrite {
-                            reg,
-                            value: (state.values[k] & !wm) | (r.value & wm),
-                            known: (state.known[k] & !wm) | (r.known & wm),
-                            derived: false,
-                        };
-                        push_write(&mut b, &mut state, &mut last_write_row, &w, at, lineno)?;
-                        block.written[reg as usize] = true;
                         block.line = lineno;
                         report.register_writes += 1;
                     }
@@ -629,7 +636,7 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
                         // Placeholder for the exact frame at the post-entry stack
                         // pointer (known once the entry's register records are read).
                         mark_unknown(&mut b, MEM_CLOBBER, at, 0, 0, lineno)?;
-                        pending = Some(PendingEntry { row: b.mem_rows() - 1, placed_below: below.is_some() });
+                        pending = Some(PendingEntry { row: b.mem_rows() - 1, below });
                         writes_since_entry = false;
                     }
                     Record::Header | Record::Blank => {}
@@ -820,13 +827,22 @@ fn mark_unknown(b: &mut Builder, kind: u8, at: u64, addr: u64, size: u64, line: 
 
 /// Fill in the placeholder with the exact frame the ISA reads from the
 /// post-entry state. Returns true when neither range could be placed.
+///
+/// The frame ends at the pre-entry stack pointer when that is known: the
+/// ISA's size may assume more state than was stacked (Arm: the Secure FP
+/// context, invisible in the trace), and bytes above that stack pointer
+/// belong to the interrupted code and keep their values.
 fn finish_entry(b: &mut Builder, p: PendingEntry, state: &RegState, isa: &dyn Isa) -> Result<bool, StoreError> {
     match isa.exception_frame(state) {
         Some((base, size)) => {
-            b.patch_mem(p.row, base, size as u32)?;
+            let end = match p.below {
+                Some(sp) => (base + size).min(sp.max(base)),
+                None => base + size,
+            };
+            b.patch_mem(p.row, base, (end - base) as u32)?;
             Ok(false)
         }
-        None => Ok(!p.placed_below),
+        None => Ok(p.below.is_none()),
     }
 }
 

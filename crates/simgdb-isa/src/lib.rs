@@ -131,6 +131,41 @@ impl Endian {
     }
 }
 
+/// Where a trace register lands in the register file: one register, or
+/// several fields of a wider trace register (Arm `D2` is `S5:S4`). Each
+/// field is a register and the bit offset of its value in the trace value.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Fields {
+    parts: [(RegId, u32); 2],
+    n: u8,
+}
+
+impl Fields {
+    pub fn one(reg: RegId) -> Fields {
+        Fields { parts: [(reg, 0), (0, 0)], n: 1 }
+    }
+
+    /// `low` holds bits `[0, shift)`, `high` the bits from `shift` on.
+    pub fn pair(low: RegId, high: RegId, shift: u32) -> Fields {
+        Fields { parts: [(low, 0), (high, shift)], n: 2 }
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (RegId, u32)> + '_ {
+        self.parts[..self.n as usize].iter().copied()
+    }
+}
+
+/// A register as GDB sees it, in target-description (`g` packet) order:
+/// `count` consecutive registers of the register file from `first`, the
+/// lowest bits first (Arm `d2` is S4 then S5). Its value is known only when
+/// every part is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct GdbRegister {
+    pub name: &'static str,
+    pub first: RegId,
+    pub count: u16,
+}
+
 pub trait Isa: Send + Sync {
     fn name(&self) -> &'static str;
     fn registers(&self) -> &'static [RegDef];
@@ -142,6 +177,11 @@ pub trait Isa: Send + Sync {
     /// Map a trace register name onto the register file. `None` for names
     /// this ISA does not model (they are reported, not dropped silently).
     fn lookup(&self, name: &TraceRegName<'_>) -> Option<RegId>;
+    /// Like `lookup`, for trace registers that are wider than one modelled
+    /// register and split across several (Arm `D<n>` over `S<2n>`, `S<2n+1>`).
+    fn lookup_fields(&self, name: &TraceRegName<'_>) -> Option<Fields> {
+        self.lookup(name).map(Fields::one)
+    }
     /// Writes that keep aliases consistent (e.g. SP and the active banked
     /// SP) after a block of trace writes: everything recorded between two
     /// instructions, or before an exception record. `state` already has the
@@ -155,6 +195,15 @@ pub trait Isa: Send + Sync {
     /// before their first write); an ISA may describe them differently so
     /// GDB does not depend on values it cannot always get.
     fn target_xml(&self, not_always_known: &[String]) -> String;
+    /// Registers in the order `target_xml` numbers them. Default: the
+    /// register file as it is.
+    fn gdb_registers(&self) -> Vec<GdbRegister> {
+        self.registers()
+            .iter()
+            .enumerate()
+            .map(|(n, r)| GdbRegister { name: r.name, first: n as RegId, count: 1 })
+            .collect()
+    }
     /// Default memory map: regions whose contents change without core
     /// accesses (peripherals), for which a remembered value is not trusted.
     fn volatile_regions(&self) -> &'static [(u64, u64)];
