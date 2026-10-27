@@ -19,7 +19,10 @@ simgdb index trace.log --elf firmware.elf -o trace.idx --report > report.json
     `unmatched_writes`가 0이면 인덱스가 놓친 쓰기가 없다는 뜻입니다. 0이 아니면 `unmatched_write_samples`를 알려 주세요.
     `unmatched_reads`는 놓친 읽기로, 그 값을 모르게 할 뿐 틀린 값을 만들지는 않습니다. 샘플마다 사본의 내용과, 같은 바이트에
     가장 가까운 코어 기록(몇 명령어 앞뒤인지)이 적혀 있습니다.
-  - `timings_ms`: 단계별 시간(trace 읽기, 버스 사본 점검, 정렬·쓰기, ELF 소스·변수).
+  - `timings_ms`: 단계별 시간(밀리초). `read_trace`는 trace를 읽는 단계 전체이고, 그 안의 `.input`(파일 읽기·gzip 풀기),
+    `.parse`(해석), `.index_working`(인덱싱), `.index_waiting`(인덱싱이 앞 단계를 기다린 시간)은 따로 도는 스레드라 합이
+    전체와 같지 않습니다. `.index_waiting`이 크고 `.input`이 `read_trace`에 가까우면 파일 읽기(디스크·네트워크 파일 시스템)가
+    병목입니다. 그 밖에 `bus_copy_check`, `sort_and_write`, `elf_sources_variables`.
   - `sources.problems`: ELF 디버그 정보 중 읽지 못한 부분. 인덱싱은 계속되고, 읽은 부분만 씁니다
     (못 읽은 곳의 함수 이름은 심볼 표에서 가져옴).
 - 멀티코어 trace는 `--core N`으로 한 코어씩 만듭니다.

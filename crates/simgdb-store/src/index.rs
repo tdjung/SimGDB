@@ -290,11 +290,20 @@ const CHUNK_LINES: usize = 1 << 14;
 /// Read thread → parse thread → the caller. Each stage works on whole
 /// chunks; the bounded channels keep a few chunks in flight. A read error
 /// ends the stream with that error.
+/// Busy time of the reading and parsing threads (nanoseconds).
+#[derive(Default)]
+struct StageTimes {
+    read: std::sync::atomic::AtomicU64,
+    parse: std::sync::atomic::AtomicU64,
+}
+
 fn pipeline<'scope>(
     scope: &'scope std::thread::Scope<'scope, '_>,
     mut reader: Box<dyn BufRead + Send>,
     mut parser: Parser,
+    times: &'scope StageTimes,
 ) -> std::sync::mpsc::Receiver<std::io::Result<Chunk>> {
+    use std::sync::atomic::Ordering::Relaxed;
     let (raw_tx, raw_rx) = std::sync::mpsc::sync_channel::<std::io::Result<(String, Vec<usize>)>>(4);
     let (tx, rx) = std::sync::mpsc::sync_channel::<std::io::Result<Chunk>>(4);
     scope.spawn(move || {
@@ -302,6 +311,7 @@ fn pipeline<'scope>(
             let mut text = String::with_capacity(CHUNK_BYTES + 4096);
             let mut ends = Vec::with_capacity(CHUNK_LINES);
             let mut eof = false;
+            let t = std::time::Instant::now();
             while text.len() < CHUNK_BYTES && ends.len() < CHUNK_LINES {
                 match reader.read_line(&mut text) {
                     Ok(0) => {
@@ -315,6 +325,7 @@ fn pipeline<'scope>(
                     }
                 }
             }
+            times.read.fetch_add(t.elapsed().as_nanos() as u64, Relaxed);
             if (!ends.is_empty() && raw_tx.send(Ok((text, ends))).is_err()) || eof {
                 return;
             }
@@ -322,12 +333,14 @@ fn pipeline<'scope>(
     });
     scope.spawn(move || {
         for item in raw_rx {
+            let t = std::time::Instant::now();
             let chunk = item.map(|(text, ends)| {
                 let mut chunk = Chunk { text, ends, parsed: Vec::new() };
                 let parsed = (0..chunk.ends.len()).map(|k| parser.parse(chunk.line(k))).collect();
                 chunk.parsed = parsed;
                 chunk
             });
+            times.parse.fetch_add(t.elapsed().as_nanos() as u64, Relaxed);
             let stop = chunk.is_err();
             if tx.send(chunk).is_err() || stop {
                 return;
@@ -387,8 +400,14 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
     // on three threads; lines travel in chunks.
     let mut lineno = 0u64;
     let mut unit_seen: Option<simgdb_model::TimeUnit> = None;
+    let stage_times = StageTimes::default();
+    let mut waited = std::time::Duration::ZERO;
     std::thread::scope(|scope| -> Result<(), StoreError> {
-        for chunk in pipeline(scope, reader, parser) {
+        let chunks = pipeline(scope, reader, parser, &stage_times);
+        loop {
+            let t = std::time::Instant::now();
+            let Ok(chunk) = chunks.recv() else { break };
+            waited += t.elapsed();
             let mut chunk = chunk.map_err(|e| StoreError::io(&opts.trace, e))?;
             let results = std::mem::take(&mut chunk.parsed);
             for (k, result) in results.into_iter().enumerate() {
@@ -663,8 +682,16 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
     };
     let elf_time = started.elapsed() - read - tables;
     let ms = |d: std::time::Duration| d.as_millis() as u64;
+    let ns_ms = |a: &std::sync::atomic::AtomicU64| a.load(std::sync::atomic::Ordering::Relaxed) / 1_000_000;
     let timings_ms = [
-        ("read_trace", ms(read.saturating_sub(bus_time))),
+        // Wall time of the reading phase, and inside it: the reading thread
+        // (file and decompression), the parsing thread, the indexer waiting
+        // for them, and the indexer's own work.
+        ("read_trace", ms(read)),
+        ("read_trace.input", ns_ms(&stage_times.read)),
+        ("read_trace.parse", ns_ms(&stage_times.parse)),
+        ("read_trace.index_waiting", ms(waited)),
+        ("read_trace.index_working", ms(read.saturating_sub(waited).saturating_sub(bus_time))),
         ("bus_copy_check", ms(bus_time)),
         ("sort_and_write", ms(tables)),
         ("elf_sources_variables", ms(elf_time)),
