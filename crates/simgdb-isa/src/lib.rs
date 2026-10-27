@@ -186,6 +186,12 @@ pub trait Isa: Send + Sync {
     fn exception_name(&self, number: u32) -> Option<String>;
     /// Control-flow class of an executed instruction from its trace encoding.
     fn flow(&self, opcode: u32, width: u8) -> Flow;
+    /// System registers an instruction writes by its encoding (Arm `MSR`,
+    /// `CPS`), so a trace that never records such a register can be told
+    /// apart from firmware that never changes it.
+    fn system_register_writes(&self, _opcode: u32, _width: u8) -> &'static [RegId] {
+        &[]
+    }
 }
 
 pub fn by_name(name: &str) -> Option<Box<dyn Isa>> {

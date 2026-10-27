@@ -512,6 +512,13 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
                         let frame = b.calls.at_instruction(at, i.pc, isa.exception_number(&state))?;
                         if let (false, Some(op)) = (i.failed, i.opcode) {
                             b.calls.after_instruction(at, i.pc, i.width, isa.flow(op, i.width))?;
+                            for &r in isa.system_register_writes(op, i.width) {
+                                let name = isa.registers()[r as usize].name;
+                                *report.system_register_writes_by_instruction.entry(name.to_string()).or_default() += 1;
+                            }
+                        }
+                        if at == 0 {
+                            report.first_pc = Some(i.pc);
                         }
                         b.push_instruction(i.pc, i.opcode.unwrap_or(0), i.width, flags, t, lineno, frame)?;
                         report.instructions += 1;
@@ -702,6 +709,18 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
 
     report.sources = sources;
     report.bus_copies = bus.finish();
+    if let Some(e) = elf.as_ref() {
+        report.elf_entry = Some(e.entry & !1);
+        report.reset_handler = e.symbol("Reset_Handler").map(|s| s.addr & !1);
+        report.reset_vector = e.image.first().and_then(|s| {
+            let w: [u8; 4] = s.data.get(4..8)?.try_into().ok()?;
+            let v = if endian == Endian::Big { u32::from_be_bytes(w) } else { u32::from_le_bytes(w) };
+            Some(v as u64 & !1)
+        });
+        report.starts_at_reset = report.first_pc.map(|pc| {
+            [report.reset_vector, report.reset_handler, report.elf_entry.filter(|&e| e != 0)].contains(&Some(pc))
+        });
+    }
     report.endian_source = Some(endian_source.to_string());
     report.endian_conflict = endian_conflict;
     let meta = Meta {

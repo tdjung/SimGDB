@@ -181,6 +181,26 @@ pub struct Report {
     /// `None` in indexes built before this was recorded.
     #[serde(default)]
     pub registers_not_always_known: Option<Vec<String>>,
+    /// System registers the executed instructions wrote (`MSR`, `CPS`), by
+    /// register, whether or not the trace recorded the new value: a
+    /// register in registers_never_written with a count here means the
+    /// trace does not record it; without one, the firmware never changed it.
+    #[serde(default)]
+    pub system_register_writes_by_instruction: BTreeMap<String, u64>,
+    /// PC of the first instruction, and where the ELF says reset goes: the
+    /// second word of the lowest load segment (the Arm M-profile vector
+    /// table), the `Reset_Handler` symbol, the ELF entry point.
+    #[serde(default)]
+    pub first_pc: Option<u64>,
+    #[serde(default)]
+    pub reset_vector: Option<u64>,
+    #[serde(default)]
+    pub reset_handler: Option<u64>,
+    #[serde(default)]
+    pub elf_entry: Option<u64>,
+    /// The first PC is one of those: the trace starts at reset.
+    #[serde(default)]
+    pub starts_at_reset: Option<bool>,
     /// Where the data byte order came from: "option", "config", "elf" or
     /// "isa default".
     #[serde(default)]

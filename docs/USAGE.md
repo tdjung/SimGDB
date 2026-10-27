@@ -51,12 +51,14 @@ tools/summarize_reports.sh /path/to/tests                               # summar
   공통이면 절대 경로로 줍니다. 환경 변수: `JOBS`(동시 개수, 기본 4), `KEEP=1`(인덱스 `X.idx`도 남김, 기본은 지움),
   `CONFIG`(설정 파일), `SIMGDB`(실행 파일, 기본은 패키지의 `bin/simgdb`). 실패한 trace는 `FAILED`로 표시됩니다.
 - `summarize_reports.sh`: 한 줄이 trace 하나인 표(탭 구분, 엑셀에서 열림). 열: 테스트 폴더, trace, 명령어 수,
-  해석 오류 수, 모르는 레코드 종류, 한 번도 기록되지 않은 레지스터, byte 순서 출처, 짝 없는 버스 쓰기(`-`는 버스 사본 없음),
+  해석 오류 수, 모르는 레코드 종류, 한 번도 기록되지 않은 레지스터, trace가 reset부터 시작하는지, 실행된 명령어가 쓴 시스템
+  레지스터(`MSR`·`CPS`, 개수), byte 순서 출처, 짝 없는 버스 쓰기(`-`는 버스 사본 없음),
   trace 읽기 시간과 그중 파일 입력 시간, 전체 시간. 실패한 trace는 `FAILED:`와 오류 메시지. 인덱싱 도중에 돌려도 됩니다.
 - 표를 보는 예:
   ```bash
-  awk -F'\t' 'NR>1 && $8!="-" && $8!=0' summary.tsv            # 짝 없는 버스 쓰기가 있는 trace
+  awk -F'\t' 'NR>1 && $10!="-" && $10!=0' summary.tsv          # 짝 없는 버스 쓰기가 있는 trace
   awk -F'\t' 'NR>1 {print $6}' summary.tsv | sort | uniq -c    # 기록되지 않은 레지스터 조합별 개수
+  awk -F'\t' 'NR>1 {print $7, $8}' summary.tsv | sort | uniq -c # reset부터 시작? / 명령어가 쓴 시스템 레지스터
   grep FAILED summary.tsv
   ```
 

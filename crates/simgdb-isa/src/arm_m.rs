@@ -291,6 +291,29 @@ impl Isa for ArmM {
     fn flow(&self, opcode: u32, width: u8) -> crate::Flow {
         crate::thumb::classify_opcode(opcode, width)
     }
+
+    fn system_register_writes(&self, opcode: u32, width: u8) -> &'static [RegId] {
+        match width {
+            // CPSIE/CPSID i/f: 1011 0110 011 im 0 0 I F.
+            2 if opcode & 0xffec == 0xb660 => match opcode & 3 {
+                1 => &[FAULTMASK],
+                2 => &[PRIMASK],
+                3 => &[PRIMASK, FAULTMASK],
+                _ => &[],
+            },
+            // MSR spec_reg, Rn: 11110 0 1110 0 0 Rn | 10 0 0 mask 0 0 SYSm.
+            4 if opcode & 0xfff0_f300 == 0xf380_8000 => match opcode & 0xff {
+                0x08 => &[MSP],
+                0x09 => &[PSP],
+                0x10 => &[PRIMASK],
+                0x11 | 0x12 => &[BASEPRI],
+                0x13 => &[FAULTMASK],
+                0x14 => &[CONTROL],
+                _ => &[],
+            },
+            _ => &[],
+        }
+    }
 }
 
 #[cfg(test)]
@@ -413,6 +436,19 @@ mod tests {
         let s = state(&[(LR, 0xffff_ff48), (MSP, 0x3000_0f00)]); // v8-M Secure, FP, additional state
         assert_eq!(ArmM.exception_frame(&s), Some((0x3000_0f00, 0x20 + 0x48 + 0x40 + 0x28)));
         assert_eq!(ArmM.exception_frame(&state(&[(MSP, 0x2000_0fa0)])), None);
+    }
+
+    #[test]
+    fn system_register_writes() {
+        // msr CONTROL, r0 / msr PRIMASK, r3 / msr PSP, r1 / cpsid i / cpsie if
+        assert_eq!(ArmM.system_register_writes(0xf380_8814, 4), &[CONTROL]);
+        assert_eq!(ArmM.system_register_writes(0xf383_8810, 4), &[PRIMASK]);
+        assert_eq!(ArmM.system_register_writes(0xf381_8809, 4), &[PSP]);
+        assert_eq!(ArmM.system_register_writes(0xb672, 2), &[PRIMASK]);
+        assert_eq!(ArmM.system_register_writes(0xb663, 2), &[PRIMASK, FAULTMASK]);
+        // mrs r0, CONTROL reads it; ldr r0,[r1] is no MSR.
+        assert!(ArmM.system_register_writes(0xf3ef_8014, 4).is_empty());
+        assert!(ArmM.system_register_writes(0x6808, 2).is_empty());
     }
 
     #[test]

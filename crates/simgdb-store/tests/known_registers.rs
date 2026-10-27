@@ -59,5 +59,14 @@ fn registers_unknown_somewhere_are_reported() {
         for never in &report.registers_never_written {
             assert!(listed.contains(never), "{dialect}: {never}");
         }
+        // The firmware's own MSR PSP and MSR CONTROL, counted from the
+        // instructions whether or not the trace records the registers; the
+        // trace starts at the reset handler (vector table word 1).
+        let w = &report.system_register_writes_by_instruction;
+        assert_eq!((w.get("psp"), w.get("control"), w.len()), (Some(&1), Some(&1), 2), "{dialect}");
+        assert_eq!(
+            (report.first_pc, report.reset_vector, report.starts_at_reset),
+            (Some(0x44), Some(0x44), Some(true))
+        );
     }
 }
