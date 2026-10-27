@@ -37,7 +37,7 @@ Step 0의 실제 Tarmac 조사 결과에 따라 갱신합니다.
   `-` 자리는 그 기록이 쓰지 않은 부분으로, 이전 값을 유지합니다(`R D2 --------37800000`처럼 일부만 바뀐 기록).
 - **FPU 레지스터(`S`/`D`/`Q`, `FPSCR`, `FPCCR`)와 Armv8-M `MSPLIM`/`PSPLIM`**: 아직 모델링하지 않습니다. 읽기는 하되
   보고서 `unmodelled_registers`에 개수만 남고, gdb의 `info registers`·변수(레지스터에 있는 float)에는 나오지 않습니다.
-- **SP와 MSP/PSP**: trace가 어느 쪽을 쓰든(`r13`, `r13 (MSP)`, `r13 (PSP) 값`, `SP_main`, `MSP` …) 모드(IPSR)와
+- **SP와 MSP/PSP**: trace가 어느 쪽을 쓰든(`r13`, `r13 (MSP)`, `r13 (PSP) 값`, `SP_main`, `r13_mn`, `MSP` …) 모드(IPSR)와
   CONTROL.SPSEL로 나머지를 맞춥니다. 모드를 모르면 어느 쪽이 바뀌었는지 알 수 없으므로, 낡았을 수 있는 쪽을 `unknown`으로 둡니다.
   알려지지 않은 PSP로 전환하면 SP도 `unknown`입니다.
 - **TrustZone(Armv8-M)**: Secure 뱅크(`MSP_S` 등)만 모델링합니다. Non-secure 뱅크(`MSP_NS` 등)는 합치지 않고

@@ -79,7 +79,8 @@ fn alias(name: &str) -> Option<RegId> {
         // Secure (`_s`) names are the banks SimGDB models. Non-secure banks
         // (`_ns`) are separate registers on Armv8-M with TrustZone and are
         // not modelled yet: they are reported, never merged into these.
-        "msp" | "sp_main" | "r13_main" | "msp_s" | "r13_main_s" => MSP,
+        // `r13_mn`: Cortex-M4 RTL (`R r13_mn 20038000 IntInvoke:0 BE8:1`).
+        "msp" | "sp_main" | "r13_main" | "r13_mn" | "msp_s" | "r13_main_s" => MSP,
         "psp" | "sp_process" | "r13_process" | "psp_s" | "r13_process_s" => PSP,
         "primask" | "primask_s" => PRIMASK,
         "basepri" | "basepri_s" => BASEPRI,
@@ -309,6 +310,7 @@ mod tests {
         assert_eq!(lookup("r13", Some("MSP")), Some(MSP));
         assert_eq!(lookup("r13", None), Some(SP));
         assert_eq!(lookup("SP_process", None), Some(PSP));
+        assert_eq!(lookup("r13_mn", None), Some(MSP));
         assert_eq!(lookup("XPSR", None), Some(XPSR));
         assert_eq!(lookup("psr", None), Some(XPSR));
         assert_eq!(lookup("MSP_S", None), Some(MSP));

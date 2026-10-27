@@ -777,6 +777,9 @@ mod tests {
         let Record::Register(r) = one("2 ps R r13 (PSP) 20000800") else { panic!() };
         assert_eq!((r.value, r.bank.as_deref(), r.written), (0x2000_0800, Some("PSP"), 0xffff_ffff));
         // `-` digits: bits this record does not write (partial FP updates).
+        // Trailing attributes after the value are not part of it.
+        let Record::Register(r) = one("1 ps R r13_mn 20038000 IntInvoke:0 BE8:1") else { panic!() };
+        assert_eq!((r.name.as_str(), r.value, r.bits), ("r13_mn", 0x2003_8000, 32));
         let Record::Register(r) = one("     252472 cyc R D2 --------37800000") else { panic!() };
         assert_eq!(
             (r.name.as_str(), r.value, r.known, r.written, r.bits),
