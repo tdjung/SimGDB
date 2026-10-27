@@ -10,3 +10,4 @@ rust-version.workspace = true
 simgdb-model.workspace = true
 flate2.workspace = true
 thiserror.workspace = true
+smallvec.workspace = true

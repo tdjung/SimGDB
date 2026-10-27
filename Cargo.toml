@@ -30,6 +30,7 @@ object = { version = "0.37", default-features = false, features = ["read_core", 
 clap = { version = "4", features = ["derive"] }
 thiserror = "2"
 tempfile = "3"
+smallvec = "1"
 
 [profile.release]
 debug = 1

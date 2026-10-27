@@ -269,6 +269,74 @@ fn data_endian(isa: &dyn Isa, opts: &IndexOptions, elf: Option<&Elf>) -> (Endian
     }
 }
 
+/// Lines of the trace, read in one thread and parsed in another.
+struct Chunk {
+    text: String,
+    /// End offset of each line in `text` (after its newline).
+    ends: Vec<usize>,
+    parsed: Vec<Result<simgdb_tarmac::Line, simgdb_tarmac::ParseError>>,
+}
+
+impl Chunk {
+    fn line(&self, k: usize) -> &str {
+        let start = if k == 0 { 0 } else { self.ends[k - 1] };
+        self.text[start..self.ends[k]].trim_end_matches(['\r', '\n'])
+    }
+}
+
+const CHUNK_BYTES: usize = 1 << 20;
+const CHUNK_LINES: usize = 1 << 14;
+
+/// Read thread → parse thread → the caller. Each stage works on whole
+/// chunks; the bounded channels keep a few chunks in flight. A read error
+/// ends the stream with that error.
+fn pipeline<'scope>(
+    scope: &'scope std::thread::Scope<'scope, '_>,
+    mut reader: Box<dyn BufRead + Send>,
+    mut parser: Parser,
+) -> std::sync::mpsc::Receiver<std::io::Result<Chunk>> {
+    let (raw_tx, raw_rx) = std::sync::mpsc::sync_channel::<std::io::Result<(String, Vec<usize>)>>(4);
+    let (tx, rx) = std::sync::mpsc::sync_channel::<std::io::Result<Chunk>>(4);
+    scope.spawn(move || {
+        loop {
+            let mut text = String::with_capacity(CHUNK_BYTES + 4096);
+            let mut ends = Vec::with_capacity(CHUNK_LINES);
+            let mut eof = false;
+            while text.len() < CHUNK_BYTES && ends.len() < CHUNK_LINES {
+                match reader.read_line(&mut text) {
+                    Ok(0) => {
+                        eof = true;
+                        break;
+                    }
+                    Ok(_) => ends.push(text.len()),
+                    Err(e) => {
+                        let _ = raw_tx.send(Err(e));
+                        return;
+                    }
+                }
+            }
+            if (!ends.is_empty() && raw_tx.send(Ok((text, ends))).is_err()) || eof {
+                return;
+            }
+        }
+    });
+    scope.spawn(move || {
+        for item in raw_rx {
+            let chunk = item.map(|(text, ends)| {
+                let mut chunk = Chunk { text, ends, parsed: Vec::new() };
+                let parsed = (0..chunk.ends.len()).map(|k| parser.parse(chunk.line(k))).collect();
+                chunk.parsed = parsed;
+                chunk
+            });
+            let stop = chunk.is_err();
+            if tx.send(chunk).is_err() || stop {
+                return;
+            }
+        }
+    });
+    rx
+}
+
 pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
     let elf = match &opts.elf {
         Some(p) => Some(Elf::load(p)?),
@@ -296,7 +364,7 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
     if let Some(c) = &opts.config {
         c.validate(isa).map_err(StoreError::Trace)?;
     }
-    let mut parser = match &opts.config {
+    let parser = match &opts.config {
         Some(c) => Parser::with_notation(c.notation()),
         None => Parser::new(),
     };
@@ -315,220 +383,246 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
     let sp = isa.stack_pointer();
     let mask = |s: &str| if opts.mask_samples { mask_hex(s) } else { s.to_string() };
 
-    for (n, line) in reader.lines().enumerate() {
-        let lineno = n as u64 + 1;
-        let text = line.map_err(|e| StoreError::io(&opts.trace, e))?;
-        report.lines += 1;
-        let parsed = match parser.parse(&text) {
-            Ok(p) => p,
-            Err(e) => {
-                if opts.strict {
-                    return Err(StoreError::Trace(format!("{}:{lineno}: {e}: {text}", opts.trace.display())));
-                }
-                report.parse_errors.count += 1;
-                if report.parse_errors.samples.len() < SAMPLES {
-                    report.parse_errors.samples.push(Sample { line: lineno, text: format!("{e}: {}", mask(&text)) });
-                }
-                continue;
-            }
-        };
-        if let Some(c) = parsed.core {
-            current_core = Some(c);
-            if core.is_none() {
-                core = Some(c);
-            }
-        }
-        if let (Some(c), Some(want)) = (current_core, core)
-            && c != want
-        {
-            *report.other_cores.entry(c).or_default() += 1;
-            // Another core's stores change memory this core sees: those
-            // bytes become unknown from here on.
-            if let Record::Memory(accesses) = &parsed.record {
-                let now = b.count;
-                for a in accesses.iter().filter(|a| a.write) {
-                    if a.addr.checked_add(a.size as u64).is_some_and(|end| end <= limit) {
-                        report.other_core_writes += 1;
-                        mark_unknown(&mut b, MEM_FOREIGN, now, a.addr, a.size as u64, lineno)?;
-                    }
-                }
-            }
-            continue;
-        }
-        let at = b.count;
-        match parsed.record {
-            Record::Instruction(i) => {
-                if i.event == Event::If && b.last_pc == Some(i.pc) {
-                    report.if_duplicates += 1;
-                    continue;
-                }
-                report.derived_register_writes += block.resolve(isa, &mut b, &mut state, &mut last_write_row, at)?;
-                if let Some(p) = pending.take() {
-                    report.exception_frames_unplaced += finish_entry(&mut b, p, &state, isa)? as u64;
-                }
-                if at == 0 {
-                    // The first point: anything not known yet. Later a
-                    // register's knowledge changes only through a write.
-                    for r in 0..nregs {
-                        if state.known[r] != b.full_mask[r] {
-                            b.not_always_known[r] = true;
+    // Reading (and decompressing), parsing and indexing run as a pipeline
+    // on three threads; lines travel in chunks.
+    let mut lineno = 0u64;
+    let mut unit_seen: Option<simgdb_model::TimeUnit> = None;
+    std::thread::scope(|scope| -> Result<(), StoreError> {
+        for chunk in pipeline(scope, reader, parser) {
+            let mut chunk = chunk.map_err(|e| StoreError::io(&opts.trace, e))?;
+            let results = std::mem::take(&mut chunk.parsed);
+            for (k, result) in results.into_iter().enumerate() {
+                lineno += 1;
+                let text: &str = chunk.line(k);
+                report.lines += 1;
+                let parsed = match result {
+                    Ok(p) => p,
+                    Err(e) => {
+                        if opts.strict {
+                            return Err(StoreError::Trace(format!("{}:{lineno}: {e}: {text}", opts.trace.display())));
                         }
-                    }
-                }
-                if at.is_multiple_of(opts.checkpoint_interval) {
-                    b.cp_index.push(at);
-                    b.cp_rw_row.push(b.rw.rows() as u64);
-                    for (r, &row) in last_write_row.iter().enumerate() {
-                        b.cp_v[r].push(state.values[r]);
-                        b.cp_k[r].push(state.known[r]);
-                        b.cp_w[r].push(row);
-                    }
-                }
-                let t = parsed.time.unwrap_or(NONE);
-                if report.time_unit.is_none() {
-                    report.time_unit = parser.unit().cloned();
-                }
-                if t != NONE {
-                    if report.first_time.is_none() {
-                        report.first_time = Some(t);
-                    }
-                    if report.last_time.is_some_and(|l| t < l) {
-                        report.time_monotonic = false;
-                    }
-                    report.last_time = Some(t);
-                }
-                let mut flags = 0;
-                if i.failed {
-                    flags |= FLAG_FAILED;
-                    report.condition_failed += 1;
-                }
-                if i.opcode.is_none() {
-                    flags |= FLAG_FETCH_FAILED;
-                    report.fetch_failed += 1;
-                }
-                bus.sweep(at);
-                let frame = b.calls.at_instruction(at, i.pc, isa.exception_number(&state))?;
-                if let (false, Some(op)) = (i.failed, i.opcode) {
-                    b.calls.after_instruction(at, i.pc, i.width, isa.flow(op, i.width))?;
-                }
-                b.push_instruction(i.pc, i.opcode.unwrap_or(0), i.width, flags, t, lineno, frame)?;
-                report.instructions += 1;
-            }
-            Record::Register(r) => {
-                let aliased = opts.config.as_ref().and_then(|c| c.register_alias(&r.name));
-                let name = match aliased {
-                    Some(to) => TraceRegName { name: to, bank: None },
-                    None => TraceRegName { name: &r.name, bank: r.bank.as_deref() },
-                };
-                let Some(reg) = isa.lookup(&name) else {
-                    *report.unmodelled_registers.entry(r.name.to_ascii_lowercase()).or_default() += 1;
-                    continue;
-                };
-                if reg == isa.pc() {
-                    // The PC comes from instruction records.
-                    continue;
-                }
-                let full = RegState::full_mask(isa.registers()[reg as usize].bits);
-                // Bits the record does not write (`-` digits) keep their value.
-                let (wm, k) = (r.written & full, reg as usize);
-                let w = RegWrite {
-                    reg,
-                    value: (state.values[k] & !wm) | (r.value & wm),
-                    known: (state.known[k] & !wm) | (r.known & wm),
-                    derived: false,
-                };
-                push_write(&mut b, &mut state, &mut last_write_row, &w, at, lineno)?;
-                block.written[reg as usize] = true;
-                block.line = lineno;
-                report.register_writes += 1;
-            }
-            Record::Memory(accesses) => {
-                for a in accesses {
-                    // A number written in the trace is in the core's data
-                    // byte order; the bytes are stored by address.
-                    let a = if a.logical && endian.at(isa, a.addr) == Endian::Big { a.reversed() } else { a };
-                    if a.addr.checked_add(a.size as u64).is_none_or(|end| end > limit) {
                         report.parse_errors.count += 1;
                         if report.parse_errors.samples.len() < SAMPLES {
-                            report.parse_errors.samples.push(Sample {
-                                line: lineno,
-                                text: format!("address out of range for {}: {}", isa.name(), mask(&text)),
-                            });
+                            report
+                                .parse_errors
+                                .samples
+                                .push(Sample { line: lineno, text: format!("{e}: {}", mask(text)) });
                         }
                         continue;
                     }
-                    // A read shows what was there before the instruction ran.
-                    let row_at = if a.write { at } else { at.saturating_sub(1) };
-                    if a.write {
-                        report.memory_writes += 1;
-                        if pending.is_some() {
-                            writes_since_entry = true;
-                        }
-                    } else {
-                        report.memory_reads += 1;
+                };
+                if parsed.unit.is_some() {
+                    unit_seen.clone_from(&parsed.unit);
+                }
+                if let Some(c) = parsed.core {
+                    current_core = Some(c);
+                    if core.is_none() {
+                        core = Some(c);
                     }
-                    let kind = if a.write { MEM_WRITE } else { MEM_READ };
-                    b.push_mem(row_at, a.addr, a.size as u32, kind, a.value, a.known, lineno)?;
-                    let t = std::time::Instant::now();
-                    bus.core(at, &a);
-                    bus_time += t.elapsed();
                 }
-            }
-            Record::BusCopy(accesses) => {
-                let t = std::time::Instant::now();
-                for a in accesses {
-                    bus.bus(at, &a, lineno);
-                }
-                bus_time += t.elapsed();
-            }
-            Record::Exception { number, name, target } => {
-                report.exceptions += 1;
-                let reset = name.to_ascii_lowercase().contains("reset");
-                b.e_at.push(at);
-                b.e_number.push(number.unwrap_or(u32::MAX));
-                b.e_kind.push(reset as u8);
-                b.e_target.push(target.unwrap_or(NONE));
-                b.e_line.push(lineno);
-                // Writes before the record belong to the interrupted code;
-                // resolve them before the entry changes the mode.
-                report.derived_register_writes += block.resolve(isa, &mut b, &mut state, &mut last_write_row, at)?;
-                if reset {
-                    b.calls.reset(at)?;
+                if let (Some(c), Some(want)) = (current_core, core)
+                    && c != want
+                {
+                    *report.other_cores.entry(c).or_default() += 1;
+                    // Another core's stores change memory this core sees: those
+                    // bytes become unknown from here on.
+                    if let Record::Memory(accesses) = &parsed.record {
+                        let now = b.count;
+                        for a in accesses.iter().filter(|a| a.write) {
+                            if a.addr.checked_add(a.size as u64).is_some_and(|end| end <= limit) {
+                                report.other_core_writes += 1;
+                                mark_unknown(&mut b, MEM_FOREIGN, now, a.addr, a.size as u64, lineno)?;
+                            }
+                        }
+                    }
                     continue;
                 }
-                b.calls.exception(at, number)?;
-                if let Some(p) = pending.take() {
-                    report.exception_frames_unplaced += finish_entry(&mut b, p, &state, isa)? as u64;
+                let at = b.count;
+                match parsed.record {
+                    Record::Instruction(i) => {
+                        if i.event == Event::If && b.last_pc == Some(i.pc) {
+                            report.if_duplicates += 1;
+                            continue;
+                        }
+                        report.derived_register_writes +=
+                            block.resolve(isa, &mut b, &mut state, &mut last_write_row, at)?;
+                        if let Some(p) = pending.take() {
+                            report.exception_frames_unplaced += finish_entry(&mut b, p, &state, isa)? as u64;
+                        }
+                        if at == 0 {
+                            // The first point: anything not known yet. Later a
+                            // register's knowledge changes only through a write.
+                            for r in 0..nregs {
+                                if state.known[r] != b.full_mask[r] {
+                                    b.not_always_known[r] = true;
+                                }
+                            }
+                        }
+                        if at.is_multiple_of(opts.checkpoint_interval) {
+                            b.cp_index.push(at);
+                            b.cp_rw_row.push(b.rw.rows() as u64);
+                            for (r, &row) in last_write_row.iter().enumerate() {
+                                b.cp_v[r].push(state.values[r]);
+                                b.cp_k[r].push(state.known[r]);
+                                b.cp_w[r].push(row);
+                            }
+                        }
+                        let t = parsed.time.unwrap_or(NONE);
+                        if report.time_unit.is_none() {
+                            report.time_unit = unit_seen.clone();
+                        }
+                        if t != NONE {
+                            if report.first_time.is_none() {
+                                report.first_time = Some(t);
+                            }
+                            if report.last_time.is_some_and(|l| t < l) {
+                                report.time_monotonic = false;
+                            }
+                            report.last_time = Some(t);
+                        }
+                        let mut flags = 0;
+                        if i.failed {
+                            flags |= FLAG_FAILED;
+                            report.condition_failed += 1;
+                        }
+                        if i.opcode.is_none() {
+                            flags |= FLAG_FETCH_FAILED;
+                            report.fetch_failed += 1;
+                        }
+                        bus.sweep(at);
+                        let frame = b.calls.at_instruction(at, i.pc, isa.exception_number(&state))?;
+                        if let (false, Some(op)) = (i.failed, i.opcode) {
+                            b.calls.after_instruction(at, i.pc, i.width, isa.flow(op, i.width))?;
+                        }
+                        b.push_instruction(i.pc, i.opcode.unwrap_or(0), i.width, flags, t, lineno, frame)?;
+                        report.instructions += 1;
+                    }
+                    Record::Register(r) => {
+                        let aliased = opts.config.as_ref().and_then(|c| c.register_alias(&r.name));
+                        let name = match aliased {
+                            Some(to) => TraceRegName { name: to, bank: None },
+                            None => TraceRegName { name: &r.name, bank: r.bank.as_deref() },
+                        };
+                        let Some(reg) = isa.lookup(&name) else {
+                            *report.unmodelled_registers.entry(r.name.to_ascii_lowercase()).or_default() += 1;
+                            continue;
+                        };
+                        if reg == isa.pc() {
+                            // The PC comes from instruction records.
+                            continue;
+                        }
+                        let full = RegState::full_mask(isa.registers()[reg as usize].bits);
+                        // Bits the record does not write (`-` digits) keep their value.
+                        let (wm, k) = (r.written & full, reg as usize);
+                        let w = RegWrite {
+                            reg,
+                            value: (state.values[k] & !wm) | (r.value & wm),
+                            known: (state.known[k] & !wm) | (r.known & wm),
+                            derived: false,
+                        };
+                        push_write(&mut b, &mut state, &mut last_write_row, &w, at, lineno)?;
+                        block.written[reg as usize] = true;
+                        block.line = lineno;
+                        report.register_writes += 1;
+                    }
+                    Record::Memory(accesses) => {
+                        for a in accesses {
+                            // A number written in the trace is in the core's data
+                            // byte order; the bytes are stored by address.
+                            let a = if a.logical && endian.at(isa, a.addr) == Endian::Big { a.reversed() } else { a };
+                            if a.addr.checked_add(a.size as u64).is_none_or(|end| end > limit) {
+                                report.parse_errors.count += 1;
+                                if report.parse_errors.samples.len() < SAMPLES {
+                                    report.parse_errors.samples.push(Sample {
+                                        line: lineno,
+                                        text: format!("address out of range for {}: {}", isa.name(), mask(text)),
+                                    });
+                                }
+                                continue;
+                            }
+                            // A read shows what was there before the instruction ran.
+                            let row_at = if a.write { at } else { at.saturating_sub(1) };
+                            if a.write {
+                                report.memory_writes += 1;
+                                if pending.is_some() {
+                                    writes_since_entry = true;
+                                }
+                            } else {
+                                report.memory_reads += 1;
+                            }
+                            let kind = if a.write { MEM_WRITE } else { MEM_READ };
+                            b.push_mem(row_at, a.addr, a.size as u32, kind, a.value, a.known, lineno)?;
+                            let t = std::time::Instant::now();
+                            bus.core(at, &a);
+                            bus_time += t.elapsed();
+                        }
+                    }
+                    Record::BusCopy(accesses) => {
+                        let t = std::time::Instant::now();
+                        for a in accesses {
+                            bus.bus(at, &a, lineno);
+                        }
+                        bus_time += t.elapsed();
+                    }
+                    Record::Exception { number, name, target } => {
+                        report.exceptions += 1;
+                        let reset = name.to_ascii_lowercase().contains("reset");
+                        b.e_at.push(at);
+                        b.e_number.push(number.unwrap_or(u32::MAX));
+                        b.e_kind.push(reset as u8);
+                        b.e_target.push(target.unwrap_or(NONE));
+                        b.e_line.push(lineno);
+                        // Writes before the record belong to the interrupted code;
+                        // resolve them before the entry changes the mode.
+                        report.derived_register_writes +=
+                            block.resolve(isa, &mut b, &mut state, &mut last_write_row, at)?;
+                        if reset {
+                            b.calls.reset(at)?;
+                            continue;
+                        }
+                        b.calls.exception(at, number)?;
+                        if let Some(p) = pending.take() {
+                            report.exception_frames_unplaced += finish_entry(&mut b, p, &state, isa)? as u64;
+                        }
+                        // The frame is pushed below the stack pointer in use before
+                        // entry; bytes there are unknown unless the trace shows the
+                        // stores (they follow this record and override this). Below
+                        // the stack pointer nothing is live, so the largest frame is
+                        // covered.
+                        let below = state.get(sp, sp_bits);
+                        if let Some(s) = below {
+                            mark_unknown(
+                                &mut b,
+                                MEM_CLOBBER,
+                                at,
+                                s.saturating_sub(frame_max),
+                                s.min(frame_max),
+                                lineno,
+                            )?;
+                        }
+                        // Placeholder for the exact frame at the post-entry stack
+                        // pointer (known once the entry's register records are read).
+                        mark_unknown(&mut b, MEM_CLOBBER, at, 0, 0, lineno)?;
+                        pending = Some(PendingEntry { row: b.mem_rows() - 1, placed_below: below.is_some() });
+                        writes_since_entry = false;
+                    }
+                    Record::Header | Record::Blank => {}
+                    Record::Ignored(kind) => *report.ignored.entry(kind).or_default() += 1,
+                    Record::Unrecognised(kind) => {
+                        let u = report.unrecognised.entry(kind).or_default();
+                        u.count += 1;
+                        if u.samples.len() < SAMPLES {
+                            u.samples.push(Sample { line: lineno, text: mask(text) });
+                        }
+                    }
                 }
-                // The frame is pushed below the stack pointer in use before
-                // entry; bytes there are unknown unless the trace shows the
-                // stores (they follow this record and override this). Below
-                // the stack pointer nothing is live, so the largest frame is
-                // covered.
-                let below = state.get(sp, sp_bits);
-                if let Some(s) = below {
-                    mark_unknown(&mut b, MEM_CLOBBER, at, s.saturating_sub(frame_max), s.min(frame_max), lineno)?;
-                }
-                // Placeholder for the exact frame at the post-entry stack
-                // pointer (known once the entry's register records are read).
-                mark_unknown(&mut b, MEM_CLOBBER, at, 0, 0, lineno)?;
-                pending = Some(PendingEntry { row: b.mem_rows() - 1, placed_below: below.is_some() });
-                writes_since_entry = false;
-            }
-            Record::Header | Record::Blank => {}
-            Record::Ignored(kind) => *report.ignored.entry(kind).or_default() += 1,
-            Record::Unrecognised(kind) => {
-                let u = report.unrecognised.entry(kind).or_default();
-                u.count += 1;
-                if u.samples.len() < SAMPLES {
-                    u.samples.push(Sample { line: lineno, text: mask(&text) });
+                if pending.is_some() && writes_since_entry {
+                    stacking_seen = true;
                 }
             }
         }
-        if pending.is_some() && writes_since_entry {
-            stacking_seen = true;
-        }
-    }
+        Ok(())
+    })?;
     let at = b.count;
     report.derived_register_writes += block.resolve(isa, &mut b, &mut state, &mut last_write_row, at)?;
     if let Some(p) = pending.take() {

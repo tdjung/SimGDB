@@ -4,16 +4,19 @@
 //! recorded is `Source::Unknown`, never a guess presented as fact.
 
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 
 /// Unit of a recorded time stamp, exactly as the trace wrote it.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "name", rename_all = "snake_case")]
 pub enum TimeUnit {
     /// A time unit; the payload is its name (`ps`, `ns`, `us`, `ms`, `s`).
-    Time(String),
+    /// (Borrowed for the known names: parsing one per trace line must not
+    /// allocate.)
+    Time(Cow<'static, str>),
     /// A clock count (`tic`, `cyc`, `clk`, `cs`, ...). Converting it to time
     /// needs a time map (D16).
-    Cycle(String),
+    Cycle(Cow<'static, str>),
     /// The trace has no time stamps.
     None,
 }
@@ -21,8 +24,17 @@ pub enum TimeUnit {
 impl TimeUnit {
     pub fn from_token(token: &str) -> Option<TimeUnit> {
         match token {
-            "fs" | "ps" | "ns" | "us" | "ms" | "s" => Some(TimeUnit::Time(token.to_string())),
-            "tic" | "cyc" | "clk" | "cs" | "cycles" => Some(TimeUnit::Cycle(token.to_string())),
+            "fs" => Some(TimeUnit::Time(Cow::Borrowed("fs"))),
+            "ps" => Some(TimeUnit::Time(Cow::Borrowed("ps"))),
+            "ns" => Some(TimeUnit::Time(Cow::Borrowed("ns"))),
+            "us" => Some(TimeUnit::Time(Cow::Borrowed("us"))),
+            "ms" => Some(TimeUnit::Time(Cow::Borrowed("ms"))),
+            "s" => Some(TimeUnit::Time(Cow::Borrowed("s"))),
+            "tic" => Some(TimeUnit::Cycle(Cow::Borrowed("tic"))),
+            "cyc" => Some(TimeUnit::Cycle(Cow::Borrowed("cyc"))),
+            "clk" => Some(TimeUnit::Cycle(Cow::Borrowed("clk"))),
+            "cs" => Some(TimeUnit::Cycle(Cow::Borrowed("cs"))),
+            "cycles" => Some(TimeUnit::Cycle(Cow::Borrowed("cycles"))),
             _ => None,
         }
     }

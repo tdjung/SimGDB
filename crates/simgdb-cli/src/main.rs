@@ -396,7 +396,7 @@ fn run(cli: Cli) -> Result<(), String> {
                     ));
                 }
                 (false, Some(_), _) => return Err("--cycle-period is for traces timed in cycles".into()),
-                (false, None, Some(simgdb_model::TimeUnit::Time(u))) => vcd::Time::Trace { unit: u.clone() },
+                (false, None, Some(simgdb_model::TimeUnit::Time(u))) => vcd::Time::Trace { unit: u.to_string() },
                 (false, None, _) => return Err("this trace has no time stamps; use --index-time".into()),
             };
             let r = engine.range(range.from, range.to).map_err(|e| e.to_string())?;

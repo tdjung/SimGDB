@@ -486,7 +486,7 @@ impl MonitorCmd for Session {
                 outputln!(out, "elf: {}", info.elf.as_deref().unwrap_or("-"));
                 outputln!(out, "instructions: {}", info.instructions);
                 let unit = match &info.time_unit {
-                    Some(TimeUnit::Time(u)) => u.clone(),
+                    Some(TimeUnit::Time(u)) => u.to_string(),
                     Some(TimeUnit::Cycle(u)) => format!("{u} (cycles)"),
                     _ => "-".into(),
                 };

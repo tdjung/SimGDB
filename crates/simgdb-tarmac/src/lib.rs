@@ -155,20 +155,26 @@ struct Tok<'a> {
     pos: usize,
 }
 
-fn tokens(line: &str) -> Vec<Tok<'_>> {
-    let mut out = Vec::new();
+/// Tokens of a line, on the stack for ordinary lines (one heap allocation
+/// per trace line was a measurable part of indexing).
+#[inline]
+fn tokens(line: &str) -> smallvec::SmallVec<[Tok<'_>; 16]> {
+    let mut out = smallvec::SmallVec::new();
     let bytes = line.as_bytes();
-    let mut i = 0;
-    while i < bytes.len() {
-        while i < bytes.len() && bytes[i].is_ascii_whitespace() {
+    let (mut i, n) = (0, bytes.len());
+    while i < n {
+        if bytes[i].is_ascii_whitespace() {
             i += 1;
+            continue;
         }
         let start = i;
-        while i < bytes.len() && !bytes[i].is_ascii_whitespace() {
+        while i < n && !bytes[i].is_ascii_whitespace() {
             i += 1;
         }
-        if i > start {
-            out.push(Tok { s: &line[start..i], pos: start });
+        // ASCII whitespace never splits a UTF-8 sequence, so these are
+        // character boundaries.
+        if let Some(s) = line.get(start..i) {
+            out.push(Tok { s, pos: start });
         }
     }
     out
@@ -180,36 +186,65 @@ fn is_hex(s: &str) -> bool {
 
 fn hex(s: &str) -> Option<u64> {
     let s = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")).unwrap_or(s);
-    if s.is_empty() || s.len() > 16 || !is_hex(s) {
+    if s.is_empty() || s.len() > 16 {
         return None;
     }
-    u64::from_str_radix(s, 16).ok()
+    let mut v = 0u64;
+    for b in s.bytes() {
+        let d = match b {
+            b'0'..=b'9' => b - b'0',
+            b'a'..=b'f' => b - b'a' + 10,
+            b'A'..=b'F' => b - b'A' + 10,
+            _ => return None,
+        };
+        v = (v << 4) | d as u64;
+    }
+    Some(v)
 }
 
 /// Address token: `hex`, `hex:physical`, `hex_NS`.
 fn address(s: &str) -> Option<u64> {
-    let virt = s.split(':').next()?;
-    let virt = virt.split('_').next()?;
-    hex(virt)
+    // The virtual address: before any `:physical` or `_` suffix.
+    let end = s.bytes().position(|b| b == b':' || b == b'_').unwrap_or(s.len());
+    hex(&s[..end])
 }
 
 /// Hex value with `_` separators and `x`/`X` unknown digits:
 /// (low 64 bits, known mask, width in bits).
 fn value_with_unknowns(s: &str) -> Option<(u64, u64, u32)> {
-    let digits: Vec<u8> = s.bytes().filter(|&b| b != b'_').collect();
-    if digits.is_empty() || !digits.iter().all(|b| b.is_ascii_hexdigit() || *b == b'x' || *b == b'X') {
-        return None;
-    }
-    let bits = digits.len() as u32 * 4;
-    let (mut value, mut known) = (0u64, 0u64);
-    for (k, &d) in digits.iter().rev().enumerate().take(16) {
-        if d != b'x' && d != b'X' {
-            let nibble = (d as char).to_digit(16).unwrap() as u64;
-            value |= nibble << (4 * k);
-            known |= 0xf << (4 * k);
-        }
-    }
+    let (value, known, _, bits) = digits(s, false)?;
     Some((value, known, bits))
+}
+
+/// Digits of a value, `_` skipped, least significant last: hex, `x`/`X`
+/// (unknown) and, if `dashes`, `-` (not written). Returns (low 64 bits,
+/// known mask, written mask, width in bits). No allocation: this runs for
+/// nearly every trace line.
+fn digits(s: &str, dashes: bool) -> Option<(u64, u64, u64, u32)> {
+    let (mut value, mut known, mut written, mut k) = (0u64, 0u64, 0u64, 0u32);
+    for d in s.bytes().rev() {
+        let nibble = match d {
+            b'_' => continue,
+            b'0'..=b'9' => Some(d - b'0'),
+            b'a'..=b'f' => Some(d - b'a' + 10),
+            b'A'..=b'F' => Some(d - b'A' + 10),
+            b'x' | b'X' => None,
+            b'-' if dashes => {
+                k += 1;
+                continue;
+            }
+            _ => return None,
+        };
+        if k < 16 {
+            written |= 0xf << (4 * k);
+            if let Some(n) = nibble {
+                value |= (n as u64) << (4 * k);
+                known |= 0xf << (4 * k);
+            }
+        }
+        k += 1;
+    }
+    (k > 0).then_some((value, known, written, k * 4))
 }
 
 fn width_from_state(state: &str, opcode_digits: usize) -> u8 {
@@ -299,7 +334,9 @@ impl Parser {
             unit = Some(u);
             i = 1;
         }
-        if let Some(u) = &unit {
+        if let Some(u) = &unit
+            && self.unit.as_ref() != Some(u)
+        {
             self.unit = Some(u.clone());
         }
         let mut core = None;
@@ -313,10 +350,15 @@ impl Parser {
             return Ok(self.line(core, Record::Blank));
         };
         let rest = &toks[i + 1..];
-        if self.notation.ignore.contains(kind.s) {
+        // (Hash lookups only when the site configuration has entries.)
+        if !self.notation.ignore.is_empty() && self.notation.ignore.contains(kind.s) {
             return Ok(self.line(core, Record::Ignored(kind.s.to_string())));
         }
-        let kind_s = self.notation.record_aliases.get(kind.s).cloned();
+        let kind_s = if self.notation.record_aliases.is_empty() {
+            None
+        } else {
+            self.notation.record_aliases.get(kind.s).cloned()
+        };
         let kind = Tok { s: kind_s.as_deref().unwrap_or(kind.s), pos: kind.pos };
         let record = match kind.s {
             "IT" | "IS" | "IF" => self.it(kind.s, rest)?,
@@ -518,20 +560,7 @@ fn fused_time(s: &str) -> Option<(u64, TimeUnit)> {
 /// A register value word: hex digits, `x`/`X` (unknown) and `-` (not
 /// written by this record). Returns (value, known, written, bits).
 fn register_word(s: &str) -> Option<(u64, u64, u64, u32)> {
-    let s = strip_physical(s);
-    let digits: Vec<u8> = s.bytes().filter(|&b| b != b'_').collect();
-    if digits.is_empty() || !digits.iter().all(|b| b.is_ascii_hexdigit() || matches!(b, b'x' | b'X' | b'-')) {
-        return None;
-    }
-    let as_unknown: String = digits.iter().map(|&b| if b == b'-' { 'x' } else { b as char }).collect();
-    let (value, known, bits) = value_with_unknowns(&as_unknown)?;
-    let mut written = 0u64;
-    for (k, &d) in digits.iter().rev().enumerate().take(16) {
-        if d != b'-' {
-            written |= 0xf << (4 * k);
-        }
-    }
-    Some((value, known, written, bits))
+    digits(strip_physical(s), true)
 }
 
 fn register(rest: &[Tok<'_>]) -> Result<Record, ParseError> {
@@ -598,8 +627,9 @@ fn memory(kind: &str, rest: &[Tok<'_>]) -> Result<Record, ParseError> {
     let rw = b[start..].iter().position(|c| *c == b'R' || *c == b'W').map(|p| p + start);
     let Some(rw) = rw else { return Ok(Record::Unrecognised(kind.to_string())) };
     let write = b[rw] == b'W';
-    let digits: String = kind[rw + 1..].chars().take_while(|c| c.is_ascii_digit()).collect();
-    let size: u32 = digits.parse().map_err(|_| ParseError { message: format!("{kind}: no size") })?;
+    let after = &kind[rw + 1..];
+    let n = after.bytes().take_while(|c| c.is_ascii_digit()).count();
+    let size: u32 = after[..n].parse().map_err(|_| ParseError { message: format!("{kind}: no size") })?;
     // Cortex-M RTL 8-character types end in D (data), I (instruction side)
     // or A (peripheral bus); only data accesses are memory state.
     let mut memory_order = false;
@@ -633,8 +663,8 @@ fn memory(kind: &str, rest: &[Tok<'_>]) -> Result<Record, ParseError> {
         return Ok(Record::Ignored("ABORTED".to_string()));
     }
     // Data: the last token (two for 16-byte accesses), after any attributes.
-    let data: Vec<&str> = rest[j + 1..].iter().map(|t| t.s).collect();
-    let Some(last) = data.last() else { return err(format!("{kind}: expected data")) };
+    let data = &rest[j + 1..];
+    let Some(last) = data.last().map(|t| t.s) else { return err(format!("{kind}: expected data")) };
     let parse = |s: &str| value_with_unknowns(s).ok_or_else(|| ParseError { message: format!("{kind}: bad data {s}") });
     let one = |addr: u64, size: u32, text: &str| -> Result<MemAccess, ParseError> {
         let (mut value, known, _) = parse(text)?;
@@ -674,7 +704,7 @@ fn memory(kind: &str, rest: &[Tok<'_>]) -> Result<Record, ParseError> {
             if data.len() < 2 {
                 return err(format!("{kind}: expected two data words"));
             }
-            let high = data[data.len() - 2];
+            let high = data[data.len() - 2].s;
             let next =
                 addr.checked_add(8).ok_or_else(|| ParseError { message: format!("{kind}: address out of range") })?;
             Ok(wrap(vec![one(addr, 8, last)?, one(next, 8, high)?]))
@@ -713,7 +743,7 @@ fn exception_exc(rest: &[Tok<'_>]) -> Record {
 }
 
 /// Open a trace file, decompressing gzip (by magic bytes, not extension).
-pub fn open(path: &Path) -> io::Result<Box<dyn BufRead>> {
+pub fn open(path: &Path) -> io::Result<Box<dyn BufRead + Send>> {
     let mut file = std::fs::File::open(path)?;
     let mut magic = [0u8; 2];
     let n = file.read(&mut magic)?;
