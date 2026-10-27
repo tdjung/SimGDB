@@ -94,7 +94,8 @@ fn bus_copies_are_checked_not_indexed() {
     );
     assert!(
         s.iter().any(|t| t.contains("write 1 byte at 0x20000210: 00")
-            && t.contains("nearest core record on these bytes, the same instruction: write 1 byte at 0x20000210: 01")),
+            && t.contains("nearest core record on these bytes, the same instruction: write 1 byte at 0x20000210: 01")
+            && t.contains("copies on its bytes (instructions from it): [+0] write 1 byte at 0x20000210: 00")),
         "{s:?}"
     );
     assert_eq!(c.core_without_copy, 1); // the core write whose copy differs

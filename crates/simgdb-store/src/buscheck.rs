@@ -141,7 +141,13 @@ pub struct BusCheck {
     bus: Window<Pending>,
     out: BusCopies,
     swept_at: u64,
+    /// The last copies seen (matched or not), to show in a sample every
+    /// copy that touched the bytes of its nearest core record.
+    recent: VecDeque<(u64, MemAccess)>,
 }
+
+/// Copies kept for samples (more than a window's worth in practice).
+const RECENT: usize = 4096;
 
 /// Byte `k` of `a` (by address) if known.
 fn byte(a: &MemAccess, k: u64) -> Option<u8> {
@@ -248,6 +254,10 @@ impl BusCheck {
     pub fn bus(&mut self, at: u64, a: &MemAccess, line: u64) {
         self.active = true;
         self.out.records += 1;
+        if self.recent.len() == RECENT {
+            self.recent.pop_front();
+        }
+        self.recent.push_back((at, *a));
         // The best core record it fits, newest first: an exact one without a
         // copy yet (a loop repeats the same access: an older record with a
         // copy is not this one's), then a part (parts may share a record),
@@ -288,6 +298,19 @@ impl BusCheck {
                     d => format!("{d} instructions after"),
                 };
                 text.push_str(&format!("; nearest core record on these bytes, {when}: {}", describe(&c, self.mask)));
+                // Every copy on that record's bytes (how the bus split it).
+                let core_at = p.at as i64 + d;
+                let pieces: Vec<String> = self
+                    .recent
+                    .iter()
+                    .filter(|(at, x)| {
+                        x.write == c.write && overlap(x, &c) && (*at as i64 - core_at).abs() <= WINDOW as i64
+                    })
+                    .map(|(at, x)| format!("[{:+}] {}", *at as i64 - core_at, describe(x, self.mask)))
+                    .collect();
+                if !pieces.is_empty() {
+                    text.push_str(&format!("; copies on its bytes (instructions from it): {}", pieces.join(", ")));
+                }
             }
             None => text.push_str(&format!("; no core record on these bytes within {WINDOW} instructions")),
         }
