@@ -119,11 +119,15 @@ pub struct BusCopies {
     pub matched: u64,
     /// Matched only with the bytes reversed (the copy writes a number).
     pub matched_reversed: u64,
-    /// No core record: an access the index does not have.
-    pub unmatched: u64,
-    pub unmatched_samples: Vec<Sample>,
-    /// Core data records without a copy (normal for accesses that stay in
-    /// the core, e.g. a write buffer merging).
+    /// A part of a core record (the bus split an access, e.g. unaligned).
+    pub matched_part: u64,
+    /// Copies with no core record, reads and writes apart: a missing read
+    /// leaves a value unknown; a missing write would leave a stale value.
+    pub unmatched_reads: u64,
+    pub unmatched_writes: u64,
+    pub unmatched_read_samples: Vec<Sample>,
+    pub unmatched_write_samples: Vec<Sample>,
+    /// Core data records without any copy.
     pub core_without_copy: u64,
     pub window: u64,
 }

@@ -47,7 +47,7 @@ fn bus_copies_are_checked_not_indexed() {
             }
             continue;
         }
-        if p.len() == 5 && p[2].starts_with("MN") && p[2].ends_with("___D") {
+        if p.len() == 5 && p[2].starts_with('M') && p[2].ends_with("___D") {
             let bus = if p[3].starts_with('2') { 'S' } else { 'D' };
             let copy = format!("{} cyc B{}{} {} {}", p[0], &p[2][1..7], bus, p[3], p[4]);
             copies += 1;
@@ -61,7 +61,10 @@ fn bus_copies_are_checked_not_indexed() {
         with.push_str(line);
         with.push('\n');
     }
-    // One copy with no core record, and one written as a number.
+    // A copy with no core record, and a core read the bus splits in two.
+    with.push_str("99998 cyc MNR4___D 00001002 a1b2c3d4\n");
+    with.push_str("99998 cyc BNR2___D 00001002 a1b2\n");
+    with.push_str("99998 cyc BNR2___D 00001004 c3d4\n");
     with.push_str("99999 cyc BNW4___S 20000200 11223344\n");
     with.push_str("99999 cyc IT (00000044:00000000) 00000044     4a11 T16 LDR r2, [pc, #68]\n");
 
@@ -69,18 +72,20 @@ fn bus_copies_are_checked_not_indexed() {
     let b = tempfile::tempdir().unwrap();
     let base = index(&plain, a.path());
     let ds = index(&with, b.path());
-    // Memory state is the core records' only.
-    assert_eq!(ds.mem_addr.len(), base.mem_addr.len());
-    for r in 0..ds.mem_addr.len() {
+    // Memory state is the core records' only (plus the added core read).
+    assert_eq!(ds.mem_addr.len(), base.mem_addr.len() + 1);
+    for r in 0..base.mem_addr.len() {
         assert_eq!(
             (ds.mem_at.get(r), ds.mem_addr.get(r), ds.mem_value.get(r)),
             (base.mem_at.get(r), base.mem_addr.get(r), base.mem_value.get(r))
         );
     }
     let c = ds.meta.report.bus_copies.clone().expect("copies seen");
-    assert_eq!(c.records, copies + 1);
-    assert_eq!((c.matched, c.matched_reversed, c.unmatched), (copies, 0, 1), "{c:?}");
-    assert!(c.unmatched_samples[0].text.contains("BNW4___S 20000200"));
+    assert_eq!(c.records, copies + 3);
+    assert_eq!((c.matched, c.matched_reversed, c.matched_part), (copies, 0, 2), "{c:?}");
+    assert_eq!((c.unmatched_reads, c.unmatched_writes), (0, 1), "{c:?}");
+    assert!(c.unmatched_write_samples[0].text.contains("BNW4___S 20000200"));
+    assert_eq!(c.core_without_copy, 0);
     assert!(ds.meta.report.unrecognised.is_empty());
     assert!(base.meta.report.bus_copies.is_none());
 }

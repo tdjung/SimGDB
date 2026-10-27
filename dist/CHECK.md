@@ -67,8 +67,8 @@ du -sh real.idx
   - `unrecognised`가 비어 있습니다. 비어 있지 않으면 거기 나온 레코드 종류를 아직 모르는 것입니다.
   - `capabilities`에서 `register_writes`, `memory_writes`, `exceptions`, `exception_stacking_writes`, `time_unit`을 확인합니다.
   - `unmodelled_registers`는 SimGDB가 아직 다루지 않는 레지스터 이름입니다(FPU 등).
-  - `bus_copies`가 있으면(Cortex-M4 RTL의 `B…` 레코드): `records`, `matched`, `matched_reversed`, `unmatched` 네 숫자와,
-    `unmatched`가 0이 아니면 `unmatched_samples`를 알려 주세요.
+  - `bus_copies`가 있으면(Cortex-M4 RTL의 `B…` 레코드): `records`, `matched`, `matched_part`, `matched_reversed`,
+    `unmatched_reads`, `unmatched_writes`와, 0이 아닌 쪽의 `unmatched_*_samples` 두세 줄을 알려 주세요.
 - 전달 부탁: `report.json`, `time` 결과, `du -sh` 결과.
 - `report.sources.problems`가 있으면 ELF 디버그 정보 일부를 못 읽은 것입니다. 다음 출력도 함께 알려 주세요:
   `arm-none-eabi-readelf -p .comment firmware.elf`, `arm-none-eabi-readelf -S firmware.elf | grep -i debug`.
