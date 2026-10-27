@@ -732,6 +732,7 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
     report.endian_conflict = endian_conflict;
     let meta = Meta {
         format_version: FORMAT_VERSION,
+        simgdb: crate::BUILD.to_string(),
         endian,
         isa: isa.name().to_string(),
         run: 0,

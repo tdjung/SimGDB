@@ -11,7 +11,7 @@ use simgdb_engine::Engine;
 use simgdb_store::{IndexOptions, build};
 
 #[derive(Parser)]
-#[command(name = "simgdb", version, about = "Post-simulation debugger for trace logs")]
+#[command(name = "simgdb", version = simgdb_store::BUILD, about = "Post-simulation debugger for trace logs")]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -346,7 +346,7 @@ fn run(cli: Cli) -> Result<(), String> {
             if report {
                 println!(
                     "{}",
-                    serde_json::to_string_pretty(&json!({"capabilities": meta.capabilities, "report": meta.report, "timings_ms": meta.timings_ms}))
+                    serde_json::to_string_pretty(&json!({"simgdb": meta.simgdb, "capabilities": meta.capabilities, "report": meta.report, "timings_ms": meta.timings_ms}))
                         .unwrap()
                 );
             }

@@ -17,6 +17,8 @@
 #   T   total seconds: average / maximum
 #   S   most common never-written sets (count: registers), top 3
 #   X   up to 3 tests that do not fit the majority, with why
+#   B   simgdb builds that wrote the reports, with counts ("old": a build
+#       from before reports named it, without the reset and MSR columns)
 # Needs python3 (3.6 or later).
 set -u
 IN=${1:-summary.tsv}
@@ -71,4 +73,6 @@ for log in sorted(rows):
         print("  X %s: %s" % (test, why))
     if len(odd) > 3:
         print("  X ... %d more" % (len(odd) - 3))
+    builds = Counter(c[13] if len(c) > 13 else "old" for c in ok)
+    print("  B " + ", ".join("%s %d" % kv for kv in builds.most_common()))
 EOF

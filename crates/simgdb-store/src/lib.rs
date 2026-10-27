@@ -212,9 +212,15 @@ pub struct Report {
     pub sources: sources::SourceSummary,
 }
 
+/// Version and git commit of this build, e.g. `0.1.0 (96e4e9a)`.
+pub const BUILD: &str = concat!(env!("CARGO_PKG_VERSION"), " (", env!("SIMGDB_COMMIT"), ")");
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Meta {
     pub format_version: u32,
+    /// The simgdb build that made the index (`BUILD`).
+    #[serde(default)]
+    pub simgdb: String,
     /// Data byte order (indexes from before this field: little).
     #[serde(default)]
     pub endian: simgdb_isa::Endian,
