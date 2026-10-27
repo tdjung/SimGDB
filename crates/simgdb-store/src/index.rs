@@ -306,6 +306,7 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
     let mut stacking_seen = false;
     let mut writes_since_entry = false;
     let mut block = Block { written: vec![false; nregs], line: 0 };
+    let mut bus = crate::buscheck::BusCheck::default();
     let frame_max = isa.exception_frame_max();
     let sp_bits = isa.registers()[isa.stack_pointer() as usize].bits;
     let limit = isa.address_limit();
@@ -403,6 +404,7 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
                     flags |= FLAG_FETCH_FAILED;
                     report.fetch_failed += 1;
                 }
+                bus.sweep(at);
                 let frame = b.calls.at_instruction(at, i.pc, isa.exception_number(&state))?;
                 if let (false, Some(op)) = (i.failed, i.opcode) {
                     b.calls.after_instruction(at, i.pc, i.width, isa.flow(op, i.width))?;
@@ -465,6 +467,12 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
                     }
                     let kind = if a.write { MEM_WRITE } else { MEM_READ };
                     b.push_mem(row_at, a.addr, a.size as u32, kind, a.value, a.known, lineno)?;
+                    bus.core(at, &a);
+                }
+            }
+            Record::BusCopy(accesses) => {
+                for a in accesses {
+                    bus.bus(at, &a, Sample { line: lineno, text: mask(&text) });
                 }
             }
             Record::Exception { number, name, target } => {
@@ -553,6 +561,7 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
     };
 
     report.sources = sources;
+    report.bus_copies = bus.finish();
     report.endian_source = Some(endian_source.to_string());
     report.endian_conflict = endian_conflict;
     let meta = Meta {

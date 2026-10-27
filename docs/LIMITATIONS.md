@@ -63,6 +63,9 @@ Step 0의 실제 Tarmac 조사 결과에 따라 갱신합니다.
   xPSR이 trace에 없으면 알아낼 수 없어 그 핸들러는 끊긴 코드의 일부로 보입니다.
 - **변수**: 고정 주소 변수(전역, 파일 static, 함수 static)만 엔진이 읽습니다. 지역변수, 포인터 따라가기, bit-field는
   gdb에서 봅니다.
+- **Cortex-M RTL 버스 사본(`BNW1___S`, `BSR4___D` …)**: 코어 레코드(`M…___D`)와 같은 접근을 버스 쪽에서 다시 적은 것으로 보고
+  상태에는 쓰지 않습니다(사본은 한 명령어 뒤에 나오기도 함). 대신 인덱싱 때 코어 레코드와 하나씩 맞춰 보고서 `bus_copies`에
+  짝 없는 사본 수를 남깁니다. 명령어 쪽(`…I`) 레코드는 무시합니다.
 - **바이트 순서(endian)**: little과 big(Arm BE8) 모두 지원합니다. 기본은 ELF 헤더를 따르고, `--endian` 또는 설정
   `[memory] endian`으로 바꿉니다(ELF와 다르면 보고서 `endian_conflict`). Arm의 PPB(`0xE0000000`–`0xE00FFFFF`, SysTick·NVIC 등)는
   BE8 코어에서도 little-endian으로 다룹니다. Arm BE32(구형, M-profile 아님)는 지원하지 않습니다.

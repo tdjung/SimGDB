@@ -117,7 +117,7 @@ fn matches_tarmac_trace_utilities() {
                     failures.push(format!("{}: got exception, expected {kinds:?}", case.line));
                 }
             }
-            Record::Ignored(_) | Record::Unrecognised(_) | Record::Header | Record::Blank => {
+            Record::Ignored(_) | Record::Unrecognised(_) | Record::Header | Record::Blank | Record::BusCopy(_) => {
                 // The reference shows these as text-only events, nothing, or
                 // (for register lines without a value) no-op register events.
                 let fine = kinds.iter().all(|k| *k == "TextOnlyEvent")

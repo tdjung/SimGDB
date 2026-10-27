@@ -106,6 +106,11 @@ pub enum Record {
     Instruction(Instruction),
     Register(Register),
     Memory(Vec<MemAccess>),
+    /// Cortex-M RTL bus-side view of a data access (`BNW1___S`, `BSR4___D`):
+    /// the same access as a core `M…` record, seen on a bus interface and
+    /// possibly an instruction later. Not memory state; the indexer only
+    /// checks that each has a matching core record.
+    BusCopy(Vec<MemAccess>),
     Exception {
         number: Option<u32>,
         name: String,
@@ -578,10 +583,11 @@ fn strip_physical(s: &str) -> &str {
 
 fn is_memory_type(s: &str) -> bool {
     let b = s.as_bytes();
-    (b.first() == Some(&b'M')
-        && b.len() >= 3
-        && b[1..].iter().any(|c| *c == b'R' || *c == b'W')
-        && b.iter().any(|c| c.is_ascii_digit()))
+    (b.len() == 8 && b[0] == b'B' && matches!(b[1], b'N' | b'S') && matches!(b[2], b'R' | b'W'))
+        || (b.first() == Some(&b'M')
+            && b.len() >= 3
+            && b[1..].iter().any(|c| *c == b'R' || *c == b'W')
+            && b.iter().any(|c| c.is_ascii_digit()))
         || matches!(s, "R01" | "R02" | "R04" | "R08" | "W01" | "W02" | "W04" | "W08")
 }
 
@@ -597,10 +603,15 @@ fn memory(kind: &str, rest: &[Tok<'_>]) -> Result<Record, ParseError> {
     // Cortex-M RTL 8-character types end in D (data), I (instruction side)
     // or A (peripheral bus); only data accesses are memory state.
     let mut memory_order = false;
+    let bus = kind.len() == 8 && b[0] == b'B';
     if kind.len() == 8 {
         match b[7] {
             b'I' | b'A' => return Ok(Record::Ignored(kind.to_string())),
             b'D' => memory_order = true,
+            // Bus-side copies name the bus (D: DCode, S: system); bytes are
+            // taken in memory order like the core's `___D` lines (the
+            // indexer's match against the core record reports either order).
+            b'S' if bus => memory_order = true,
             _ => {}
         }
     }
@@ -656,8 +667,9 @@ fn memory(kind: &str, rest: &[Tok<'_>]) -> Result<Record, ParseError> {
             logical: !memory_order,
         })
     };
+    let wrap = |v: Vec<MemAccess>| if bus { Record::BusCopy(v) } else { Record::Memory(v) };
     match size {
-        1..=8 => Ok(Record::Memory(vec![one(addr, size, last)?])),
+        1..=8 => Ok(wrap(vec![one(addr, size, last)?])),
         16 => {
             if data.len() < 2 {
                 return err(format!("{kind}: expected two data words"));
@@ -665,7 +677,7 @@ fn memory(kind: &str, rest: &[Tok<'_>]) -> Result<Record, ParseError> {
             let high = data[data.len() - 2];
             let next =
                 addr.checked_add(8).ok_or_else(|| ParseError { message: format!("{kind}: address out of range") })?;
-            Ok(Record::Memory(vec![one(addr, 8, last)?, one(next, 8, high)?]))
+            Ok(wrap(vec![one(addr, 8, last)?, one(next, 8, high)?]))
         }
         _ => err(format!("{kind}: unsupported size {size}")),
     }
@@ -782,6 +794,11 @@ mod tests {
     fn memory_forms() {
         assert_eq!(mem("3039 cyc MNW4___D 2002fa00 efbeefbe")[0].value, 0xbeefbeef);
         assert_eq!(one("3037 cyc MNR4O__I 00022ae4 f7ffffcb"), Record::Ignored("MNR4O__I".into()));
+        // Cortex-M4 RTL bus-side copies: data (D/S bus) parsed, fetches ignored.
+        let Record::BusCopy(m) = one("25191672300 ps BNW2___S 2001a66e af26") else { panic!() };
+        assert_eq!((m[0].addr, m[0].size, m[0].value, m[0].write, m[0].logical), (0x2001_a66e, 2, 0x26af, true, false));
+        assert!(matches!(one("1 ps BSR4___D 00001000 01020304"), Record::BusCopy(_)));
+        assert_eq!(one("1 ps BNR40__I 00006f44 1c5be7a8"), Record::Ignored("BNR40__I".into()));
         let m = mem("1 clk MR8 0000c7c8:00000000c7c8 00000000_0000ca68");
         assert_eq!((m[0].addr, m[0].size, m[0].value, m[0].write), (0xc7c8, 8, 0xca68, false));
         let m = mem("     109570 ns MSW4___D 201fffec xxxxxxxx");

@@ -20,6 +20,7 @@
 //! instruction (the value was there before it read it).
 
 pub mod annotations;
+mod buscheck;
 pub mod calls;
 pub mod config;
 mod index;
@@ -108,6 +109,25 @@ pub struct Sample {
     pub text: String,
 }
 
+/// Bus-side copies of data accesses and their core records. The index keeps
+/// the core records; this shows whether the copies hold anything more.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BusCopies {
+    pub records: u64,
+    /// Same access, address, size and bytes as a core record within
+    /// `window` instructions (either side).
+    pub matched: u64,
+    /// Matched only with the bytes reversed (the copy writes a number).
+    pub matched_reversed: u64,
+    /// No core record: an access the index does not have.
+    pub unmatched: u64,
+    pub unmatched_samples: Vec<Sample>,
+    /// Core data records without a copy (normal for accesses that stay in
+    /// the core, e.g. a write buffer merging).
+    pub core_without_copy: u64,
+    pub window: u64,
+}
+
 /// Diagnostics for `index --report` (ARCHITECTURE §2.14).
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Report {
@@ -127,6 +147,10 @@ pub struct Report {
     pub unmodelled_registers: BTreeMap<String, u64>,
     /// Records the parser knows have no effect on state.
     pub ignored: BTreeMap<String, u64>,
+    /// Cortex-M RTL bus-side copies (`B…___D/S`) checked against the core
+    /// records (`M…___D`); `None` when the trace has none.
+    #[serde(default)]
+    pub bus_copies: Option<BusCopies>,
     /// Record types the parser does not know.
     pub unrecognised: BTreeMap<String, Unparsed>,
     pub parse_errors: Unparsed,
