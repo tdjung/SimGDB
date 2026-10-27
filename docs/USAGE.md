@@ -38,6 +38,28 @@ simgdb index trace.log --elf firmware.elf -o trace.idx --report > report.json
 - 메모리: 인덱서는 trace 길이와 관계없이 수백 MB 안에서 동작합니다. 정렬 메모리는 `--sort-memory-mb`(기본 384)로 조절하고,
   그만큼 디스크에 임시 파일을 씁니다. 인덱스 크기는 대략 trace의 1.5배이고, 만드는 동안 메모리 색인 크기만큼의 여유가 더 필요합니다.
 
+### 여러 테스트를 한 번에
+
+테스트 폴더마다 같은 이름의 trace가 있으면, 모두 인덱싱한 뒤 보고서를 한 표로 모읍니다.
+
+```bash
+tools/index_all.sh /path/to/tests "core0.log core1.log" firmware.elf    # 오래 걸림
+tools/summarize_reports.sh /path/to/tests                               # summary.tsv
+```
+
+- `index_all.sh`: trace `X.log`마다 옆에 `X.report.json`(진단 보고서)과 `X.err`(메시지)를 남깁니다. ELF가 모든 테스트에
+  공통이면 절대 경로로 줍니다. 환경 변수: `JOBS`(동시 개수, 기본 4), `KEEP=1`(인덱스 `X.idx`도 남김, 기본은 지움),
+  `CONFIG`(설정 파일), `SIMGDB`(실행 파일, 기본은 패키지의 `bin/simgdb`). 실패한 trace는 `FAILED`로 표시됩니다.
+- `summarize_reports.sh`: 한 줄이 trace 하나인 표(탭 구분, 엑셀에서 열림). 열: 테스트 폴더, trace, 명령어 수,
+  해석 오류 수, 모르는 레코드 종류, 한 번도 기록되지 않은 레지스터, byte 순서 출처, 짝 없는 버스 쓰기(`-`는 버스 사본 없음),
+  trace 읽기 시간과 그중 파일 입력 시간, 전체 시간. 실패한 trace는 `FAILED:`와 오류 메시지. 인덱싱 도중에 돌려도 됩니다.
+- 표를 보는 예:
+  ```bash
+  awk -F'\t' 'NR>1 && $8!="-" && $8!=0' summary.tsv            # 짝 없는 버스 쓰기가 있는 trace
+  awk -F'\t' 'NR>1 {print $6}' summary.tsv | sort | uniq -c    # 기록되지 않은 레지스터 조합별 개수
+  grep FAILED summary.tsv
+  ```
+
 ## 2. gdb / VS Code
 
 ```bash
