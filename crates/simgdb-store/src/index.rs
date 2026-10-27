@@ -306,7 +306,9 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
     let mut stacking_seen = false;
     let mut writes_since_entry = false;
     let mut block = Block { written: vec![false; nregs], line: 0 };
-    let mut bus = crate::buscheck::BusCheck::default();
+    let mut bus = crate::buscheck::BusCheck::new(opts.mask_samples);
+    let started = std::time::Instant::now();
+    let mut bus_time = std::time::Duration::ZERO;
     let frame_max = isa.exception_frame_max();
     let sp_bits = isa.registers()[isa.stack_pointer() as usize].bits;
     let limit = isa.address_limit();
@@ -467,13 +469,17 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
                     }
                     let kind = if a.write { MEM_WRITE } else { MEM_READ };
                     b.push_mem(row_at, a.addr, a.size as u32, kind, a.value, a.known, lineno)?;
+                    let t = std::time::Instant::now();
                     bus.core(at, &a);
+                    bus_time += t.elapsed();
                 }
             }
             Record::BusCopy(accesses) => {
+                let t = std::time::Instant::now();
                 for a in accesses {
-                    bus.bus(at, &a, Sample { line: lineno, text: mask(&text) });
+                    bus.bus(at, &a, lineno);
                 }
+                bus_time += t.elapsed();
             }
             Record::Exception { number, name, target } => {
                 report.exceptions += 1;
@@ -553,12 +559,25 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
             .collect(),
     );
 
+    let read = started.elapsed();
     write_tables(b, &opts.out, nregs, elf.as_ref(), opts.batch_rows)?;
     let _ = std::fs::remove_dir_all(&tmp);
+    let tables = started.elapsed() - read;
     let sources = match &opts.elf {
         Some(p) => crate::sources::write(p, &opts.out)?,
         None => crate::sources::write_empty(&opts.out)?,
     };
+    let elf_time = started.elapsed() - read - tables;
+    let ms = |d: std::time::Duration| d.as_millis() as u64;
+    let timings_ms = [
+        ("read_trace", ms(read.saturating_sub(bus_time))),
+        ("bus_copy_check", ms(bus_time)),
+        ("sort_and_write", ms(tables)),
+        ("elf_sources_variables", ms(elf_time)),
+    ]
+    .into_iter()
+    .map(|(k, v)| (k.to_string(), v))
+    .collect();
 
     report.sources = sources;
     report.bus_copies = bus.finish();
@@ -591,6 +610,7 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
         },
         report,
         config: opts.config.clone(),
+        timings_ms,
     };
     let db_path = opts.out.join("meta.sqlite");
     let _ = std::fs::remove_file(&db_path);

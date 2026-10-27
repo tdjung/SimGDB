@@ -346,7 +346,7 @@ fn run(cli: Cli) -> Result<(), String> {
             if report {
                 println!(
                     "{}",
-                    serde_json::to_string_pretty(&json!({"capabilities": meta.capabilities, "report": meta.report}))
+                    serde_json::to_string_pretty(&json!({"capabilities": meta.capabilities, "report": meta.report, "timings_ms": meta.timings_ms}))
                         .unwrap()
                 );
             }

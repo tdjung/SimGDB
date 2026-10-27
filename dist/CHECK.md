@@ -69,7 +69,8 @@ du -sh real.idx
   - `unmodelled_registers`는 SimGDB가 아직 다루지 않는 레지스터 이름입니다(FPU 등).
   - `bus_copies`가 있으면(Cortex-M4 RTL의 `B…` 레코드): `records`, `matched`, `matched_part`, `matched_reversed`,
     `unmatched_reads`, `unmatched_writes`와, 0이 아닌 쪽의 `unmatched_*_samples` 두세 줄을 알려 주세요.
-- 전달 부탁: `report.json`, `time` 결과, `du -sh` 결과.
+- 전달 부탁: `report.json`, `time` 결과, `du -sh` 결과. `report.json`의 `timings_ms`는 단계별 시간(trace 읽기, 버스 사본 점검,
+  정렬·쓰기, ELF 소스·변수)이라 느릴 때 어디서 걸리는지 보여 줍니다.
 - `report.sources.problems`가 있으면 ELF 디버그 정보 일부를 못 읽은 것입니다. 다음 출력도 함께 알려 주세요:
   `arm-none-eabi-readelf -p .comment firmware.elf`, `arm-none-eabi-readelf -S firmware.elf | grep -i debug`.
 - `unrecognised`나 `unmodelled_registers`에 이름이 나오면, 새 실행 파일 없이 설정 파일로 고칠 수 있는 경우가 많습니다

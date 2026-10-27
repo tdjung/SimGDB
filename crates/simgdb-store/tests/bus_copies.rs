@@ -65,6 +65,8 @@ fn bus_copies_are_checked_not_indexed() {
     with.push_str("99998 cyc MNR4___D 00001002 a1b2c3d4\n");
     with.push_str("99998 cyc BNR2___D 00001002 a1b2\n");
     with.push_str("99998 cyc BNR2___D 00001004 c3d4\n");
+    with.push_str("99998 cyc MNW1___D 20000210 01\n");
+    with.push_str("99998 cyc BNW1___S 20000210 00\n");
     with.push_str("99999 cyc BNW4___S 20000200 11223344\n");
     with.push_str("99999 cyc IT (00000044:00000000) 00000044     4a11 T16 LDR r2, [pc, #68]\n");
 
@@ -72,8 +74,8 @@ fn bus_copies_are_checked_not_indexed() {
     let b = tempfile::tempdir().unwrap();
     let base = index(&plain, a.path());
     let ds = index(&with, b.path());
-    // Memory state is the core records' only (plus the added core read).
-    assert_eq!(ds.mem_addr.len(), base.mem_addr.len() + 1);
+    // Memory state is the core records' only (plus the two added ones).
+    assert_eq!(ds.mem_addr.len(), base.mem_addr.len() + 2);
     for r in 0..base.mem_addr.len() {
         assert_eq!(
             (ds.mem_at.get(r), ds.mem_addr.get(r), ds.mem_value.get(r)),
@@ -81,11 +83,21 @@ fn bus_copies_are_checked_not_indexed() {
         );
     }
     let c = ds.meta.report.bus_copies.clone().expect("copies seen");
-    assert_eq!(c.records, copies + 3);
+    assert_eq!(c.records, copies + 4);
     assert_eq!((c.matched, c.matched_reversed, c.matched_part), (copies, 0, 2), "{c:?}");
-    assert_eq!((c.unmatched_reads, c.unmatched_writes), (0, 1), "{c:?}");
-    assert!(c.unmatched_write_samples[0].text.contains("BNW4___S 20000200"));
-    assert_eq!(c.core_without_copy, 0);
+    assert_eq!((c.unmatched_reads, c.unmatched_writes), (0, 2), "{c:?}");
+    // Each sample says what the copy was and what the core wrote there.
+    let s: Vec<&str> = c.unmatched_write_samples.iter().map(|s| s.text.as_str()).collect();
+    assert!(
+        s.iter().any(|t| t.contains("write 4 bytes at 0x20000200: 11223344") && t.contains("no core record")),
+        "{s:?}"
+    );
+    assert!(
+        s.iter().any(|t| t.contains("write 1 byte at 0x20000210: 00")
+            && t.contains("nearest core record on these bytes, the same instruction: write 1 byte at 0x20000210: 01")),
+        "{s:?}"
+    );
+    assert_eq!(c.core_without_copy, 1); // the core write whose copy differs
     assert!(ds.meta.report.unrecognised.is_empty());
     assert!(base.meta.report.bus_copies.is_none());
 }

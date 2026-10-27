@@ -212,6 +212,9 @@ pub struct Meta {
     /// The site configuration the index was built with.
     #[serde(default)]
     pub config: Option<config::SiteConfig>,
+    /// Where indexing time went, in milliseconds (differs between runs).
+    #[serde(default)]
+    pub timings_ms: BTreeMap<String, u64>,
 }
 
 /// A dataset opened for reading.
