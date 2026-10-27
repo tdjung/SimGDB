@@ -14,6 +14,9 @@ simgdb index trace.log --elf firmware.elf -o trace.idx --report > report.json
   - `unrecognised`: 해석하지 못한 줄 종류와 샘플. 비어 있어야 정상입니다.
   - `capabilities`: 이 trace로 할 수 있는 것(메모리 값, 소스 줄 등).
   - `exception_frames_unplaced`, `exceptions_inferred`: 예외 처리에서 추정이 들어간 횟수.
+  - `bus_copies`(Cortex-M RTL trace의 `B…___D/S` 레코드가 있을 때): 버스 쪽에서 본 같은 접근의 사본입니다. 인덱스는 코어 쪽
+    `M…___D` 레코드를 쓰고, 사본은 코어 레코드와 맞춰 보기만 합니다. `unmatched`가 0이면 사본에 인덱스가 놓친 접근이 없다는
+    뜻입니다. 0이 아니면 `unmatched_samples`를 알려 주세요.
   - `sources.problems`: ELF 디버그 정보 중 읽지 못한 부분. 인덱싱은 계속되고, 읽은 부분만 씁니다
     (못 읽은 곳의 함수 이름은 심볼 표에서 가져옴).
 - 멀티코어 trace는 `--core N`으로 한 코어씩 만듭니다.
@@ -92,8 +95,11 @@ Microsoft C/C++(cppdbg):
   (cortex-debug: `reverse-next`, cppdbg: `-exec reverse-next`). `monitor …` 명령도 같은 방식입니다.
 - `launch`로 펌웨어를 내려받는 설정(`-target-download`, `load`)은 쓰기라서 거부됩니다. 위처럼 attach 방식을 씁니다.
 - **trace 끝(또는 거꾸로 갈 때 처음)에 닿으면** gdb는 `No more reverse-execution history.`로 멈춥니다. cppdbg는 이 정지
-  이유를 몰라 "Exception has occurred. Unknown stopping event"로 보여 주지만 세션은 살아 있습니다. 마지막 명령어에 멈춰 있으니
-  거꾸로 가기(`-exec reverse-continue` 등)나 다른 breakpoint로 이어 가면 됩니다(`-exec monitor time`으로 index 확인).
+  이유를 몰라 "Exception has occurred. Unknown stopping event"로 보여 줍니다(세션은 살아 있음). VS Code로 볼 때는
+  **`simgdb serve … --end-as-pause`**로 띄우면 계속(Continue), 거꾸로 계속, 그리고 그 둘로 처리되는 동작(줄 정보 없는 함수에서의
+  step, Step Out)이 끝에 닿았을 때 일반 일시정지로 보입니다. 줄 단위 step(Step Over/Into)이 끝에 닿을 때만은 여전히
+  "Unknown stopping event"입니다(gdb가 그 정지를 "아직 덜 갔음"으로 보고 끝없이 다시 step하므로 바꿀 수 없음).
+  이 옵션에서 gdb 명령줄은 `continue`가 끝에 닿으면 `Program received signal SIGTRAP`으로 보여 줍니다.
 - **Restart**: 서버는 다시 붙어도 위치를 유지하므로, Restart 때 trace 처음으로 가려면 launch.json에 다음을 넣습니다.
   `"postRemoteConnectCommands": [{ "text": "monitor reset" }, { "text": "maintenance flush register-cache" }]`
 - 이 저장소에서는 VS Code 확장이 gdb에 보내는 것과 같은 MI 명령 순서(extended-remote 연결, `monitor halt`, breakpoint,

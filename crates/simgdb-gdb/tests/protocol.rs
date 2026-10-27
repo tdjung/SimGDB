@@ -182,3 +182,44 @@ fn packets() {
 fn hex(s: &str) -> String {
     s.bytes().map(|b| format!("{b:02x}")).collect()
 }
+
+/// `serve --end-as-pause`: continuing to either end of the trace stops with
+/// a plain trap (IDEs show "paused"); stepping there still reports "no more
+/// history", because GDB takes a trap that left no step range as "step
+/// again" and would loop.
+#[test]
+fn end_as_pause() {
+    let dir = tempfile::tempdir().unwrap();
+    let isa = simgdb_isa::by_name("arm-m").unwrap();
+    build(
+        isa.as_ref(),
+        &IndexOptions {
+            trace: firmware().join("traces/state_m4.m4rtl.log.gz"),
+            elf: Some(firmware().join("state_m4.elf")),
+            out: dir.path().to_path_buf(),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let mut session = simgdb_gdb::Session::new(Engine::open(dir.path()).unwrap()).with_end_as_pause(true);
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = listener.local_addr().unwrap();
+    std::thread::spawn(move || {
+        let (stream, _) = listener.accept().unwrap();
+        simgdb_gdb::serve_connection(&mut session, stream).unwrap();
+    });
+    let stream = TcpStream::connect(addr).unwrap();
+    let mut c = Client { r: BufReader::new(stream.try_clone().unwrap()), w: stream };
+    c.send("qSupported:swbreak+;hwbreak+;vContSupported+");
+
+    let begin = c.send("bc");
+    assert!(begin.starts_with("S05") || begin.starts_with("T05"), "{begin}");
+    assert!(!begin.contains("replaylog"), "{begin}");
+    let end = c.send("vCont;c");
+    assert!((end.starts_with("S05") || end.starts_with("T05")) && !end.contains("replaylog"), "{end}");
+    assert!(c.monitor("time").contains("(last 4747)"));
+    let step = c.send("vCont;s");
+    assert!(step.contains("replaylog:end"), "{step}");
+    let back = c.send("bs");
+    assert!(!back.contains("replaylog"), "{back}");
+}

@@ -130,6 +130,8 @@ pub struct Session {
     resume: Option<Resume>,
     /// Bookmarks shared with MCP clients (absent if it could not be opened).
     annotations: Option<simgdb_store::annotations::Annotations>,
+    /// Report the ends of the trace as a plain stop instead of "no more history".
+    end_as_pause: bool,
 }
 
 #[derive(Debug)]
@@ -179,7 +181,14 @@ impl Session {
         let count = engine.isa().registers().len();
         let big_endian = engine.endian() == simgdb_isa::Endian::Big;
         let _ = LAYOUT.set(Layout { xml, count, big_endian });
-        Session { engine, index: 0, breakpoints: BTreeSet::new(), resume: None, annotations: None }
+        Session { engine, index: 0, breakpoints: BTreeSet::new(), resume: None, annotations: None, end_as_pause: false }
+    }
+
+    /// Report reaching either end of the trace as a plain stop (SIGTRAP, as
+    /// for an interrupt request) instead of GDB's "no more history".
+    pub fn with_end_as_pause(mut self, on: bool) -> Session {
+        self.end_as_pause = on;
+        self
     }
 
     /// Use this bookmark store for `monitor bookmark`.
@@ -205,6 +214,14 @@ impl Session {
     fn run(&mut self) -> SingleThreadStopReason<u32> {
         let at_end = BaseStopReason::ReplayLog { tid: None, pos: ReplayLogPosition::End };
         let at_begin = BaseStopReason::ReplayLog { tid: None, pos: ReplayLogPosition::Begin };
+        // A plain stop for continue only: while stepping, GDB takes a trap
+        // that did not leave the step range as "not done yet" and steps
+        // again, for ever, at the end of the trace.
+        let (cont_end, cont_begin) = if self.end_as_pause {
+            (BaseStopReason::Signal(Signal::SIGTRAP), BaseStopReason::Signal(Signal::SIGTRAP))
+        } else {
+            (at_end, at_begin)
+        };
         let bps: Vec<u64> = self.breakpoints.iter().copied().collect();
         match self.resume.take().unwrap_or(Resume::Step) {
             Resume::Step => {
@@ -244,7 +261,7 @@ impl Session {
                 }
                 _ => {
                     self.index = self.last();
-                    at_end
+                    cont_end
                 }
             },
             Resume::ReverseContinue => match self.engine.next_execution(&bps, self.index, false) {
@@ -254,7 +271,7 @@ impl Session {
                 }
                 None => {
                     self.index = 0;
-                    at_begin
+                    cont_begin
                 }
             },
         }

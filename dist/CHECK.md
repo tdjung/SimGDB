@@ -67,6 +67,8 @@ du -sh real.idx
   - `unrecognised`가 비어 있습니다. 비어 있지 않으면 거기 나온 레코드 종류를 아직 모르는 것입니다.
   - `capabilities`에서 `register_writes`, `memory_writes`, `exceptions`, `exception_stacking_writes`, `time_unit`을 확인합니다.
   - `unmodelled_registers`는 SimGDB가 아직 다루지 않는 레지스터 이름입니다(FPU 등).
+  - `bus_copies`가 있으면(Cortex-M4 RTL의 `B…` 레코드): `records`, `matched`, `matched_reversed`, `unmatched` 네 숫자와,
+    `unmatched`가 0이 아니면 `unmatched_samples`를 알려 주세요.
 - 전달 부탁: `report.json`, `time` 결과, `du -sh` 결과.
 - `report.sources.problems`가 있으면 ELF 디버그 정보 일부를 못 읽은 것입니다. 다음 출력도 함께 알려 주세요:
   `arm-none-eabi-readelf -p .comment firmware.elf`, `arm-none-eabi-readelf -S firmware.elf | grep -i debug`.
@@ -156,7 +158,8 @@ bin/simgdb query real.idx locate --at I
 `USAGE.md` §2의 launch.json(cortex-debug 또는 cppdbg)으로 `bin/simgdb serve real.idx`에 붙습니다.
 
 기대 결과: 처음 시점에서 멈춰 있고, breakpoint, 계속, step over/into/out, call stack, 변수, 레지스터 보기가 됩니다.
-`set endian`은 필요 없습니다(전에 임시로 넣었다면 지웁니다). "Failed to find thread 1 for break event"가 나오면 PSP를 쓰는
+`set endian`은 필요 없습니다(전에 임시로 넣었다면 지웁니다). `serve`에 `--end-as-pause`를 붙이면 Continue로 trace 끝에
+닿았을 때 예외 대신 일시정지로 보입니다. "Failed to find thread 1 for break event"가 나오면 PSP를 쓰는
 펌웨어의 PSP를 아직 쓰기 전 구간입니다. `serve`에 `--no-psp-unwind`를 붙여 다시 해 보세요(USAGE §2).
 디버그 콘솔에서 `reverse-next`(cppdbg는 `-exec reverse-next`)로 한 줄 거꾸로 갑니다. 안 되는 동작이 있으면 확장 이름·버전과
 디버그 콘솔 출력을 알려 주세요.

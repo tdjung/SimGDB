@@ -75,6 +75,11 @@ enum Command {
         /// See docs/USAGE.md.
         #[arg(long)]
         no_psp_unwind: bool,
+        /// Report reaching an end of the trace as a plain stop, which IDEs
+        /// show as paused (VS Code cppdbg shows GDB's "no more history" as an
+        /// exception).
+        #[arg(long)]
+        end_as_pause: bool,
     },
     /// Serve the index to AI clients over MCP (stdio).
     Mcp {
@@ -347,9 +352,10 @@ fn run(cli: Cli) -> Result<(), String> {
             }
             Ok(())
         }
-        Command::Serve { index, listen, at, once, no_psp_unwind } => {
+        Command::Serve { index, listen, at, once, no_psp_unwind, end_as_pause } => {
             let engine = Engine::open(&index).map_err(|e| e.to_string())?;
-            let mut session = simgdb_gdb::Session::with_stack_registers(engine, no_psp_unwind);
+            let mut session =
+                simgdb_gdb::Session::with_stack_registers(engine, no_psp_unwind).with_end_as_pause(end_as_pause);
             match simgdb_store::annotations::Annotations::open(&index.join("annotations.sqlite")) {
                 Ok(a) => session = session.with_annotations(a),
                 Err(e) => eprintln!("simgdb: bookmarks disabled ({e})"),
