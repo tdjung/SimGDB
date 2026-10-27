@@ -202,7 +202,8 @@ fn describe(a: &MemAccess, mask: bool) -> String {
             None => "??".to_string(),
         })
         .collect();
-    let addr = if mask { "0x…".to_string() } else { format!("{:#010x}", a.addr) };
+    // ASCII only, like `mask_hex`: reports are read by scripts in any locale.
+    let addr = if mask { "0x########".to_string() } else { format!("{:#010x}", a.addr) };
     format!(
         "{} {} byte{} at {addr}: {bytes}",
         if a.write { "write" } else { "read" },

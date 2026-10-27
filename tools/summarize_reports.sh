@@ -21,14 +21,19 @@ for p in (l.strip() for l in sys.stdin):
     parts = p.rsplit("/", 2)
     name = [parts[-2], parts[-1].replace(".report.json", "")]
     try:
-        d = json.load(open(p))
-    except Exception:
+        # Reports are UTF-8; read them so whatever the locale (Python 3.6
+        # under LANG=C would read ASCII and fail on any other character).
+        with open(p, "rb") as f:
+            d = json.loads(f.read().decode("utf-8", "replace"))
+    except Exception as e:
         # Indexing failed: its message is in the .err file next to it.
         try:
-            err = [l for l in open(p[: -len(".report.json")] + ".err") if l.startswith("error")][:1]
+            with open(p[: -len(".report.json")] + ".err", "rb") as f:
+                err = [l for l in f.read().decode("utf-8", "replace").splitlines() if l.startswith("error")][:1]
         except OSError:
             err = []
-        print("\t".join(name + ["FAILED: " + (err[0].strip() if err else "no report")]))
+        why = err[0].strip() if err else "unreadable report (%s: %s)" % (type(e).__name__, str(e)[:120])
+        print("\t".join(name + ["FAILED: " + why]))
         continue
     r, t = d["report"], d.get("timings_ms", {})
     b = r.get("bus_copies") or {}

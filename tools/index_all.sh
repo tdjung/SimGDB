@@ -27,7 +27,9 @@ CONFIG=${CONFIG:-}
 
 index_one() {
   f=$1
-  out=${f%.*}
+  # Next to the trace, without its extension (none: the whole name).
+  base=$(basename "$f")
+  out=$(dirname "$f")/${base%.*}
   case "$ELF" in
     /*) elf=$ELF ;;
     *) elf=$(dirname "$f")/$ELF ;;
