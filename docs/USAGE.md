@@ -91,6 +91,11 @@ Microsoft C/C++(cppdbg):
 - 거꾸로 가기 버튼은 확장에 따라 없을 수 있습니다. 디버그 콘솔에서 gdb 명령으로 합니다
   (cortex-debug: `reverse-next`, cppdbg: `-exec reverse-next`). `monitor …` 명령도 같은 방식입니다.
 - `launch`로 펌웨어를 내려받는 설정(`-target-download`, `load`)은 쓰기라서 거부됩니다. 위처럼 attach 방식을 씁니다.
+- **trace 끝(또는 거꾸로 갈 때 처음)에 닿으면** gdb는 `No more reverse-execution history.`로 멈춥니다. cppdbg는 이 정지
+  이유를 몰라 "Exception has occurred. Unknown stopping event"로 보여 주지만 세션은 살아 있습니다. 마지막 명령어에 멈춰 있으니
+  거꾸로 가기(`-exec reverse-continue` 등)나 다른 breakpoint로 이어 가면 됩니다(`-exec monitor time`으로 index 확인).
+- **Restart**: 서버는 다시 붙어도 위치를 유지하므로, Restart 때 trace 처음으로 가려면 launch.json에 다음을 넣습니다.
+  `"postRemoteConnectCommands": [{ "text": "monitor reset" }, { "text": "maintenance flush register-cache" }]`
 - 이 저장소에서는 VS Code 확장이 gdb에 보내는 것과 같은 MI 명령 순서(extended-remote 연결, `monitor halt`, breakpoint,
   continue/next/step/finish, 역방향 next, 스택, 변수 객체, 레지스터, 메모리, `monitor reset`)를 실제 gdb로 시험합니다
   (`tests/gdb/ide_session.py`). VS Code 자체로는 폐쇄망에서 확인해 주세요(`CHECK.md` §5).

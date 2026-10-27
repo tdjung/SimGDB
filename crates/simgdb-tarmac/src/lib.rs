@@ -57,6 +57,10 @@ pub struct Register {
     pub value: u64,
     /// Bit set = known (from `x`/`X` digits).
     pub known: u64,
+    /// Bit set = written by this record. `-` digits mark bits the record
+    /// leaves as they were (a partial update, e.g. one single-precision
+    /// half of `R D2 --------37800000`).
+    pub written: u64,
     /// Width written in the trace, in bits.
     pub bits: u32,
 }
@@ -506,6 +510,25 @@ fn fused_time(s: &str) -> Option<(u64, TimeUnit)> {
     Some((value, unit))
 }
 
+/// A register value word: hex digits, `x`/`X` (unknown) and `-` (not
+/// written by this record). Returns (value, known, written, bits).
+fn register_word(s: &str) -> Option<(u64, u64, u64, u32)> {
+    let s = strip_physical(s);
+    let digits: Vec<u8> = s.bytes().filter(|&b| b != b'_').collect();
+    if digits.is_empty() || !digits.iter().all(|b| b.is_ascii_hexdigit() || matches!(b, b'x' | b'X' | b'-')) {
+        return None;
+    }
+    let as_unknown: String = digits.iter().map(|&b| if b == b'-' { 'x' } else { b as char }).collect();
+    let (value, known, bits) = value_with_unknowns(&as_unknown)?;
+    let mut written = 0u64;
+    for (k, &d) in digits.iter().rev().enumerate().take(16) {
+        if d != b'-' {
+            written |= 0xf << (4 * k);
+        }
+    }
+    Some((value, known, written, bits))
+}
+
 fn register(rest: &[Tok<'_>]) -> Result<Record, ParseError> {
     let Some(name) = rest.first() else { return err("R without register name") };
     let mut j = 1;
@@ -517,35 +540,35 @@ fn register(rest: &[Tok<'_>]) -> Result<Record, ParseError> {
         j += 1;
     }
     let mut name = name.s.to_string();
-    let mut parsed = rest.get(j).and_then(|t| value_with_unknowns(strip_physical(t.s)));
+    let mut parsed = rest.get(j).and_then(|t| register_word(t.s));
     // Two-word names such as "DC CISW": the second word is not a value.
     if parsed.is_none() && rest.get(j + 1).is_some() {
-        if rest.get(j).is_some_and(|t| t.s.bytes().all(|b| b == b'-')) {
-            return Ok(Record::Ignored(format!("R {name} (no value)")));
-        }
         name = format!("{} {}", name, rest[j].s);
         j += 1;
-        parsed = rest.get(j).and_then(|t| value_with_unknowns(strip_physical(t.s)));
+        parsed = rest.get(j).and_then(|t| register_word(t.s));
     }
-    let Some((mut value, mut known, mut bits)) = parsed else {
-        if rest.get(j).is_some_and(|t| t.s.bytes().all(|b| b == b'-')) {
-            return Ok(Record::Ignored(format!("R {name} (no value)")));
-        }
+    let Some((mut value, mut known, mut written, mut bits)) = parsed else {
         return err(format!("R {name}: expected a hex value"));
     };
+    let mut any_written = written != 0;
     j += 1;
     // Values split by spaces (R X0 01234567 89abcdef, R Q0 a b c d).
-    while let Some((v, k, b)) = rest.get(j).and_then(|t| if t.s.len() == 8 { value_with_unknowns(t.s) } else { None }) {
+    while let Some((v, k, w, b)) = rest.get(j).and_then(|t| if t.s.len() == 8 { register_word(t.s) } else { None }) {
         value = if b >= 64 { v } else { (value << b) | v };
         known = if b >= 64 { k } else { (known << b) | k };
+        written = if b >= 64 { w } else { (written << b) | w };
+        any_written |= w != 0;
         bits += b;
         j += 1;
+    }
+    if !any_written {
+        return Ok(Record::Ignored(format!("R {name} (no value)")));
     }
     let bank = rest
         .get(j)
         .and_then(|t| t.s.strip_prefix('(').and_then(|s| s.strip_suffix(')')).map(|s| s.to_string()))
         .or(before);
-    Ok(Record::Register(Register { name, bank, value, known, bits }))
+    Ok(Record::Register(Register { name, bank, value, known, written, bits }))
 }
 
 /// `01230123:23452345` in some FPCR records: keep the part after ':'.
@@ -740,7 +763,19 @@ mod tests {
         let Record::Register(r) = one("                    R R1 (USR) 00000800") else { panic!() };
         assert_eq!((r.name.as_str(), r.value, r.bank.as_deref()), ("R1", 0x800, Some("USR")));
         let Record::Register(r) = one("2 ps R r13 (PSP) 20000800") else { panic!() };
-        assert_eq!((r.value, r.bank.as_deref()), (0x2000_0800, Some("PSP")));
+        assert_eq!((r.value, r.bank.as_deref(), r.written), (0x2000_0800, Some("PSP"), 0xffff_ffff));
+        // `-` digits: bits this record does not write (partial FP updates).
+        let Record::Register(r) = one("     252472 cyc R D2 --------37800000") else { panic!() };
+        assert_eq!(
+            (r.name.as_str(), r.value, r.known, r.written, r.bits),
+            ("D2", 0x3780_0000, 0xffff_ffff, 0xffff_ffff, 64)
+        );
+        let Record::Register(r) = one("     252474 cyc R D0 -------000000ea") else { panic!() };
+        assert_eq!((r.value, r.written, r.bits), (0xea, 0x0_ffff_ffff, 60));
+        // Only the low 64 bits are kept; this update writes the high half.
+        let Record::Register(r) = one("124 ns R Q0 3ff428a2 f98d728b -------- --------") else { panic!() };
+        assert_eq!((r.value, r.written, r.bits), (0, 0, 128));
+        assert_eq!(one("1 ns R X5 --------"), Record::Ignored("R X5 (no value)".into()));
     }
 
     #[test]

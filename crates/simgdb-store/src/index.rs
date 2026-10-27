@@ -425,7 +425,14 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
                     continue;
                 }
                 let full = RegState::full_mask(isa.registers()[reg as usize].bits);
-                let w = RegWrite { reg, value: r.value & full, known: r.known & full, derived: false };
+                // Bits the record does not write (`-` digits) keep their value.
+                let (wm, k) = (r.written & full, reg as usize);
+                let w = RegWrite {
+                    reg,
+                    value: (state.values[k] & !wm) | (r.value & wm),
+                    known: (state.known[k] & !wm) | (r.known & wm),
+                    derived: false,
+                };
                 push_write(&mut b, &mut state, &mut last_write_row, &w, at, lineno)?;
                 block.written[reg as usize] = true;
                 block.line = lineno;
