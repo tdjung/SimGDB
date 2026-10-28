@@ -174,3 +174,39 @@ fn call_stacks_match_gdb() {
         }
     }
 }
+
+/// Code without debug lines (assembly startup, libraries built without -g)
+/// is named by its ELF function symbol, checked against `nm`'s view of the
+/// same ELF (symbol addresses and sizes read here with `object`).
+#[test]
+fn frames_without_lines_name_the_elf_symbol() {
+    use object::{Object, ObjectSymbol};
+    let dir = tempfile::tempdir().unwrap();
+    let isa = simgdb_isa::by_name("arm-m").unwrap();
+    let elf = firmware().join("state_m4.elf");
+    build(
+        isa.as_ref(),
+        &IndexOptions {
+            trace: firmware().join("traces/state_m4.m4rtl.log.gz"),
+            elf: Some(elf.clone()),
+            out: dir.path().to_path_buf(),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let engine = Engine::open(dir.path()).unwrap();
+    let data = std::fs::read(&elf).unwrap();
+    let file = object::File::parse(&*data).unwrap();
+    let mix = file.symbols().find(|s| s.name() == Ok("mix")).unwrap();
+    let start = mix.address() & !1;
+    assert_eq!(engine.symbol_at(start).as_deref(), Some("mix"));
+    assert_eq!(engine.symbol_at(start + 4).as_deref(), Some("mix+0x4"));
+    assert_eq!(
+        engine.symbol_at(start + mix.size()),
+        engine.symbol_at(start + mix.size()).filter(|s| !s.starts_with("mix"))
+    );
+    // Every frame with a debug line carries no symbol.
+    for f in engine.call_stack(1080).unwrap() {
+        assert!(f.source.is_some() && f.symbol.is_none(), "{f:?}");
+    }
+}

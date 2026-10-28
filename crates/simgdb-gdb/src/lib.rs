@@ -682,7 +682,12 @@ impl MonitorCmd for Session {
                         Some(s) => {
                             format!("{} ({}:{})", s.function, s.file.rsplit('/').next().unwrap_or(&s.file), s.line)
                         }
-                        None => f.pc.map(|p| format!("{p:#x}")).unwrap_or_else(|| "?".into()),
+                        None => match (&f.symbol, f.pc) {
+                            (Some(s), Some(p)) => format!("{s} ({p:#x}, no line information)"),
+                            (None, Some(p)) => format!("{p:#x}"),
+                            // The PC an exception interrupted is not in the trace.
+                            _ => format!("? (pc unknown: {})", f.pc_from),
+                        },
                     };
                     outputln!(
                         out,

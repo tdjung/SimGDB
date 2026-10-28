@@ -604,6 +604,10 @@ pub struct StackFrame {
     /// is the next task's PC, not the interrupted one) or `unknown`.
     pub pc_from: &'static str,
     pub source: Option<SourcePos>,
+    /// ELF function symbol and offset (`SYS_BSP_reset+0x1c`) when there is
+    /// no debug line for `pc` (assembly, libraries built without `-g`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub symbol: Option<String>,
     /// Point where this entry's frame was entered, and where it returns.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub entered_at: Option<u64>,
@@ -653,6 +657,18 @@ impl Engine {
         })
     }
 
+    /// The ELF function symbol holding `pc`, as `name` or `name+0xoff`.
+    pub fn symbol_at(&self, pc: u64) -> Option<String> {
+        let s = self
+            .ds
+            .symbols
+            .iter()
+            .filter(|s| s.function && s.addr & !1 <= pc && pc < (s.addr & !1) + s.size.max(1))
+            .max_by_key(|s| s.addr)?;
+        let off = pc - (s.addr & !1);
+        Some(if off == 0 { s.name.clone() } else { format!("{}+{off:#x}", s.name) })
+    }
+
     /// Function, file and line of `pc` (the innermost inline frame's line).
     pub fn where_is(&self, pc: u64) -> Option<Where> {
         self.source(pc).map(|s| Where { function: s.function, file: s.file, line: s.line })
@@ -698,6 +714,7 @@ impl Engine {
                 pc,
                 pc_from,
                 source: pc.and_then(|p| self.source(p)),
+                symbol: pc.filter(|&p| self.source(p).is_none()).and_then(|p| self.symbol_at(p)),
                 entered_at,
                 returns_at,
                 returns_to,

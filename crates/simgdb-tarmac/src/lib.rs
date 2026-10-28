@@ -14,7 +14,7 @@
 //! - Registers: `R name value`, `R name (MODE) value`, `R r13 value (MSP)`,
 //!   `x`/`X` digits for unknown bits, `_` separators.
 //! - Memory: `MRn`/`MWn` with optional physical address and attributes,
-//!   Cortex-M RTL `MNW4___D` (bytes in memory order), `R04`/`W08`, `LD`/`ST`
+//!   Cortex-M RTL `MNW4___D` (the value byte-swapped), `R04`/`W08`, `LD`/`ST`
 //!   16-byte diagrams with continuation lines, `x` for unknown data.
 //! - Exceptions: `E pc number CoreEvent_...`, `ES EXC [n] name`, `EXC ...`.
 
@@ -80,8 +80,7 @@ pub struct MemAccess {
     /// (`MR4`/`MW4` …), and the bytes above assume little-endian. A
     /// big-endian core keeps the most significant byte at `addr`, so the
     /// indexer reverses them. False when the trace gives bytes by address
-    /// (Cortex-M RTL `___D` lines in memory order, `LD`/`ST` diagrams), where
-    /// the byte order of the core does not matter.
+    /// (`LD`/`ST` diagrams), where the byte order of the core does not matter.
     pub logical: bool,
 }
 
@@ -631,17 +630,21 @@ fn memory(kind: &str, rest: &[Tok<'_>]) -> Result<Record, ParseError> {
     let n = after.bytes().take_while(|c| c.is_ascii_digit()).count();
     let size: u32 = after[..n].parse().map_err(|_| ParseError { message: format!("{kind}: no size") })?;
     // Cortex-M RTL 8-character types end in D (data), I (instruction side)
-    // or A (peripheral bus); only data accesses are memory state.
-    let mut memory_order = false;
+    // or A (peripheral bus); only data accesses are memory state. Their data
+    // is the value with its bytes swapped: on a little-endian core that is
+    // the bytes in memory order (as tarmac-trace-utilities also reads it),
+    // on a big-endian (BE8) one the reverse. Seen in a BE8 Cortex-M4 trace:
+    // `MNR4___D 0002494c 00780320` loads 0x20037800, a RAM address, and
+    // unaligned stores then agree with their bus-side copies.
+    let mut swapped = false;
     let bus = kind.len() == 8 && b[0] == b'B';
     if kind.len() == 8 {
         match b[7] {
             b'I' | b'A' => return Ok(Record::Ignored(kind.to_string())),
-            b'D' => memory_order = true,
-            // Bus-side copies name the bus (D: DCode, S: system); bytes are
-            // taken in memory order like the core's `___D` lines (the
-            // indexer's match against the core record reports either order).
-            b'S' if bus => memory_order = true,
+            b'D' => swapped = true,
+            // Bus-side copies name the bus (D: DCode, S: system), written
+            // like the core's `___D` lines.
+            b'S' if bus => swapped = true,
             _ => {}
         }
     }
@@ -674,7 +677,7 @@ fn memory(kind: &str, rest: &[Tok<'_>]) -> Result<Record, ParseError> {
                 known_bytes |= 1 << k;
             }
         }
-        if memory_order {
+        if swapped {
             let mut v = 0u64;
             for k in 0..size {
                 v |= ((value >> (8 * k)) & 0xff) << (8 * (size - 1 - k));
@@ -694,7 +697,8 @@ fn memory(kind: &str, rest: &[Tok<'_>]) -> Result<Record, ParseError> {
             size: size as u8,
             value: value & mask(size),
             known: known_bytes,
-            logical: !memory_order,
+            // A number in the core's byte order once swapped back.
+            logical: true,
         })
     };
     let wrap = |v: Vec<MemAccess>| if bus { Record::BusCopy(v) } else { Record::Memory(v) };
@@ -829,7 +833,7 @@ mod tests {
         assert_eq!(one("3037 cyc MNR4O__I 00022ae4 f7ffffcb"), Record::Ignored("MNR4O__I".into()));
         // Cortex-M4 RTL bus-side copies: data (D/S bus) parsed, fetches ignored.
         let Record::BusCopy(m) = one("25191672300 ps BNW2___S 2001a66e af26") else { panic!() };
-        assert_eq!((m[0].addr, m[0].size, m[0].value, m[0].write, m[0].logical), (0x2001_a66e, 2, 0x26af, true, false));
+        assert_eq!((m[0].addr, m[0].size, m[0].value, m[0].write, m[0].logical), (0x2001_a66e, 2, 0x26af, true, true));
         assert!(matches!(one("1 ps BSR4___D 00001000 01020304"), Record::BusCopy(_)));
         assert_eq!(one("1 ps BNR40__I 00006f44 1c5be7a8"), Record::Ignored("BNR40__I".into()));
         let m = mem("1 clk MR8 0000c7c8:00000000c7c8 00000000_0000ca68");

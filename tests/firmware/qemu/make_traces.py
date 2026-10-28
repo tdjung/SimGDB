@@ -304,8 +304,8 @@ class FastModels(Dialect):
 
 
 class CortexM4Rtl(Dialect):
-    """Cortex-M4 RTL style: IT (pc:seq), cycle stamps, MNW4___D records in
-    memory byte order, r13 written with its bank, an IF repeat now and then,
+    """Cortex-M4 RTL style: IT (pc:seq), cycle stamps, MNW4___D records with
+    the value byte-swapped, r13 written with its bank, an IF repeat now and then,
     and the exception frame written as memory stores."""
 
     stacking = True
@@ -343,7 +343,9 @@ class CortexM4Rtl(Dialect):
         self.emit("{:>10} cyc R {} {}".format(t, name, text))
 
     def memory(self, t, rw, addr, size, value):
-        data = value.to_bytes(size, order(addr)).hex()  # memory order
+        # The value with its bytes swapped: memory order on a little-endian
+        # core, the reverse on a big-endian one (as a real BE8 Cortex-M4 trace).
+        data = value.to_bytes(size, "little").hex()
         self.emit("{:>10} cyc MN{}{}___D {:08x} {}".format(t, rw, size, addr, data))
 
     def exception(self, t, number, exc):

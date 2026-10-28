@@ -23,7 +23,7 @@
 | 이름 | 형식 | 시간 | 특징 |
 |---|---|---|---|
 | `fm` | Fast Models 계열 `IT`/`IS`, `R r13`, `MR4`/`MW4`, `E ... CoreEvent_IRQ` | ps, 2000번째 명령어부터 주기 절반(주파수 변경) | 예외 stacking 저장 기록 **없음** |
-| `m4rtl` | Cortex-M4 RTL 계열 `IT (pc:seq)`, `MNW4___D`(바이트 메모리 순서), `R r13 v (MSP)`, `R psr`, 가끔 `IF` 중복 | cyc | 예외 stacking 저장 기록 **있음** |
+| `m4rtl` | Cortex-M4 RTL 계열 `IT (pc:seq)`, `MNW4___D`(값의 byte를 뒤집어 적음: LE는 주소 순서, BE8은 반대), `R r13 v (MSP)`, `R psr`, 가끔 `IF` 중복 | cyc | 예외 stacking 저장 기록 **있음** |
 | `es` | `ES (pc:opcode)`, `CCFAIL`, `LD`/`ST` 16바이트 그림, `ES EXC [n]`, 대문자 레지스터 이름 | tic | 예외 stacking 저장 기록 **없음** |
 
 `m4f`(아래 "부동소수점")에서는 FP 레지스터를 방언마다 다른 형식으로 씁니다: `fm`은 D 레지스터 전체(`R D7 404000003f800000`),
@@ -75,8 +75,8 @@ QEMU의 M-profile은 little-endian 데이터만 지원하므로, `qemu/qemu-m-bi
 - gdbstub이 레지스터를 big-endian 바이트로 보냄(BE 코어에 붙은 디버그 프로브처럼). 정답을 읽는 gdb는 BE ELF를 읽으므로
   추가 설정이 없습니다.
 
-`make_traces.py`는 ELF 헤더로 byte 순서를 정하고, Tarmac 방언도 그 순서로 적습니다(`MW4`는 숫자, `MNW4___D`와 `LD`/`ST`는
-주소 순서 바이트). 정답 레지스터가 플러그인 기록과 모든 정답 시점에서 같은지 확인하는 것은 LE와 같습니다.
+`make_traces.py`는 ELF 헤더로 byte 순서를 정하고, Tarmac 방언도 그 순서로 적습니다(`MW4`는 숫자, `MNW4___D`는 값의 byte를
+뒤집은 것(BE8에서는 주소 역순), `LD`/`ST`는 주소 순서 바이트). 정답 레지스터가 플러그인 기록과 모든 정답 시점에서 같은지 확인하는 것은 LE와 같습니다.
 
 ```bash
 cd /path/to/qemu && git apply /path/to/simgdb/tests/firmware/qemu/qemu-m-bigend.patch && ninja -C build qemu-system-arm

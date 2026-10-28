@@ -96,7 +96,9 @@ Step 0의 실제 Tarmac 조사 결과에 따라 갱신합니다.
   `[memory] endian`으로 바꿉니다(ELF와 다르면 보고서 `endian_conflict`). Arm의 PPB(`0xE0000000`–`0xE00FFFFF`, SysTick·NVIC 등)는
   BE8 코어에서도 little-endian으로 다룹니다. Arm BE32(구형, M-profile 아님)는 지원하지 않습니다.
   - Trace가 메모리 데이터를 **숫자로** 적는 형식(`MR4`/`MW4` …)은 byte 순서에 따라 해석이 달라집니다.
-    **주소 순서로** 적는 형식(Cortex-M RTL `MNR4___D`, `LD`/`ST` 그림)은 byte 순서와 관계없습니다.
+    Cortex-M RTL `MNR4___D`·`B…___D/S`는 값의 byte를 뒤집어 적습니다: little-endian 코어에서는 주소 순서(tarmac-trace-utilities와
+    같은 해석), big-endian(BE8) 코어에서는 그 반대. 실제 BE8 Cortex-M4 trace에서 확인했습니다(`MNR4___D 0002494c 00780320`이
+    RAM 주소 0x20037800을 읽음, 정렬 안 된 쓰기가 버스 사본과 맞음). **주소 순서로** 적는 `LD`/`ST` 그림은 byte 순서와 관계없습니다.
   - BE 검증: 같은 시험 펌웨어를 BE8로 빌드해, M-profile big-endian을 넣은 QEMU(`tests/firmware/qemu/qemu-m-bigend.patch`)로
     실행한 trace와 gdbstub 정답으로 시험합니다. 실제 BE Cortex-M 하드웨어 trace로는 아직 확인하지 않았습니다.
 - **조건 검색**: trace가 보여 주지 않는 값이 들어간 비교는 "모름"이며 참으로 치지 않습니다. 결과의 `first_undecided`로

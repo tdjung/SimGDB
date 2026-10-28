@@ -679,6 +679,8 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
                     Record::BusCopy(accesses) => {
                         let t = std::time::Instant::now();
                         for a in accesses {
+                            // Same byte order as the core records it is matched to.
+                            let a = if a.logical && endian.at(isa, a.addr) == Endian::Big { a.reversed() } else { a };
                             bus.bus(at, &a, lineno);
                         }
                         bus_time += t.elapsed();

@@ -164,17 +164,18 @@ fn reconstruction_matches_gdbstub() {
 
 /// The comparison above can tell the byte orders apart: the big-endian run
 /// read as little-endian data (forced) disagrees with gdb where the trace
-/// writes data as numbers (`MR4`/`MW4`), while the default (from the ELF
-/// header) agrees. Cortex-M RTL `___D` lines and `LD`/`ST` diagrams give
-/// bytes by address, so the core's byte order does not change them.
+/// writes data as numbers (`MR4`/`MW4`, and Cortex-M RTL `___D` lines, whose
+/// value is byte-swapped), while the default (from the ELF header) agrees.
+/// `LD`/`ST` diagrams give bytes by address, so the core's byte order does
+/// not change them.
 #[test]
 fn big_endian_trace_read_as_little_endian_differs() {
-    let wrong = check_with("m4be", "fm", Some(simgdb_isa::Endian::Little));
-    assert!(wrong.mismatches.len() > 10, "fm: {} mismatches", wrong.mismatches.len());
-    for dialect in ["m4rtl", "es"] {
-        let t = check_with("m4be", dialect, Some(simgdb_isa::Endian::Little));
-        assert!(t.mismatches.is_empty(), "{dialect}: {:?}", t.mismatches);
+    for dialect in ["fm", "m4rtl"] {
+        let wrong = check_with("m4be", dialect, Some(simgdb_isa::Endian::Little));
+        assert!(wrong.mismatches.len() > 10, "{dialect}: {} mismatches", wrong.mismatches.len());
     }
+    let t = check_with("m4be", "es", Some(simgdb_isa::Endian::Little));
+    assert!(t.mismatches.is_empty(), "es: {:?}", t.mismatches);
 }
 
 /// Traces that do not record CONTROL, PRIMASK, BASEPRI, FAULTMASK or PSP
