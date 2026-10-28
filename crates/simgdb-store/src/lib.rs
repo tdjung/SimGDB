@@ -187,6 +187,11 @@ pub struct Report {
     /// trace does not record it; without one, the firmware never changed it.
     #[serde(default)]
     pub system_register_writes_by_instruction: BTreeMap<String, u64>,
+    /// Registers the trace did not record whose values were inferred from
+    /// reset, executed instructions and exceptions (number of inferred
+    /// writes). Their values carry source `inferred`.
+    #[serde(default)]
+    pub registers_inferred: BTreeMap<String, u64>,
     /// PC of the first instruction, and where the ELF says reset goes: the
     /// second word of the lowest load segment (the Arm M-profile vector
     /// table), the `Reset_Handler` symbol, the ELF entry point.

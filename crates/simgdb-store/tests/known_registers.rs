@@ -56,8 +56,12 @@ fn registers_unknown_somewhere_are_reported() {
         assert!(!report.registers_never_written.contains(&"psp".to_string()), "{dialect}");
         assert!(listed.contains(&"psp".to_string()), "{dialect}");
         assert!(!listed.contains(&"msp".to_string()), "{dialect}");
+        // Never recorded: unknown somewhere, unless inferred from the start
+        // (this trace starts at reset: PRIMASK, BASEPRI, FAULTMASK are 0).
         for never in &report.registers_never_written {
-            assert!(listed.contains(never), "{dialect}: {never}");
+            let from_reset = ["primask", "basepri", "faultmask"].contains(&never.as_str());
+            assert_eq!(listed.contains(never), !from_reset, "{dialect}: {never}");
+            assert_eq!(report.registers_inferred.contains_key(never), from_reset, "{dialect}: {never}");
         }
         // The firmware's own MSR PSP and MSR CONTROL, counted from the
         // instructions whether or not the trace records the registers; the

@@ -5,7 +5,7 @@ use std::io::BufRead;
 use std::path::{Path, PathBuf};
 
 use simgdb_elf::Elf;
-use simgdb_isa::{Endian, Isa, RegState, RegWrite, TraceRegName};
+use simgdb_isa::{Endian, Inference, Isa, RegState, RegWrite, TraceRegName};
 use simgdb_tarmac::{Event, Parser, Record};
 
 use crate::calls::Calls;
@@ -374,6 +374,16 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
     let mut report = Report { time_monotonic: true, ..Default::default() };
     let mut state = RegState::new(nregs);
     let mut last_write_row = vec![NONE; nregs];
+    let reset = elf.as_ref().map(|e| reset_addresses(e, endian)).unwrap_or_default();
+    let mut infer = Infer {
+        recorded: vec![false; nregs],
+        defaults: true,
+        reset_pcs: [reset.0, reset.1, reset.2.filter(|&e| e != 0)].into_iter().flatten().collect(),
+        last: None,
+        reads: Vec::new(),
+        exception: None,
+        entry_seen: false,
+    };
     if let Some(c) = &opts.config {
         c.validate(isa).map_err(StoreError::Trace)?;
     }
@@ -463,6 +473,51 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
                             report.if_duplicates += 1;
                             continue;
                         }
+                        if at == 0 && infer.reset_pcs.contains(&i.pc) {
+                            let w = isa.reset_values();
+                            infer.apply(
+                                isa,
+                                w,
+                                Inference::Reset,
+                                &mut b,
+                                &mut state,
+                                &mut last_write_row,
+                                &mut block,
+                                &mut report,
+                                at,
+                                lineno,
+                            )?;
+                        }
+                        // An exception number that changed without an exception
+                        // record: a return (or an entry the trace did not mark).
+                        let now = isa.exception_number(&state);
+                        if let (false, Some(before), Some(now)) = (infer.entry_seen, infer.exception, now)
+                            && before != now
+                        {
+                            let (op, width, _) = infer.last.unwrap_or((0, 0, true));
+                            let (writes, why) = if before == 0 {
+                                (Some(isa.exception_entry_writes(&state)), Inference::ExceptionEntry)
+                            } else {
+                                match isa.exception_return_writes(before, op, width, &state, &infer.reads) {
+                                    Some(w) => (Some(w), Inference::ExceptionReturn),
+                                    None => (Some(isa.exception_entry_writes(&state)), Inference::ExceptionEntry),
+                                }
+                            };
+                            if let Some(w) = writes {
+                                infer.apply(
+                                    isa,
+                                    w,
+                                    why,
+                                    &mut b,
+                                    &mut state,
+                                    &mut last_write_row,
+                                    &mut block,
+                                    &mut report,
+                                    at,
+                                    lineno,
+                                )?;
+                            }
+                        }
                         report.derived_register_writes +=
                             block.resolve(isa, &mut b, &mut state, &mut last_write_row, at)?;
                         if let Some(p) = pending.take() {
@@ -522,6 +577,29 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
                         }
                         b.push_instruction(i.pc, i.opcode.unwrap_or(0), i.width, flags, t, lineno, frame)?;
                         report.instructions += 1;
+                        // Effects of this instruction the trace may not record
+                        // (visible from the next point, like its records).
+                        if let (Some(op), false) = (i.opcode, i.failed) {
+                            // `state` is still the point before it.
+                            let w = isa.instruction_writes(op, i.width, &state, infer.defaults);
+                            let at = b.count;
+                            infer.apply(
+                                isa,
+                                w,
+                                Inference::Instruction,
+                                &mut b,
+                                &mut state,
+                                &mut last_write_row,
+                                &mut block,
+                                &mut report,
+                                at,
+                                lineno,
+                            )?;
+                        }
+                        infer.last = Some((i.opcode.unwrap_or(0), i.width, i.failed));
+                        infer.reads.clear();
+                        infer.exception = isa.exception_number(&state);
+                        infer.entry_seen = false;
                     }
                     Record::Register(r) => {
                         let aliased = opts.config.as_ref().and_then(|c| c.register_alias(&r.name));
@@ -554,6 +632,7 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
                             };
                             push_write(&mut b, &mut state, &mut last_write_row, &w, at, lineno)?;
                             block.written[k] = true;
+                            infer.recorded[k] = true;
                         }
                         block.line = lineno;
                         report.register_writes += 1;
@@ -580,8 +659,15 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
                                 if pending.is_some() {
                                     writes_since_entry = true;
                                 }
+                                if isa.inference_hazard(a.addr, a.size as u64) {
+                                    infer.defaults = false;
+                                }
                             } else {
                                 report.memory_reads += 1;
+                                if a.size == 4 && a.known == 0xf {
+                                    let bytes = a.value.to_le_bytes();
+                                    infer.reads.push((a.addr, endian.at(isa, a.addr).value(&bytes[..4])));
+                                }
                             }
                             let kind = if a.write { MEM_WRITE } else { MEM_READ };
                             b.push_mem(row_at, a.addr, a.size as u32, kind, a.value, a.known, lineno)?;
@@ -613,6 +699,20 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
                             b.calls.reset(at)?;
                             continue;
                         }
+                        infer.entry_seen = true;
+                        let w = isa.exception_entry_writes(&state);
+                        infer.apply(
+                            isa,
+                            w,
+                            Inference::ExceptionEntry,
+                            &mut b,
+                            &mut state,
+                            &mut last_write_row,
+                            &mut block,
+                            &mut report,
+                            at,
+                            lineno,
+                        )?;
                         b.calls.exception(at, number)?;
                         if let Some(p) = pending.take() {
                             report.exception_frames_unplaced += finish_entry(&mut b, p, &state, isa)? as u64;
@@ -716,14 +816,8 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
 
     report.sources = sources;
     report.bus_copies = bus.finish();
-    if let Some(e) = elf.as_ref() {
-        report.elf_entry = Some(e.entry & !1);
-        report.reset_handler = e.symbol("Reset_Handler").map(|s| s.addr & !1);
-        report.reset_vector = e.image.first().and_then(|s| {
-            let w: [u8; 4] = s.data.get(4..8)?.try_into().ok()?;
-            let v = if endian == Endian::Big { u32::from_be_bytes(w) } else { u32::from_le_bytes(w) };
-            Some(v as u64 & !1)
-        });
+    if elf.is_some() {
+        (report.reset_vector, report.reset_handler, report.elf_entry) = reset;
         report.starts_at_reset = report.first_pc.map(|pc| {
             [report.reset_vector, report.reset_handler, report.elf_entry.filter(|&e| e != 0)].contains(&Some(pc))
         });
@@ -804,6 +898,20 @@ fn push_write(
     at: u64,
     line: u64,
 ) -> Result<(), StoreError> {
+    push_write_as(b, state, rows, w, w.derived as u8, at, line)
+}
+
+/// `kind`: 0 recorded, 1 alias rule, from 2 an `Inference` (not a record,
+/// so the register still counts as never written by the trace).
+fn push_write_as(
+    b: &mut Builder,
+    state: &mut RegState,
+    rows: &mut [u64],
+    w: &RegWrite,
+    kind: u8,
+    at: u64,
+    line: u64,
+) -> Result<(), StoreError> {
     rows[w.reg as usize] = b.rw.rows() as u64;
     let c = &mut b.rw.cols;
     c[0].u64s().push(at);
@@ -811,15 +919,78 @@ fn push_write(
     c[2].u64s().push(w.value);
     c[3].u64s().push(w.known);
     c[4].u64s().push(line);
-    c[5].u8s().push(w.derived as u8);
+    c[5].u8s().push(kind);
     b.rw.flush(0)?;
-    b.written_regs[w.reg as usize] = true;
+    if kind < Inference::Reset as u8 {
+        b.written_regs[w.reg as usize] = true;
+    }
     state.apply(w);
     let r = w.reg as usize;
     if state.known[r] != b.full_mask[r] {
         b.not_always_known[r] = true;
     }
     Ok(())
+}
+
+/// Inference of registers the trace does not record (see the `Isa`
+/// inference methods): what it needs to remember between records.
+struct Infer {
+    /// The trace has recorded the register: inference stops for it.
+    recorded: Vec<bool>,
+    /// No recorded store has changed configuration the ISA assumes at reset.
+    defaults: bool,
+    /// PCs at which the trace starts at reset (vector, reset symbol, entry).
+    reset_pcs: Vec<u64>,
+    /// The last instruction: opcode, width, condition failed.
+    last: Option<(u32, u8, bool)>,
+    /// Words it read: address, value as a number.
+    reads: Vec<(u64, u64)>,
+    /// Exception number when it started.
+    exception: Option<u32>,
+    /// An exception record came after it.
+    entry_seen: bool,
+}
+
+impl Infer {
+    /// Apply writes to registers the trace has not recorded; unchanged ones
+    /// are dropped. Returns how many were stored.
+    #[allow(clippy::too_many_arguments)]
+    fn apply(
+        &self,
+        isa: &dyn Isa,
+        writes: Vec<RegWrite>,
+        why: Inference,
+        b: &mut Builder,
+        state: &mut RegState,
+        rows: &mut [u64],
+        block: &mut Block,
+        report: &mut Report,
+        at: u64,
+        line: u64,
+    ) -> Result<(), StoreError> {
+        for w in writes {
+            let r = w.reg as usize;
+            if self.recorded[r] || (state.values[r] == w.value && state.known[r] == w.known) {
+                continue;
+            }
+            push_write_as(b, state, rows, &w, why as u8, at, line)?;
+            block.written[r] = true;
+            *report.registers_inferred.entry(isa.registers()[r].name.to_string()).or_default() += 1;
+        }
+        Ok(())
+    }
+}
+
+/// Where the ELF says reset goes: the second word of the lowest load
+/// segment (the Arm M-profile vector table), the `Reset_Handler` symbol,
+/// the entry point.
+fn reset_addresses(e: &Elf, endian: Endian) -> (Option<u64>, Option<u64>, Option<u64>) {
+    let vector = e.image.first().and_then(|s| {
+        let w: [u8; 4] = s.data.get(4..8)?.try_into().ok()?;
+        let v = if endian == Endian::Big { u32::from_be_bytes(w) } else { u32::from_le_bytes(w) };
+        Some(v as u64 & !1)
+    });
+    (vector, e.symbol("Reset_Handler").map(|s| s.addr & !1), Some(e.entry & !1))
 }
 
 fn mark_unknown(b: &mut Builder, kind: u8, at: u64, addr: u64, size: u64, line: u64) -> Result<(), StoreError> {

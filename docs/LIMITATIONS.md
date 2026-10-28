@@ -52,6 +52,19 @@ Step 0의 실제 Tarmac 조사 결과에 따라 갱신합니다.
 - **SP와 MSP/PSP**: trace가 어느 쪽을 쓰든(`r13`, `r13 (MSP)`, `r13 (PSP) 값`, `SP_main`, `r13_mn`, `MSP` …) 모드(IPSR)와
   CONTROL.SPSEL로 나머지를 맞춥니다. 모드를 모르면 어느 쪽이 바뀌었는지 알 수 없으므로, 낡았을 수 있는 쪽을 `unknown`으로 둡니다.
   알려지지 않은 PSP로 전환하면 SP도 `unknown`입니다.
+- **trace가 기록하지 않는 시스템 레지스터의 추론** (Cortex-M4 RTL trace는 CONTROL·PRIMASK·BASEPRI·FAULTMASK·PSP를 기록하지 않음):
+  trace가 그 레지스터를 기록하기 전까지 아래 규칙으로 값을 정하고 출처를 `inferred`로 표시합니다. 기록이 나오면 그 뒤로는 기록만 씁니다.
+  - trace가 reset 진입점(벡터 테이블 word 1, `Reset_Handler`, ELF 진입점)에서 시작하면 CONTROL·PRIMASK·FAULTMASK·BASEPRI는 0
+    (아키텍처 리셋 값). PSP는 리셋 값이 정해져 있지 않아 `unknown`.
+  - 실행된 `MSR`(MSP, PSP, PRIMASK, BASEPRI, BASEPRI_MAX, FAULTMASK, CONTROL, MSPLIM, PSPLIM)과 `CPSID`/`CPSIE`는 그때 아는
+    Rn 값과 권한·모드로 계산합니다. 모르는 것에 달린 비트는 `unknown`. BASEPRI는 구현된 우선순위 비트 수를 모르므로
+    값의 하위 5비트 중 1인 비트는 `unknown`. CONTROL의 FPCA·SFPA에 1을 쓰면 FPU 유무를 모르므로 `unknown`.
+  - FP 명령어는 CONTROL.FPCA를 1로(FPCCR.ASPEN 리셋 값 1 가정. trace에 FPCCR 쓰기가 나오면 그 뒤로는 `unknown`).
+  - 예외 진입: CONTROL.SPSEL·FPCA = 0. 중단된 코드가 PSP를 쓰고 있었을 수 있으면 PSP는 `unknown`(frame만큼 움직였으나 기록 없음).
+  - 예외 복귀: SPSEL = EXC_RETURN bit 2, FPCA = NOT bit 4, NMI가 아니면 FAULTMASK = 0. EXC_RETURN은 `BX Rm`의 레지스터 값이나,
+    복귀 명령어가 읽은 word 중 0xFF로 시작하는 값(하나일 때만)에서 얻고, 없으면 SPSEL·FPCA는 `unknown`.
+  - 보고서의 `registers_inferred`에 레지스터별 추론 쓰기 수가 나옵니다. `registers_never_written`은 여전히 "trace가 기록하지 않음"입니다.
+  - 검증: QEMU trace에서 이 레지스터 기록을 지운 판으로 인덱싱해 gdbstub 정답과 모든 정답 시점에서 비교(불일치 0).
 - **TrustZone(Armv8-M)**: Secure 뱅크(`MSP_S` 등)만 모델링합니다. Non-secure 뱅크(`MSP_NS` 등)는 합치지 않고
   보고서의 `unmodelled_registers`에 나옵니다. Non-secure 상태로 실행하는 구간의 SP/MSP/PSP 정확도는 아직 보장하지 않습니다.
 - **메모리**: 그 바이트에 대한 마지막 기록(읽기 포함)의 값. 기록이 없으면 ELF load image(플래시 등 load 주소 기준),

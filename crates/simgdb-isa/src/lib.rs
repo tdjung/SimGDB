@@ -155,6 +155,43 @@ impl Fields {
     }
 }
 
+/// Why a register value was inferred rather than recorded. Stored with the
+/// write (`reg_writes.derived`: 0 trace, 1 alias rule, these from 2).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum Inference {
+    /// Architectural reset value; the trace starts at reset.
+    Reset = 2,
+    /// Written by an executed instruction (Arm `MSR`, `CPS`, an FP
+    /// instruction setting CONTROL.FPCA), from the operands' known values.
+    Instruction = 3,
+    /// Set by an exception entry.
+    ExceptionEntry = 4,
+    /// Set by an exception return (Arm: from EXC_RETURN).
+    ExceptionReturn = 5,
+}
+
+impl Inference {
+    pub fn from_code(code: u8) -> Option<Inference> {
+        Some(match code {
+            2 => Inference::Reset,
+            3 => Inference::Instruction,
+            4 => Inference::ExceptionEntry,
+            5 => Inference::ExceptionReturn,
+            _ => return None,
+        })
+    }
+
+    pub fn describe(self) -> &'static str {
+        match self {
+            Inference::Reset => "inferred: reset value (the trace starts at reset and does not record this register)",
+            Inference::Instruction => "inferred: written by the executed instruction (not recorded in the trace)",
+            Inference::ExceptionEntry => "inferred: set by the exception entry (not recorded in the trace)",
+            Inference::ExceptionReturn => "inferred: set by the exception return (not recorded in the trace)",
+        }
+    }
+}
+
 /// A register as GDB sees it, in target-description (`g` packet) order:
 /// `count` consecutive registers of the register file from `first`, the
 /// lowest bits first (Arm `d2` is S4 then S5). Its value is known only when
@@ -240,6 +277,45 @@ pub trait Isa: Send + Sync {
     /// apart from firmware that never changes it.
     fn system_register_writes(&self, _opcode: u32, _width: u8) -> &'static [RegId] {
         &[]
+    }
+
+    // Inference of registers a trace does not record (applied only to
+    // registers the trace has not recorded so far; a record always wins).
+    // Each returns full new values with the bits that are known; bits that
+    // depend on something unknown are unknown.
+
+    /// Architectural reset values, for a trace that starts at reset.
+    fn reset_values(&self) -> Vec<RegWrite> {
+        Vec::new()
+    }
+    /// Writes made by executing this instruction, from the state before it.
+    /// `defaults`: configuration the ISA assumes at its reset value has not
+    /// been changed (see `inference_hazard`).
+    fn instruction_writes(&self, _opcode: u32, _width: u8, _before: &RegState, _defaults: bool) -> Vec<RegWrite> {
+        Vec::new()
+    }
+    /// Writes made by an exception entry, from the state at the entry.
+    fn exception_entry_writes(&self, _state: &RegState) -> Vec<RegWrite> {
+        Vec::new()
+    }
+    /// Writes made by an exception return: the exception number left, the
+    /// returning instruction, the state after it, and the words it read
+    /// (address, value as a number). `None`: it was not a return after all
+    /// but a tail-chained entry (use `exception_entry_writes`).
+    fn exception_return_writes(
+        &self,
+        _left: u32,
+        _opcode: u32,
+        _width: u8,
+        _after: &RegState,
+        _reads: &[(u64, u64)],
+    ) -> Option<Vec<RegWrite>> {
+        Some(Vec::new())
+    }
+    /// A recorded store here changes configuration that `instruction_writes`
+    /// otherwise assumes at its reset value (Arm: FPCCR.ASPEN).
+    fn inference_hazard(&self, _addr: u64, _size: u64) -> bool {
+        false
     }
 }
 

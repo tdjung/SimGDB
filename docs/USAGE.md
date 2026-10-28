@@ -147,6 +147,8 @@ Microsoft C/C++(cppdbg):
 
 ### 실제 보드와 다른 점
 
+- **trace가 기록하지 않는 CONTROL·PRIMASK 등은 추론합니다.** reset에서 시작하는 trace면 리셋 값, 이후 실행된 `MSR`·`CPS`와 예외
+  진입·복귀로 따라갑니다(출처 `inferred`, `monitor info source`와 MCP 결과에 표시). 규칙은 [LIMITATIONS](LIMITATIONS.md).
 - **값을 모르면 모른다고 보여 줍니다.** trace에 아직 나오지 않은 레지스터는 `<unavailable>`,
   기록이 없는 메모리는 읽기 오류입니다. 0 같은 값을 지어내지 않습니다.
 - **쓰기는 거부됩니다.** `set var`, 레지스터·메모리 쓰기는 오류입니다(기록을 보는 도구이므로).

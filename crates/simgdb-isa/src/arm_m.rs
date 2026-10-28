@@ -392,6 +392,33 @@ impl Isa for ArmM {
         crate::thumb::classify_opcode(opcode, width)
     }
 
+    fn reset_values(&self) -> Vec<RegWrite> {
+        infer::reset()
+    }
+
+    fn instruction_writes(&self, opcode: u32, width: u8, before: &RegState, defaults: bool) -> Vec<RegWrite> {
+        infer::instruction(opcode, width, before, defaults)
+    }
+
+    fn exception_entry_writes(&self, state: &RegState) -> Vec<RegWrite> {
+        infer::entry(state)
+    }
+
+    fn exception_return_writes(
+        &self,
+        left: u32,
+        opcode: u32,
+        width: u8,
+        after: &RegState,
+        reads: &[(u64, u64)],
+    ) -> Option<Vec<RegWrite>> {
+        infer::ret(left, opcode, width, after, reads)
+    }
+
+    fn inference_hazard(&self, addr: u64, size: u64) -> bool {
+        addr < infer::FPCCR + 4 && infer::FPCCR < addr + size
+    }
+
     fn system_register_writes(&self, opcode: u32, width: u8) -> &'static [RegId] {
         match width {
             // CPSIE/CPSID i/f: 1011 0110 011 im 0 0 I F.
@@ -417,6 +444,213 @@ impl Isa for ArmM {
             4 if opcode & 0xffff_0fff == 0xeee1_0a10 => &[FPSCR],
             _ => &[],
         }
+    }
+}
+
+/// Register writes the architecture implies but a trace may not record
+/// (Cortex-M4 RTL traces record none of CONTROL, PRIMASK, BASEPRI,
+/// FAULTMASK, PSP). Armv7-M/Armv8-M ARM, B1.4 (special registers), B1.5
+/// (exception entry and return), B5.2 (MSR, CPS).
+mod infer {
+    use super::*;
+
+    pub const FPCCR: u64 = 0xE000_EF34;
+    const FULL: u64 = 0xffff_ffff;
+
+    fn write(reg: RegId, value: u64, known: u64) -> RegWrite {
+        RegWrite { reg, value: value & known, known, derived: false }
+    }
+
+    /// Handler mode, thread privileged, thread unprivileged; `None` when
+    /// IPSR or CONTROL.nPRIV is not known.
+    fn privileged(s: &RegState) -> Option<bool> {
+        let ipsr = s.get(XPSR, 9).map(|v| v & 0x1ff)?;
+        if ipsr != 0 {
+            return Some(true);
+        }
+        (s.known[CONTROL as usize] & 1 != 0).then(|| s.values[CONTROL as usize] & 1 == 0)
+    }
+
+    fn ipsr(s: &RegState) -> Option<u64> {
+        s.get(XPSR, 9).map(|v| v & 0x1ff)
+    }
+
+    /// CONTROL with bits `mask` set to `bits` (`known_bits`: which of them are known).
+    fn control_with(s: &RegState, mask: u64, bits: u64, known_bits: u64) -> RegWrite {
+        let (v, k) = (s.values[CONTROL as usize], s.known[CONTROL as usize]);
+        write(CONTROL, (v & !mask) | (bits & mask), (k & !mask) | (known_bits & mask))
+    }
+
+    /// The register unchanged, or all of it unknown when it is not known
+    /// whether the write took effect.
+    fn maybe(s: &RegState, reg: RegId, new: RegWrite, applies: Option<bool>) -> Option<RegWrite> {
+        match applies {
+            Some(true) => Some(new),
+            Some(false) => None,
+            None => {
+                let r = reg as usize;
+                let differ = (s.values[r] ^ new.value) | (s.known[r] ^ new.known) | !s.known[r] | !new.known;
+                Some(write(reg, s.values[r], s.known[r] & new.known & !differ & FULL))
+            }
+        }
+    }
+
+    pub fn reset() -> Vec<RegWrite> {
+        // B1.4: CONTROL, PRIMASK, FAULTMASK, BASEPRI reset to 0; PSP is
+        // UNKNOWN. (MSPLIM/PSPLIM reset to 0 too, but exist only on Armv8-M,
+        // which this ISA does not tell apart from Armv7-M.)
+        [CONTROL, PRIMASK, FAULTMASK, BASEPRI].iter().map(|&r| write(r, 0, FULL)).collect()
+    }
+
+    fn reg(s: &RegState, n: u32) -> Option<u64> {
+        s.get(n as RegId, 32)
+    }
+
+    pub fn instruction(opcode: u32, width: u8, s: &RegState, defaults: bool) -> Vec<RegWrite> {
+        let mut out = Vec::new();
+        let privileged = privileged(s);
+        match width {
+            // CPSIE/CPSID i/f: 1011 0110 011 im 0 0 I F. Unprivileged: no effect.
+            2 if opcode & 0xffec == 0xb660 => {
+                let set = (opcode >> 4) & 1;
+                if opcode & 2 != 0 {
+                    out.extend(maybe(s, PRIMASK, write(PRIMASK, set as u64, FULL), privileged));
+                }
+                if opcode & 1 != 0 {
+                    // FAULTMASK cannot be set at priority -1 or above (NMI, HardFault).
+                    let applies = match (privileged, ipsr(s)) {
+                        (Some(false), _) => Some(false),
+                        (_, Some(2 | 3)) if set == 1 => Some(false),
+                        (Some(true), Some(_)) => Some(true),
+                        _ => None,
+                    };
+                    out.extend(maybe(s, FAULTMASK, write(FAULTMASK, set as u64, FULL), applies));
+                }
+            }
+            // MSR spec_reg, Rn: 11110 0 1110 0 0 Rn | 10 0 0 mask 0 0 SYSm.
+            4 if opcode & 0xfff0_f300 == 0xf380_8000 => {
+                let rn = reg(s, (opcode >> 16) & 0xf);
+                let unknown = |r: RegId| write(r, 0, 0);
+                let value = |r: RegId, f: &dyn Fn(u64) -> RegWrite| rn.map(f).unwrap_or_else(|| unknown(r));
+                match opcode & 0xff {
+                    // Stack pointers and limits: unprivileged writes ignored
+                    // (MSP, PSP from thread mode are allowed only privileged).
+                    0x08 => out.extend(maybe(s, MSP, value(MSP, &|v| write(MSP, v & !3, FULL)), privileged)),
+                    0x09 => out.extend(maybe(s, PSP, value(PSP, &|v| write(PSP, v & !3, FULL)), privileged)),
+                    0x0a => out.extend(maybe(s, MSPLIM, value(MSPLIM, &|v| write(MSPLIM, v & !7, FULL)), privileged)),
+                    0x0b => out.extend(maybe(s, PSPLIM, value(PSPLIM, &|v| write(PSPLIM, v & !7, FULL)), privileged)),
+                    0x10 => out.extend(maybe(s, PRIMASK, value(PRIMASK, &|v| write(PRIMASK, v & 1, FULL)), privileged)),
+                    // BASEPRI: the implemented priority bits are the top 3 to
+                    // 8 of the byte; the rest read as zero. A bit the value
+                    // leaves 0 is 0 either way, one it sets in the low five
+                    // bits may not exist.
+                    0x11 => out.extend(maybe(
+                        s,
+                        BASEPRI,
+                        value(BASEPRI, &|v| write(BASEPRI, v & 0xff, FULL & !(v & 0x1f))),
+                        privileged,
+                    )),
+                    // BASEPRI_MAX: written only when it raises the priority mask.
+                    0x12 => {
+                        let cur = s.get(BASEPRI, 32);
+                        let new = rn.map(|v| v & 0xff);
+                        let applies = match (privileged, new, cur) {
+                            (Some(false), _, _) => Some(false),
+                            (_, Some(0), _) => Some(false),
+                            (Some(true), Some(n), Some(c)) => Some(c == 0 || n < c),
+                            _ => None,
+                        };
+                        let w = new.map(|v| write(BASEPRI, v, FULL & !(v & 0x1f))).unwrap_or_else(|| unknown(BASEPRI));
+                        out.extend(maybe(s, BASEPRI, w, applies));
+                    }
+                    0x13 => {
+                        let applies = match (privileged, ipsr(s), rn.map(|v| v & 1)) {
+                            (Some(false), _, _) => Some(false),
+                            (_, Some(2 | 3), Some(1)) => Some(false),
+                            (Some(true), Some(_), Some(_)) => Some(true),
+                            _ => None,
+                        };
+                        out.extend(maybe(s, FAULTMASK, value(FAULTMASK, &|v| write(FAULTMASK, v & 1, FULL)), applies));
+                    }
+                    // CONTROL: nPRIV (bit 0); SPSEL (bit 1) in thread mode
+                    // only; FPCA (bit 2) and SFPA (bit 3) exist only with an
+                    // FPU (and the Security Extension): a 0 written is 0, a 1
+                    // may read as 0. Higher bits read as zero.
+                    0x14 => {
+                        let w = match (rn, ipsr(s)) {
+                            (Some(v), Some(ipsr)) => {
+                                let c = CONTROL as usize;
+                                let mask = if ipsr == 0 { 3 } else { 1 };
+                                let value = ((s.values[c] & !mask) | (v & mask)) & 3;
+                                let known = (s.known[c] & !mask & 3) | mask | (!v & 0xc) | (FULL & !0xf);
+                                write(CONTROL, value, known)
+                            }
+                            _ => unknown(CONTROL),
+                        };
+                        out.extend(maybe(s, CONTROL, w, privileged));
+                    }
+                    _ => {}
+                }
+            }
+            // A floating-point instruction (coprocessor 10/11 space) sets
+            // CONTROL.FPCA when FPCCR.ASPEN is 1 (its reset value).
+            4 if opcode & 0xec00_0e00 == 0xec00_0a00 => {
+                let known_bit = if defaults { 4 } else { 0 };
+                out.push(control_with(s, 4, 4, known_bit));
+            }
+            _ => {}
+        }
+        out
+    }
+
+    pub fn entry(s: &RegState) -> Vec<RegWrite> {
+        let mut out = Vec::new();
+        // The frame goes on the stack in use: when that may be the process
+        // stack, PSP moves by an amount the trace would show only in a PSP
+        // record (SP is MSP from here on).
+        let c = CONTROL as usize;
+        if s.known[c] & 2 == 0 || s.values[c] & 2 != 0 {
+            out.push(write(PSP, 0, 0));
+        }
+        // Handler mode runs on MSP with no FP context: SPSEL and FPCA clear.
+        out.push(control_with(s, 6, 0, 6));
+        out
+    }
+
+    /// The EXC_RETURN value the returning instruction used: the register of
+    /// a `BX Rm`, or the word it loaded into the PC (POP, LDM, LDR) found
+    /// among its reads.
+    fn exc_return(opcode: u32, width: u8, after: &RegState, reads: &[(u64, u64)]) -> Option<u64> {
+        if width == 2 && opcode & 0xff87 == 0x4700 {
+            return reg(after, (opcode >> 3) & 0xf).filter(|v| v >> 24 == 0xff);
+        }
+        let mut found = reads.iter().map(|&(_, v)| v).filter(|v| v >> 24 == 0xff);
+        let first = found.next()?;
+        // Two candidate words: cannot tell which went to the PC.
+        found.all(|v| v == first).then_some(first)
+    }
+
+    pub fn ret(left: u32, opcode: u32, width: u8, after: &RegState, reads: &[(u64, u64)]) -> Option<Vec<RegWrite>> {
+        let in_handler = ipsr(after).map(|n| n != 0);
+        let er = exc_return(opcode, width, after, reads);
+        // EXC_RETURN bit 3: return to thread mode. Arriving in a handler
+        // after a return to thread mode is a tail-chained entry.
+        if let (Some(e), Some(true)) = (er, in_handler)
+            && e & 8 != 0
+        {
+            return None;
+        }
+        let mut out = Vec::new();
+        out.push(match er {
+            // SPSEL from bit 2, FPCA = NOT bit 4.
+            Some(e) => control_with(after, 6, ((e >> 1) & 2) | ((!e >> 2) & 4), 6),
+            None => control_with(after, 6, 0, 0),
+        });
+        // Every return but from NMI clears FAULTMASK.
+        if left != 2 {
+            out.push(write(FAULTMASK, 0, FULL));
+        }
+        Some(out)
     }
 }
 
@@ -571,6 +805,67 @@ mod tests {
         assert_eq!(ArmM.system_register_writes(0xf380_880a, 4), &[MSPLIM]);
         assert_eq!(ArmM.system_register_writes(0xeee1_3a10, 4), &[FPSCR]);
         assert!(ArmM.system_register_writes(0xeef1_3a10, 4).is_empty());
+    }
+
+    fn get(writes: &[RegWrite], reg: RegId) -> Option<(u64, u64)> {
+        writes.iter().rev().find(|w| w.reg == reg).map(|w| (w.value, w.known))
+    }
+
+    #[test]
+    fn inferred_system_registers() {
+        let thread = state(&[(XPSR, 0x0100_0000), (CONTROL, 0), (PRIMASK, 0), (BASEPRI, 0), (r(0), 0x45), (r(1), 0)]);
+        // cpsid i / cpsie i
+        assert_eq!(get(&ArmM.instruction_writes(0xb672, 2, &thread, true), PRIMASK), Some((1, FULL)));
+        assert_eq!(get(&ArmM.instruction_writes(0xb662, 2, &thread, true), PRIMASK), Some((0, FULL)));
+        // msr BASEPRI, r0 = 0x45: bits it sets in the low five may not exist.
+        assert_eq!(get(&ArmM.instruction_writes(0xf380_8811, 4, &thread, true), BASEPRI), Some((0x40, FULL & !0x05)));
+        // msr CONTROL, r0 = 0x45 in thread mode: nPRIV 1, SPSEL 0, FPCA may be RAZ.
+        let c = get(&ArmM.instruction_writes(0xf380_8814, 4, &thread, true), CONTROL).unwrap();
+        assert_eq!((c.0 & c.1, c.1 & 0xf), (1, 0xb));
+        // Unprivileged thread: MSR and CPS have no effect.
+        let unpriv = state(&[(XPSR, 0x0100_0000), (CONTROL, 1), (PRIMASK, 0), (r(0), 1)]);
+        assert!(ArmM.instruction_writes(0xb672, 2, &unpriv, true).is_empty());
+        assert!(ArmM.instruction_writes(0xf380_8810, 4, &unpriv, true).is_empty());
+        // Privilege unknown: the result is unknown where it could differ.
+        let mut unsure = thread.clone();
+        unsure.known[CONTROL as usize] = 0;
+        assert_eq!(get(&ArmM.instruction_writes(0xb672, 2, &unsure, true), PRIMASK), Some((0, FULL & !1)));
+        // In a handler SPSEL is not written: msr CONTROL, r1 = 0 keeps it.
+        let handler = state(&[(XPSR, 0x0100_000f), (CONTROL, 2), (r(1), 0)]);
+        let c = get(&ArmM.instruction_writes(0xf381_8814, 4, &handler, true), CONTROL).unwrap();
+        assert_eq!(c.0 & 2, 2);
+        // An FP instruction sets FPCA, unless FPCCR may have been changed.
+        assert_eq!(get(&ArmM.instruction_writes(0xee30_0a27, 4, &thread, true), CONTROL), Some((4, FULL)));
+        assert_eq!(get(&ArmM.instruction_writes(0xee30_0a27, 4, &thread, false), CONTROL), Some((0, FULL & !4)));
+        // Entry from the process stack: PSP unknown, SPSEL and FPCA clear.
+        let on_psp = state(&[(XPSR, 0x0100_0000), (CONTROL, 6), (PSP, 0x2000_0400)]);
+        let e = ArmM.exception_entry_writes(&on_psp);
+        assert_eq!((get(&e, PSP), get(&e, CONTROL)), (Some((0, 0)), Some((0, FULL))));
+        // Return by `bx lr` with EXC_RETURN 0xffffffed: thread, PSP, FP frame.
+        let after = state(&[(XPSR, 0x0100_0000), (CONTROL, 0), (LR, 0xffff_ffed), (FAULTMASK, 1)]);
+        let w = ArmM.exception_return_writes(15, 0x4770, 2, &after, &[]).unwrap();
+        assert_eq!((get(&w, CONTROL), get(&w, FAULTMASK)), (Some((6, FULL)), Some((0, FULL))));
+        // `pop {r4, pc}`: EXC_RETURN from the word read for the PC.
+        let after = state(&[(XPSR, 0x0100_0000), (CONTROL, 0)]);
+        let w = ArmM
+            .exception_return_writes(11, 0xbd10, 2, &after, &[(0x2000_0ff0, 7), (0x2000_0ff4, 0xffff_fff9)])
+            .unwrap();
+        assert_eq!(get(&w, CONTROL), Some((0, FULL)));
+        // No EXC_RETURN found: SPSEL and FPCA unknown. NMI keeps FAULTMASK.
+        let w = ArmM.exception_return_writes(2, 0xbd10, 2, &after, &[]).unwrap();
+        assert_eq!((get(&w, CONTROL), get(&w, FAULTMASK)), (Some((0, FULL & !6)), None));
+        // Returning to thread mode yet arriving in a handler: tail-chained.
+        let in_handler = state(&[(XPSR, 0x0100_000b), (LR, 0xffff_fff9)]);
+        assert!(ArmM.exception_return_writes(15, 0x4770, 2, &in_handler, &[]).is_none());
+        // Reset: CONTROL, PRIMASK, FAULTMASK, BASEPRI are 0; PSP is not.
+        let reset = ArmM.reset_values();
+        assert_eq!(get(&reset, CONTROL), Some((0, FULL)));
+        assert_eq!(get(&reset, PSP), None);
+        assert!(ArmM.inference_hazard(0xE000_EF34, 4) && !ArmM.inference_hazard(0xE000_EF38, 4));
+    }
+
+    fn r(n: RegId) -> RegId {
+        R0 + n
     }
 
     #[test]

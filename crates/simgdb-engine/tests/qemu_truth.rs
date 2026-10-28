@@ -176,3 +176,83 @@ fn big_endian_trace_read_as_little_endian_differs() {
         assert!(t.mismatches.is_empty(), "{dialect}: {:?}", t.mismatches);
     }
 }
+
+/// Traces that do not record CONTROL, PRIMASK, BASEPRI, FAULTMASK or PSP
+/// (as Cortex-M4 RTL traces): the same traces with those records removed.
+/// Only the fm and es dialects: they record SP and the banked registers
+/// separately, so removing PSP keeps SP. (m4rtl writes SP only as
+/// `r13 v (PSP)`/`(MSP)`; without those records nothing would say how SP
+/// moves on the process stack, a different trace.) SimGDB infers
+/// them from reset, the executed MSR and exception entries and returns; every
+/// value it then claims must still equal gdb's, and CONTROL must be known
+/// nearly everywhere.
+#[test]
+fn inferred_system_registers_match_gdbstub() {
+    let hidden = ["control", "primask", "basepri", "faultmask", "psp", "sp_process"];
+    for core in ["m4", "m35p", "m4be", "m4f"] {
+        for dialect in ["fm", "es"] {
+            let dir = tempfile::tempdir().unwrap();
+            let mut text = String::new();
+            let path = firmware().join(format!("traces/state_{core}.{dialect}.log.gz"));
+            flate2::read::GzDecoder::new(std::fs::File::open(path).unwrap()).read_to_string(&mut text).unwrap();
+            let mut kept = String::new();
+            for line in text.lines() {
+                let words: Vec<&str> = line.split_whitespace().collect();
+                let at = words.iter().position(|w| *w == "R");
+                if let Some(name) = at.and_then(|k| words.get(k + 1))
+                    && hidden.contains(&name.to_ascii_lowercase().as_str())
+                {
+                    continue;
+                }
+                kept.push_str(line);
+                kept.push('\n');
+            }
+            let trace = dir.path().join("hidden.log");
+            std::fs::write(&trace, kept).unwrap();
+            let out = dir.path().join("idx");
+            let isa = simgdb_isa::by_name("arm-m").unwrap();
+            let meta = build(
+                isa.as_ref(),
+                &IndexOptions {
+                    trace,
+                    elf: Some(firmware().join(format!("state_{core}.elf"))),
+                    out: out.clone(),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            // (PSP may still be set from SP records through the bank rule.)
+            for r in ["control", "primask", "basepri", "faultmask"] {
+                assert!(meta.report.registers_never_written.contains(&r.to_string()), "{core} {dialect}: {r} hidden");
+            }
+            let engine = Engine::open(&out).unwrap();
+            let t = truth(core);
+            let mut mismatches = Vec::new();
+            let mut known: BTreeMap<&str, u64> = BTreeMap::new();
+            let points = t["points"].as_array().unwrap();
+            for p in points {
+                let index = p["index"].as_u64().unwrap();
+                for (name, want) in p["registers"].as_object().unwrap() {
+                    let v = engine.register(index, engine.register_id(name).unwrap()).unwrap();
+                    if let (Some(got), None) = (v.value, v.known_mask) {
+                        if ["control", "primask", "basepri", "faultmask", "psp", "sp", "msp"].contains(&name.as_str()) {
+                            *known.entry(name.as_str()).or_default() += 1;
+                        }
+                        if got != want.as_u64().unwrap() {
+                            mismatches.push(format!("index {index}: {name} = {got:#x}, gdb {want} ({:?})", v.evidence));
+                        }
+                    }
+                }
+            }
+            assert!(mismatches.is_empty(), "{core} {dialect}: {}", mismatches.join("\n"));
+            // Known at every point (from reset on), except CONTROL in m4f's
+            // FP phase where gdb and SimGDB agree only when FPCA is known.
+            let n = points.len() as u64;
+            for r in ["primask", "basepri", "faultmask"] {
+                assert_eq!(known.get(r), Some(&n), "{core} {dialect}: {r} known {known:?}");
+            }
+            assert!(known.get("control").copied().unwrap_or(0) * 10 >= n * 9, "{core} {dialect}: {known:?}");
+            eprintln!("{core} {dialect}: of {n} points known {known:?}");
+        }
+    }
+}

@@ -285,6 +285,10 @@ pub struct RegisterWrite {
     pub known_mask: Option<u64>,
     /// Not in the trace as such: derived (e.g. the banked SP that SP was).
     pub derived: bool,
+    /// Inferred, not recorded: why (reset, instruction, exception entry or
+    /// return; see `Inference::describe`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub inferred: Option<&'static str>,
     /// Trace file line.
     pub line: u64,
 }
@@ -1054,6 +1058,7 @@ impl Engine {
                     value: (known != 0).then(|| ds.rw_value.get(row)),
                     known_mask: (known & full != full).then_some(known),
                     derived: ds.rw_derived.get(row) != 0,
+                    inferred: simgdb_isa::Inference::from_code(ds.rw_derived.get(row)).map(|i| i.describe()),
                     line: ds.rw_line.get(row),
                 }
             })

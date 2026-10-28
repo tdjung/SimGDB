@@ -265,18 +265,24 @@ impl Engine {
         }
         let row = rows[r];
         let mut evidence = Evidence::default();
+        let mut source = Source::Trace;
         if row != NONE {
             let at = self.ds.rw_at.get(row as usize);
             evidence.line = Some(self.ds.rw_line.get(row as usize));
             evidence.index = at.checked_sub(1);
-            if self.ds.rw_derived.get(row as usize) != 0 {
+            let kind = self.ds.rw_derived.get(row as usize);
+            if kind == 1 {
                 evidence.note = Some("follows a banked register write".into());
             }
             if at == 0 {
                 evidence.note = Some("written before the first instruction".into());
             }
+            if let Some(why) = simgdb_isa::Inference::from_code(kind) {
+                source = Source::Inferred;
+                evidence.note = Some(why.describe().into());
+            }
         }
-        let mut v = Value::known(state.values[r], Source::Trace, evidence);
+        let mut v = Value::known(state.values[r], source, evidence);
         if state.known[r] & full != full {
             v.known_mask = Some(state.known[r]);
         }
