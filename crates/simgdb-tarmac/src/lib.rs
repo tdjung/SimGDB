@@ -752,8 +752,14 @@ fn mask(size: u32) -> u64 {
 }
 
 fn exception_e(rest: &[Tok<'_>]) -> Record {
+    let core_event = rest.iter().any(|t| t.s.starts_with("CoreEvent_"));
     match rest.first() {
         Some(t) if t.s.starts_with("DebugEvent_") => Record::Ignored(format!("E {}", t.s)),
+        // A core state event, not an exception: Cortex-M4 RTL `E Run` as its
+        // first line (also `E Sleep`, `E Halt` …). An exception names its
+        // vector address or a `CoreEvent_`.
+        Some(t) if hex(t.s).is_none() && !core_event => Record::Ignored(format!("E {}", t.s)),
+        None => Record::Ignored("E".to_string()),
         _ => {
             let target = rest.first().and_then(|t| hex(t.s));
             let number = rest.get(1).and_then(|t| hex(t.s)).map(|n| n as u32);
@@ -855,6 +861,14 @@ mod tests {
         let Record::Register(r) = one("124 ns R Q0 3ff428a2 f98d728b -------- --------") else { panic!() };
         assert_eq!((r.value, r.written, r.bits), (0, 0, 128));
         assert_eq!(one("1 ns R X5 --------"), Record::Ignored("R X5 (no value)".into()));
+    }
+
+    #[test]
+    fn core_state_events_are_not_exceptions() {
+        assert_eq!(one("25031789700 ps E Run"), Record::Ignored("E Run".into()));
+        assert_eq!(one("1 ps E Sleep"), Record::Ignored("E Sleep".into()));
+        assert!(matches!(one("1 ps E 00000040 0000000f CoreEvent_IRQ"), Record::Exception { number: Some(15), .. }));
+        assert!(matches!(one("1 ps E CoreEvent_RESET"), Record::Exception { .. }));
     }
 
     #[test]
