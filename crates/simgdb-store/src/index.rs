@@ -641,7 +641,7 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
                         for a in accesses {
                             // A number written in the trace is in the core's data
                             // byte order; the bytes are stored by address.
-                            let a = if a.logical && endian.at(isa, a.addr) == Endian::Big { a.reversed() } else { a };
+                            let a = a.in_data_order(endian.at(isa, a.addr) == Endian::Big);
                             if a.addr.checked_add(a.size as u64).is_none_or(|end| end > limit) {
                                 report.parse_errors.count += 1;
                                 if report.parse_errors.samples.len() < SAMPLES {
@@ -680,7 +680,7 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
                         let t = std::time::Instant::now();
                         for a in accesses {
                             // Same byte order as the core records it is matched to.
-                            let a = if a.logical && endian.at(isa, a.addr) == Endian::Big { a.reversed() } else { a };
+                            let a = a.in_data_order(endian.at(isa, a.addr) == Endian::Big);
                             bus.bus(at, &a, lineno);
                         }
                         bus_time += t.elapsed();

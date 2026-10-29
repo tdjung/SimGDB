@@ -344,8 +344,17 @@ class CortexM4Rtl(Dialect):
 
     def memory(self, t, rw, addr, size, value):
         # The value with its bytes swapped: memory order on a little-endian
-        # core, the reverse on a big-endian one (as a real BE8 Cortex-M4 trace).
-        data = value.to_bytes(size, "little").hex()
+        # core. On a big-endian one (as a real BE8 Cortex-M4 trace) the bus
+        # byte lanes, the byte at address X in lane X mod size: an unaligned
+        # access comes rotated.
+        if order(addr) == "big":
+            mem = value.to_bytes(size, "big")
+            lanes = bytearray(size)
+            for k in range(size):
+                lanes[(addr + k) % size] = mem[k]
+            data = bytes(reversed(lanes)).hex()
+        else:
+            data = value.to_bytes(size, "little").hex()
         self.emit("{:>10} cyc MN{}{}___D {:08x} {}".format(t, rw, size, addr, data))
 
     def exception(self, t, number, exc):

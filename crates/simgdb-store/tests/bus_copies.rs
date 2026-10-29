@@ -102,3 +102,37 @@ fn bus_copies_are_checked_not_indexed() {
     assert!(ds.meta.report.unrecognised.is_empty());
     assert!(base.meta.report.bus_copies.is_none());
 }
+
+/// From the user's BE8 Cortex-M4 trace: an unaligned 4-byte store whose
+/// core record gives the bus byte lanes (byte at address X in lane X mod 4)
+/// and whose bus copies give the pieces. Read that way, the store writes
+/// 00 01 01 00 from 0x2001ffcd and every copy matches it.
+#[test]
+fn unaligned_big_endian_store_matches_its_bus_pieces() {
+    let dir = tempfile::tempdir().unwrap();
+    let trace = dir.path().join("t.log");
+    std::fs::write(
+        &trace,
+        "1 cyc IT (00000100:00000000) 00000100 f8c01001 T32 STR r1,[r0,#1]\n\
+         1 cyc BNW1___S 2001ffcd 00\n\
+         1 cyc BNW2___S 2001ffce 0101\n\
+         2 cyc IT (00000104:00000001) 00000104 bf00 T16 NOP\n\
+         2 cyc MNW4___D 2001ffcd 01010000\n\
+         2 cyc BNW1___S 2001ffd0 00\n\
+         3 cyc IT (00000106:00000002) 00000106 bf00 T16 NOP\n",
+    )
+    .unwrap();
+    let out = dir.path().join("idx");
+    let isa = simgdb_isa::by_name("arm-m").unwrap();
+    let meta = build(
+        isa.as_ref(),
+        &IndexOptions { trace, out: out.clone(), endian: Some(simgdb_isa::Endian::Big), ..Default::default() },
+    )
+    .unwrap();
+    let b = meta.report.bus_copies.unwrap();
+    assert_eq!((b.records, b.unmatched_writes, b.unmatched_reads), (3, 0, 0), "{b:?}");
+    let ds = Dataset::open(&out).unwrap();
+    let row = (0..ds.mem_addr.len()).find(|&r| ds.mem_addr.get(r) == 0x2001_ffcd).unwrap();
+    // Bytes by address, as a little-endian number: cd=00 ce=01 cf=01 d0=00.
+    assert_eq!((ds.mem_size.get(row), ds.mem_value.get(row)), (4, 0x0001_0100));
+}

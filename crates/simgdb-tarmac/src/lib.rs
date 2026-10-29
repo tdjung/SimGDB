@@ -82,6 +82,12 @@ pub struct MemAccess {
     /// indexer reverses them. False when the trace gives bytes by address
     /// (`LD`/`ST` diagrams), where the byte order of the core does not matter.
     pub logical: bool,
+    /// Cortex-M RTL `___D` data: on a big-endian core the trace gives the
+    /// bus byte lanes, the byte at address X in lane X mod size, so an
+    /// unaligned access comes rotated (seen in a BE8 Cortex-M4 trace:
+    /// `MNW4___D 2001ffcd 01010000` stores 00 01 01 00 from 0x2001ffcd, as
+    /// its bus-side copies show).
+    pub lanes: bool,
 }
 
 impl MemAccess {
@@ -97,6 +103,28 @@ impl MemAccess {
             }
         }
         MemAccess { value, known, ..self }
+    }
+
+    /// The bytes by address for a core of this data byte order.
+    pub fn in_data_order(self, big_endian: bool) -> MemAccess {
+        if !self.logical || !big_endian {
+            return self;
+        }
+        let r = self.reversed();
+        let n = self.size as u64;
+        let off = if self.lanes && n > 1 { self.addr % n } else { 0 };
+        if off == 0 {
+            return r;
+        }
+        let (mut value, mut known) = (0u64, 0u8);
+        for k in 0..n {
+            let from = (off + k) % n;
+            value |= ((r.value >> (8 * from)) & 0xff) << (8 * k);
+            if r.known & (1 << from) != 0 {
+                known |= 1 << k;
+            }
+        }
+        MemAccess { value, known, ..r }
     }
 }
 
@@ -519,7 +547,8 @@ impl Parser {
                 off += 1;
                 continue;
             };
-            let mut acc = MemAccess { write, addr: base + off as u64, size: 0, value: 0, known: 0, logical: false };
+            let mut acc =
+                MemAccess { write, addr: base + off as u64, size: 0, value: 0, known: 0, logical: false, lanes: false };
             let mut cur = Some(first);
             while let Some(byte) = cur {
                 let k = acc.size as usize;
@@ -699,6 +728,7 @@ fn memory(kind: &str, rest: &[Tok<'_>]) -> Result<Record, ParseError> {
             known: known_bytes,
             // A number in the core's byte order once swapped back.
             logical: true,
+            lanes: swapped,
         })
     };
     let wrap = |v: Vec<MemAccess>| if bus { Record::BusCopy(v) } else { Record::Memory(v) };
