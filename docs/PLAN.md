@@ -106,6 +106,9 @@ zcat -f es.log | awk '$2=="tic"{if(p!="")d[$1-p]++; p=$1} END{for(k in d) print 
 | 성능 | 1천만 명령어: 인덱싱 24 s / 0.8 GB, 질의 대부분 1 ms 이하, 범위 질의 0.1–400 ms | 1억 명령어는 디스크 한도로 미측정(추정치는 benchmarks) |
 
 남은 것: 폐쇄망 실제 데이터 확인(`dist/CHECK.md`), Verdi에서 SW 트랙 보기, 지역변수·C 식의 MCP 제공(gdb 연동).
+나중에 필요할 때: SW 트랙의 FST 출력(C++ 시뮬레이터가 만드는 FST와 형식을 맞출 때). 문자열 타입(`FST_VT_GEN_STRING`)이 필요하므로
+순수 Rust `fst-writer`(문자열 미지원)가 아니라 GTKWave의 libfst를 함께 빌드하는 방식(`fstapi` crate 등)이 후보. 시뮬레이터의 FST 생성
+코드(scope, 변수 타입, 문자열 기록 방식)를 받아 맞춤.
 
 ## Step 2. waveform 보충과 HW 연동
 
