@@ -175,7 +175,8 @@ bin/simgdb track real.idx -o sw.vcd --cycle-period <코어 클럭 주기, 예: 1
 
 기대 결과: Verdi에서 `sw.vcd`를 HW waveform과 함께 열면 `sw.pc`, `sw.function`, `sw.line`, `sw.exception`이 보이고,
 `sw.exception`이 0이 아닌 구간이 인터럽트 신호와 맞습니다. 시간 축이 어긋나면(주기·시작 시점) 어긋난 정도를 알려 주세요.
-`sw.function`의 이름은 `sw.vcd.names.csv`에 있습니다(nWave의 value alias로 이름을 붙일 수 있는지도 알려 주시면 반영하겠습니다).
+`sw.function`과 `sw.file`은 radix를 ASCII로 바꾸면 이름으로 보입니다(파일은 `sw.vcd` 하나). 이름이 깨지거나 앞뒤에 이상한 문자가
+보이면 화면을 알려 주세요.
 
 ## 6. 범위 질의
 

@@ -261,7 +261,8 @@ VCD의 `sw` scope에 신호가 생깁니다.
 | 신호 | 뜻 |
 |---|---|
 | `pc` | PC |
-| `function`, `file`, `line` | 소스 위치. function과 file은 번호이고 이름은 `sw.vcd.names.csv`에 있음 |
+| `function`, `file` | 함수 이름, 소스 파일 이름(문자열). file은 다른 파일과 구분되는 만큼만 경로를 남김(`state.c`, 같은 이름이 있으면 `uart/init.c`) |
+| `line` | 소스 줄 번호 |
 | `depth` | trace 흐름으로 센 호출 깊이 |
 | `exception` | 처리 중인 예외 번호(0 = 없음, `0xffffffff` = 번호를 모르는 핸들러) |
 | `index` | 명령어 index(`simgdb-goto`에 그대로 씀) |
@@ -271,8 +272,9 @@ VCD의 `sw` scope에 신호가 생깁니다.
   설정 파일에 `[time]` 표가 있어야 하고, 둘 다 없으면 거부합니다(조용히 바꾸지 않음). 주파수가 바뀌면 `[time]` 표에 구간을 나눠 적습니다.
   `--index-time`은 명령어 index를 시간으로 씁니다.
 - 같은 시간에 명령어가 여럿이면 VCD에는 마지막 값만 보입니다(끝에 개수를 알려 줌).
-- GTKWave에서는 `function` 신호에 `sw.vcd.gtkw-filter`를 Translate Filter File로 걸면 함수 이름으로 보입니다.
-  Verdi(nWave)에서는 번호로 보이며, 이름은 `.names.csv`를 참고합니다.
+- 출력은 VCD 파일 하나입니다. `function`과 `file`은 문자를 8비트씩 담은 bus(Verilog 문자열과 같은 오른쪽 정렬)라서
+  뷰어에서 radix를 **ASCII**로 바꾸면 이름이 보입니다(nWave: 신호 선택 → Radix → ASCII, GTKWave: Data Format → ASCII).
+  소스가 없는 명령어에서는 빈 값(0)입니다.
 
 ## 5. AI 클라이언트 (MCP)
 

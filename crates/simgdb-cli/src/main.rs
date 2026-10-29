@@ -91,7 +91,7 @@ enum Command {
     /// Write the SW track as VCD (function, line, PC, call depth, exception, marker lines) to view with HW waveforms.
     Track {
         index: PathBuf,
-        /// Output VCD file. `<out>.names.csv` (function/file ids) and `<out>.gtkw-filter` are written next to it.
+        /// Output VCD file (function and file names are in it as text; view them with the ASCII radix).
         #[arg(short, long)]
         out: PathBuf,
         #[command(flatten)]
@@ -406,17 +406,8 @@ fn run(cli: Cli) -> Result<(), String> {
             let file = std::fs::File::create(&out).map_err(|e| format!("{}: {e}", out.display()))?;
             let mut w = std::io::BufWriter::new(file);
             let comment = format!("SW track of {}", engine.info().trace);
-            let s = vcd::write(&mut w, rows, &marks, &time, pc_bits, &comment).map_err(|e| e.to_string())?;
+            let s = vcd::write(&mut w, rows, &names, &marks, &time, pc_bits, &comment).map_err(|e| e.to_string())?;
             std::io::Write::flush(&mut w).map_err(|e| e.to_string())?;
-            let side = |ext: &str| {
-                let mut p = out.clone().into_os_string();
-                p.push(ext);
-                PathBuf::from(p)
-            };
-            let mut csv = std::fs::File::create(side(".names.csv")).map_err(|e| e.to_string())?;
-            vcd::write_names(&mut csv, &names).map_err(|e| e.to_string())?;
-            let mut filt = std::fs::File::create(side(".gtkw-filter")).map_err(|e| e.to_string())?;
-            vcd::write_gtkwave_filter(&mut filt, &names).map_err(|e| e.to_string())?;
             eprintln!(
                 "wrote {} ({} instructions; {} share a time stamp with the previous one, {} went backwards, \
                  {} left out without a time)",

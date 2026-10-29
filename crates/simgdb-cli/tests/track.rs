@@ -1,8 +1,8 @@
 //! `simgdb track` writes a VCD whose signals at each truth point agree with
 //! what gdb saw there through QEMU's gdbstub (tests/firmware): the PC, the
 //! exception being handled (IPSR) and the function (gdb's innermost
-//! non-inline frame). Time stamps are the trace's own (ps), or cycles times
-//! the given period.
+//! non-inline frame, read as text from the VCD itself). Time stamps are the
+//! trace's own (ps), or cycles times the given period.
 
 use std::collections::{BTreeMap, HashMap};
 use std::io::Read;
@@ -19,12 +19,27 @@ fn simgdb(args: &[&str]) -> String {
     String::from_utf8_lossy(&out.stderr).into_owned()
 }
 
-/// Signal name -> list of (time, value), from a VCD.
-fn parse_vcd(path: &Path) -> (String, BTreeMap<String, Vec<(u64, u64)>>) {
+/// A vector value as a number (at most 64 bits).
+fn number(bits: &str) -> u64 {
+    u64::from_str_radix(bits, 2).unwrap()
+}
+
+/// A vector value as text: 8-bit characters, right aligned (leading zero
+/// bytes are padding), as a viewer's ASCII radix shows it.
+fn as_text(bits: &str) -> String {
+    let pad = (8 - bits.len() % 8) % 8;
+    let full = format!("{}{bits}", "0".repeat(pad));
+    let bytes: Vec<u8> =
+        full.as_bytes().chunks(8).map(|c| u8::from_str_radix(std::str::from_utf8(c).unwrap(), 2).unwrap()).collect();
+    String::from_utf8(bytes.into_iter().skip_while(|&b| b == 0).collect()).unwrap()
+}
+
+/// Signal name -> list of (time, value bits), from a VCD.
+fn parse_vcd(path: &Path) -> (String, BTreeMap<String, Vec<(u64, String)>>) {
     let text = std::fs::read_to_string(path).unwrap();
     let mut names = HashMap::new();
     let mut scale = String::new();
-    let mut out: BTreeMap<String, Vec<(u64, u64)>> = BTreeMap::new();
+    let mut out: BTreeMap<String, Vec<(u64, String)>> = BTreeMap::new();
     let mut now = 0;
     for line in text.lines() {
         let w: Vec<&str> = line.split_whitespace().collect();
@@ -35,10 +50,10 @@ fn parse_vcd(path: &Path) -> (String, BTreeMap<String, Vec<(u64, u64)>>) {
             }
             [t] if t.starts_with('#') => now = t[1..].parse().unwrap(),
             [v, id] if v.starts_with('b') => {
-                out.entry(names[*id].clone()).or_default().push((now, u64::from_str_radix(&v[1..], 2).unwrap()));
+                out.entry(names[*id].clone()).or_default().push((now, v[1..].to_string()));
             }
             [x] if x.len() >= 2 && (x.starts_with('0') || x.starts_with('1')) && names.contains_key(&x[1..]) => {
-                out.entry(names[&x[1..]].clone()).or_default().push((now, (x.as_bytes()[0] - b'0') as u64));
+                out.entry(names[&x[1..]].clone()).or_default().push((now, x[..1].to_string()));
             }
             _ => {}
         }
@@ -46,9 +61,9 @@ fn parse_vcd(path: &Path) -> (String, BTreeMap<String, Vec<(u64, u64)>>) {
     (scale, out)
 }
 
-fn at(signal: &[(u64, u64)], t: u64) -> u64 {
+fn at(signal: &[(u64, String)], t: u64) -> &str {
     let k = signal.partition_point(|(x, _)| *x <= t);
-    signal[k - 1].1
+    &signal[k - 1].1
 }
 
 #[test]
@@ -79,36 +94,32 @@ fn track_matches_gdb() {
         assert!(msg.contains("4748 instructions"), "{msg}");
         let (got_scale, sig) = parse_vcd(&vcd);
         assert_eq!(got_scale, scale, "{dialect}");
-        let names: HashMap<u64, String> = std::fs::read_to_string(dir.path().join("sw.vcd.names.csv"))
-            .unwrap()
-            .lines()
-            .filter_map(|l| {
-                let p: Vec<&str> = l.splitn(3, ',').collect();
-                (p[0] == "function").then(|| (p[1].parse().unwrap(), p[2].to_string()))
-            })
-            .collect();
+        // One file: nothing written next to the VCD.
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 2, "{dialect}: idx and sw.vcd only");
         // The time of each point from the index signal itself.
-        let index_at: HashMap<u64, u64> = sig["index"].iter().map(|&(t, i)| (i, t)).collect();
+        let index_at: HashMap<u64, u64> = sig["index"].iter().map(|(t, i)| (number(i), *t)).collect();
         let mut checked = 0;
         for p in truth["points"].as_array().unwrap() {
             let i = p["index"].as_u64().unwrap();
             let t = index_at[&i];
             let ctx = format!("{dialect} ({unit}) index {i}");
-            assert_eq!(at(&sig["pc"], t), p["pc"].as_u64().unwrap(), "{ctx}: pc");
+            assert_eq!(number(at(&sig["pc"], t)), p["pc"].as_u64().unwrap(), "{ctx}: pc");
             let ipsr = p["registers"]["xpsr"].as_u64().unwrap() & 0x1ff;
-            assert_eq!(at(&sig["exception"], t), ipsr, "{ctx}: exception");
+            assert_eq!(number(at(&sig["exception"], t)), ipsr, "{ctx}: exception");
             let bt = p["backtrace"].as_array().unwrap();
             // Skip inlined code: gdb's innermost frame there is the inline function.
             if bt.len() > 1 && bt[0]["pc"] == bt[1]["pc"] {
                 continue;
             }
-            assert_eq!(names[&at(&sig["function"], t)], bt[0]["function"].as_str().unwrap(), "{ctx}: function");
+            assert_eq!(as_text(at(&sig["function"], t)), bt[0]["function"].as_str().unwrap(), "{ctx}: function");
+            let file = as_text(at(&sig["file"], t));
+            assert!(file.ends_with(".c") || file.ends_with(".s") || file.ends_with(".S"), "{ctx}: file {file}");
             checked += 1;
         }
         assert!(checked > 60);
         // The marker is high exactly on the line's instructions.
         let marks = &sig["mark_state_c_111"];
-        assert!(marks.iter().filter(|(_, v)| *v == 1).count() >= 144);
+        assert!(marks.iter().filter(|(_, v)| v == "1").count() >= 144);
     }
 }
 
