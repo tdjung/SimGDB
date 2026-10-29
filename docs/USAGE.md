@@ -164,8 +164,9 @@ Microsoft C/C++(cppdbg):
   알립니다(같은 값을 다시 쓰면 그냥 지나감). `reverse-continue`는 그 접근 직전(이전 값)에서 멈춥니다.
 - **FPU 레지스터**: 보드와 같이 `d0`–`d15`, `fpscr`과 gdb가 만드는 `s0`–`s31`로 보입니다(`info registers float`, `p $s4`).
   D 레지스터의 두 절반(S 두 개)을 모두 알아야 값이 보이고, 하나라도 모르면 둘 다 `<unavailable>`입니다. 절반씩 보려면
-  `simgdb query trace.idx registers --at N`을 씁니다. FP 문맥이 쌓인 예외 frame에서는 gdb backtrace가 멈춥니다
-  (`Could not fetch required FPCCR content`, [LIMITATIONS](LIMITATIONS.md)). `monitor where`는 끝까지 보여 줍니다.
+  `simgdb query trace.idx registers --at N`을 씁니다. FP 문맥이 쌓인 예외 frame은 FPCCR·FPCAR을 추론해 gdb에 주므로 backtrace가
+  이어집니다. 값을 모르는 구간에서는 `Could not fetch required FPCCR content`로 멈추고, 그때는 `monitor where`를 씁니다
+  ([LIMITATIONS](LIMITATIONS.md)).
 - **PSP를 쓰는 펌웨어(RTOS 등)**에서는 PSP가 처음 쓰이기 전 구간에서 gdb의 call stack 조회가 실패하고, VS Code(cppdbg)는
   "Failed to find thread 1 for break event"를 내며 끝납니다. 그 구간을 IDE로 볼 때는 `simgdb serve --no-psp-unwind`로 띄우세요.
   대신 PSP 위의 thread를 끊고 들어온 핸들러에서는 예외 frame 아래 call stack이 틀리게 보이므로, 그때는 `monitor where`를

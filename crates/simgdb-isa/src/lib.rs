@@ -285,13 +285,13 @@ pub trait Isa: Send + Sync {
     // depend on something unknown are unknown.
 
     /// Architectural reset values, for a trace that starts at reset.
-    fn reset_values(&self) -> Vec<RegWrite> {
+    /// `elf_arch`: the architecture the ELF declares (ISA-specific code, e.g.
+    /// the Arm `Tag_CPU_arch` build attribute), when it does.
+    fn reset_values(&self, _elf_arch: Option<u32>) -> Vec<RegWrite> {
         Vec::new()
     }
     /// Writes made by executing this instruction, from the state before it.
-    /// `defaults`: configuration the ISA assumes at its reset value has not
-    /// been changed (see `inference_hazard`).
-    fn instruction_writes(&self, _opcode: u32, _width: u8, _before: &RegState, _defaults: bool) -> Vec<RegWrite> {
+    fn instruction_writes(&self, _opcode: u32, _width: u8, _before: &RegState) -> Vec<RegWrite> {
         Vec::new()
     }
     /// Writes made by an exception entry, from the state at the entry.
@@ -312,10 +312,28 @@ pub trait Isa: Send + Sync {
     ) -> Option<Vec<RegWrite>> {
         Some(Vec::new())
     }
-    /// A recorded store here changes configuration that `instruction_writes`
-    /// otherwise assumes at its reset value (Arm: FPCCR.ASPEN).
-    fn inference_hazard(&self, _addr: u64, _size: u64) -> bool {
-        false
+    /// Writes an exception entry makes that only the state after it shows
+    /// (Arm: the FP context's FPCCR and FPCAR, from EXC_RETURN and the new
+    /// SP), given at the first instruction of the handler. `before`: the
+    /// exception number before the entry (0: thread mode).
+    fn exception_entered_writes(
+        &self,
+        _after: &RegState,
+        _before: Option<u32>,
+        _elf_arch: Option<u32>,
+    ) -> Vec<RegWrite> {
+        Vec::new()
+    }
+    /// Registers the core also maps into memory, as (address, register):
+    /// memory reads there are answered from the register, and a recorded
+    /// data access there updates it (`memory_mapped_access`).
+    fn memory_mapped_registers(&self) -> &'static [(u64, RegId)] {
+        &[]
+    }
+    /// What a recorded 4-byte data access to a memory-mapped register shows
+    /// of it (`value`: the word as a number).
+    fn memory_mapped_access(&self, _reg: RegId, _value: u64) -> Vec<RegWrite> {
+        Vec::new()
     }
 }
 

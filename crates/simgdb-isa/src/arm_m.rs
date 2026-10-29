@@ -20,6 +20,13 @@ pub const PSPLIM: RegId = 24;
 /// S0..S31 are `S0 + n`; D<n> is S<2n+1>:S<2n>.
 pub const S0: RegId = 25;
 pub const FPSCR: RegId = 57;
+/// Memory-mapped System Control Space registers SimGDB follows: FP context
+/// control and address (lazy FP stacking, which GDB reads to unwind an FP
+/// exception frame), and the enables that decide FPCCR's *RDY bits.
+pub const FPCCR: RegId = 58;
+pub const FPCAR: RegId = 59;
+pub const SHCSR: RegId = 60;
+pub const DEMCR: RegId = 61;
 
 const CORE: &str = "org.gnu.gdb.arm.m-profile";
 /// Feature of MSP, PSP and the special registers. With this standard name
@@ -51,6 +58,9 @@ const SYSTEM_NO_PSP: &str = "org.simgdb.arm.m-system";
 /// unavailable to GDB, and so are both its S registers.
 const FP: &str = "org.gnu.gdb.arm.vfp";
 
+/// System Control Space registers kept as registers (memory-mapped).
+const SCS: &str = "org.simgdb.arm.scs";
+
 const D_NAMES: [&str; 16] =
     ["d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15"];
 
@@ -60,7 +70,7 @@ macro_rules! reg {
     };
 }
 
-static REGISTERS: [RegDef; 58] = [
+static REGISTERS: [RegDef; 62] = [
     reg!("r0", CORE, "int"),
     reg!("r1", CORE, "int"),
     reg!("r2", CORE, "int"),
@@ -120,6 +130,11 @@ static REGISTERS: [RegDef; 58] = [
     reg!("s30", FP, "ieee_single"),
     reg!("s31", FP, "ieee_single"),
     reg!("fpscr", FP, "int"),
+    // Not GDB registers (see gdb_registers): GDB reads them as memory.
+    reg!("fpccr", SCS, "int"),
+    reg!("fpcar", SCS, "int"),
+    reg!("shcsr", SCS, "int"),
+    reg!("demcr", SCS, "int"),
 ];
 
 /// GDB types follow the descriptions QEMU and GDB ship for M-profile, so
@@ -146,6 +161,10 @@ fn alias(name: &str) -> Option<RegId> {
         "msplim" | "msplim_s" => MSPLIM,
         "psplim" | "psplim_s" => PSPLIM,
         "fpscr" => FPSCR,
+        "fpccr" | "fpccr_s" => FPCCR,
+        "fpcar" | "fpcar_s" => FPCAR,
+        "shcsr" | "shcsr_s" => SHCSR,
+        "demcr" => DEMCR,
         _ => {
             let (limit, base) = match name.as_bytes().first()? {
                 b'r' => (12, 0),
@@ -392,12 +411,29 @@ impl Isa for ArmM {
         crate::thumb::classify_opcode(opcode, width)
     }
 
-    fn reset_values(&self) -> Vec<RegWrite> {
-        infer::reset()
+    fn reset_values(&self, elf_arch: Option<u32>) -> Vec<RegWrite> {
+        infer::reset(elf_arch)
     }
 
-    fn instruction_writes(&self, opcode: u32, width: u8, before: &RegState, defaults: bool) -> Vec<RegWrite> {
-        infer::instruction(opcode, width, before, defaults)
+    fn instruction_writes(&self, opcode: u32, width: u8, before: &RegState) -> Vec<RegWrite> {
+        infer::instruction(opcode, width, before)
+    }
+
+    fn exception_entered_writes(&self, after: &RegState, before: Option<u32>, elf_arch: Option<u32>) -> Vec<RegWrite> {
+        infer::entered(self, after, before, elf_arch)
+    }
+
+    fn memory_mapped_registers(&self) -> &'static [(u64, RegId)] {
+        &[
+            (infer::FPCCR_ADDR, FPCCR),
+            (infer::FPCAR_ADDR, FPCAR),
+            (infer::SHCSR_ADDR, SHCSR),
+            (infer::DEMCR_ADDR, DEMCR),
+        ]
+    }
+
+    fn memory_mapped_access(&self, reg: RegId, value: u64) -> Vec<RegWrite> {
+        infer::mapped(reg, value)
     }
 
     fn exception_entry_writes(&self, state: &RegState) -> Vec<RegWrite> {
@@ -413,10 +449,6 @@ impl Isa for ArmM {
         reads: &[(u64, u64)],
     ) -> Option<Vec<RegWrite>> {
         infer::ret(left, opcode, width, after, reads)
-    }
-
-    fn inference_hazard(&self, addr: u64, size: u64) -> bool {
-        addr < infer::FPCCR + 4 && infer::FPCCR < addr + size
     }
 
     fn system_register_writes(&self, opcode: u32, width: u8) -> &'static [RegId] {
@@ -454,7 +486,24 @@ impl Isa for ArmM {
 mod infer {
     use super::*;
 
-    pub const FPCCR: u64 = 0xE000_EF34;
+    pub const FPCCR_ADDR: u64 = 0xE000_EF34;
+    pub const FPCAR_ADDR: u64 = 0xE000_EF38;
+    pub const SHCSR_ADDR: u64 = 0xE000_ED24;
+    pub const DEMCR_ADDR: u64 = 0xE000_EDFC;
+    /// FPCCR bits.
+    const ASPEN: u64 = 1 << 31;
+    const LSPEN: u64 = 1 << 30;
+    const LSPACT: u64 = 1;
+    /// SHCSR enables (MemManage, BusFault, UsageFault, SecureFault) and
+    /// DEMCR.MON_EN: written only by software.
+    const SHCSR_ENABLES: u64 = 0xf << 16;
+    const MON_EN: u64 = 1 << 16;
+
+    /// Arm `Tag_CPU_arch`: Armv7 (10) and Armv7E-M (13) M-profile cores have
+    /// the Armv7-M FPCCR (no S, SFRDY, SPLIMVIOL, UFRDY bits); Armv8-M from 16.
+    fn v7(arch: Option<u32>) -> Option<bool> {
+        arch.map(|a| a < 16)
+    }
     const FULL: u64 = 0xffff_ffff;
 
     fn write(reg: RegId, value: u64, known: u64) -> RegWrite {
@@ -495,18 +544,122 @@ mod infer {
         }
     }
 
-    pub fn reset() -> Vec<RegWrite> {
+    pub fn reset(arch: Option<u32>) -> Vec<RegWrite> {
         // B1.4: CONTROL, PRIMASK, FAULTMASK, BASEPRI reset to 0; PSP is
-        // UNKNOWN. (MSPLIM/PSPLIM reset to 0 too, but exist only on Armv8-M,
-        // which this ISA does not tell apart from Armv7-M.)
-        [CONTROL, PRIMASK, FAULTMASK, BASEPRI].iter().map(|&r| write(r, 0, FULL)).collect()
+        // UNKNOWN. (MSPLIM/PSPLIM reset to 0 too, but exist only on Armv8-M.)
+        let mut out: Vec<RegWrite> =
+            [CONTROL, PRIMASK, FAULTMASK, BASEPRI].iter().map(|&r| write(r, 0, FULL)).collect();
+        // FPCCR resets to ASPEN | LSPEN (Armv8-M: S is not given a reset
+        // value here); FPCAR is UNKNOWN. The fault and debug-monitor enables
+        // reset to 0.
+        let s_known = if v7(arch) == Some(true) { FULL } else { FULL & !4 };
+        out.push(write(FPCCR, ASPEN | LSPEN, s_known));
+        out.push(write(SHCSR, 0, SHCSR_ENABLES));
+        out.push(write(DEMCR, 0, MON_EN));
+        out
+    }
+
+    /// A recorded load or store of a memory-mapped register.
+    pub fn mapped(reg: RegId, value: u64) -> Vec<RegWrite> {
+        match reg {
+            FPCCR => vec![write(FPCCR, value, FULL)],
+            FPCAR => vec![write(FPCAR, value & !7, FULL)],
+            // Only the enables: the other bits change in hardware.
+            SHCSR => vec![write(SHCSR, value, SHCSR_ENABLES)],
+            DEMCR => vec![write(DEMCR, value, MON_EN)],
+            _ => Vec::new(),
+        }
+    }
+
+    fn bit(s: &RegState, reg: RegId, mask: u64) -> Option<bool> {
+        let r = reg as usize;
+        (s.known[r] & mask == mask).then(|| s.values[r] & mask != 0)
+    }
+
+    /// FPCCR with `bits` set to `value` where `known` (other bits as they were).
+    fn fpccr_with(s: &RegState, bits: &[(u64, Option<bool>)]) -> RegWrite {
+        let (mut v, mut k) = (s.values[FPCCR as usize], s.known[FPCCR as usize]);
+        for &(mask, b) in bits {
+            match b {
+                Some(on) => {
+                    v = if on { v | mask } else { v & !mask };
+                    k |= mask;
+                }
+                None => k &= !mask,
+            }
+        }
+        write(FPCCR, v, k)
+    }
+
+    /// An FP stack frame was allocated: FPCCR records who could have taken
+    /// which fault then, and FPCAR where the FP registers go (B1.5.7, lazy
+    /// FP state preservation).
+    pub fn entered(isa: &ArmM, s: &RegState, before: Option<u32>, arch: Option<u32>) -> Vec<RegWrite> {
+        let Some(er) = s.get(LR, 32).filter(|v| v >> 24 == 0xff) else {
+            // Whether an FP frame was allocated is not known.
+            return vec![fpccr_with(s, &[(0x7ff, None)]), write(FPCAR, 0, 0)];
+        };
+        if er & 0x10 != 0 {
+            return Vec::new();
+        }
+        let thread = er & 8 != 0;
+        let npriv = bit(s, CONTROL, 1);
+        let user = if thread { npriv } else { Some(false) };
+        let (primask, faultmask, basepri) = (bit(s, PRIMASK, 1), bit(s, FAULTMASK, 1), s.get(BASEPRI, 32));
+        let hfrdy = match (faultmask, before) {
+            (Some(true), _) | (_, Some(2 | 3)) => Some(false),
+            (Some(false), Some(_)) => Some(true),
+            _ => None,
+        };
+        // A configurable fault (or the debug monitor) could have been made
+        // pending when it was enabled and above the execution priority:
+        // from thread mode with nothing masked, any priority is.
+        let ready = |enabled: Option<bool>| match enabled {
+            Some(false) => Some(false),
+            Some(true) if primask == Some(true) || faultmask == Some(true) => Some(false),
+            Some(true) if thread && primask == Some(false) && faultmask == Some(false) && basepri == Some(0) => {
+                Some(true)
+            }
+            _ => None,
+        };
+        let lspen = bit(s, FPCCR, LSPEN);
+        let v8_only = match v7(arch) {
+            Some(true) => Some(false),
+            _ => None,
+        };
+        let mut bits = vec![
+            (LSPACT, lspen),
+            (2, if v7(arch) == Some(true) { Some(false) } else { None }),
+            (1 << 1, user),
+            (1 << 3, Some(thread)),
+            (1 << 4, hfrdy),
+            (1 << 5, ready(bit(s, SHCSR, 1 << 16))),
+            (1 << 6, ready(bit(s, SHCSR, 1 << 17))),
+            (1 << 8, ready(bit(s, DEMCR, MON_EN))),
+        ];
+        match v8_only {
+            Some(false) => bits.extend([(1 << 7, Some(false)), (1 << 9, Some(false)), (1 << 10, Some(false))]),
+            _ => bits.extend([(1 << 7, None), (1 << 9, None), (1 << 10, ready(bit(s, SHCSR, 1 << 18)))]),
+        }
+        let mut out = vec![fpccr_with(s, &bits)];
+        // FPCAR: the FP part of the frame, above the basic frame (and the
+        // Armv8-M additional state context below it).
+        let fpcar = isa.exception_frame(s).map(|(base, _)| {
+            let additional = if er & (1 << 6) != 0 && er & (1 << 5) == 0 { 0x28 } else { 0 };
+            base + additional + 0x20
+        });
+        out.push(match fpcar {
+            Some(a) => write(FPCAR, a & !7, FULL),
+            None => write(FPCAR, 0, 0),
+        });
+        out
     }
 
     fn reg(s: &RegState, n: u32) -> Option<u64> {
         s.get(n as RegId, 32)
     }
 
-    pub fn instruction(opcode: u32, width: u8, s: &RegState, defaults: bool) -> Vec<RegWrite> {
+    pub fn instruction(opcode: u32, width: u8, s: &RegState) -> Vec<RegWrite> {
         let mut out = Vec::new();
         let privileged = privileged(s);
         match width {
@@ -593,10 +746,20 @@ mod infer {
                 }
             }
             // A floating-point instruction (coprocessor 10/11 space) sets
-            // CONTROL.FPCA when FPCCR.ASPEN is 1 (its reset value).
+            // CONTROL.FPCA when FPCCR.ASPEN is 1, and with lazy preservation
+            // pending (FPCCR.LSPACT) first saves the FP registers to FPCAR's
+            // frame and clears LSPACT.
             4 if opcode & 0xec00_0e00 == 0xec00_0a00 => {
-                let known_bit = if defaults { 4 } else { 0 };
-                out.push(control_with(s, 4, 4, known_bit));
+                match bit(s, FPCCR, ASPEN) {
+                    Some(true) => out.push(control_with(s, 4, 4, 4)),
+                    Some(false) => {}
+                    None => out.push(control_with(s, 4, 4, 0)),
+                }
+                match bit(s, FPCCR, LSPACT) {
+                    Some(false) => {}
+                    Some(true) => out.push(fpccr_with(s, &[(LSPACT, Some(false))])),
+                    None => out.push(fpccr_with(s, &[(LSPACT, None)])),
+                }
             }
             _ => {}
         }
@@ -649,6 +812,15 @@ mod infer {
         // Every return but from NMI clears FAULTMASK.
         if left != 2 {
             out.push(write(FAULTMASK, 0, FULL));
+        }
+        // Returning from an FP frame whose registers were never saved (lazy
+        // preservation still pending) drops the pending save.
+        if bit(after, FPCCR, LSPACT) != Some(false) {
+            match er.map(|e| e & 0x10 == 0) {
+                Some(true) => out.push(fpccr_with(after, &[(LSPACT, Some(false))])),
+                Some(false) => {}
+                None => out.push(fpccr_with(after, &[(LSPACT, None)])),
+            }
         }
         Some(out)
     }
@@ -815,28 +987,33 @@ mod tests {
     fn inferred_system_registers() {
         let thread = state(&[(XPSR, 0x0100_0000), (CONTROL, 0), (PRIMASK, 0), (BASEPRI, 0), (r(0), 0x45), (r(1), 0)]);
         // cpsid i / cpsie i
-        assert_eq!(get(&ArmM.instruction_writes(0xb672, 2, &thread, true), PRIMASK), Some((1, FULL)));
-        assert_eq!(get(&ArmM.instruction_writes(0xb662, 2, &thread, true), PRIMASK), Some((0, FULL)));
+        assert_eq!(get(&ArmM.instruction_writes(0xb672, 2, &thread), PRIMASK), Some((1, FULL)));
+        assert_eq!(get(&ArmM.instruction_writes(0xb662, 2, &thread), PRIMASK), Some((0, FULL)));
         // msr BASEPRI, r0 = 0x45: bits it sets in the low five may not exist.
-        assert_eq!(get(&ArmM.instruction_writes(0xf380_8811, 4, &thread, true), BASEPRI), Some((0x40, FULL & !0x05)));
+        assert_eq!(get(&ArmM.instruction_writes(0xf380_8811, 4, &thread), BASEPRI), Some((0x40, FULL & !0x05)));
         // msr CONTROL, r0 = 0x45 in thread mode: nPRIV 1, SPSEL 0, FPCA may be RAZ.
-        let c = get(&ArmM.instruction_writes(0xf380_8814, 4, &thread, true), CONTROL).unwrap();
+        let c = get(&ArmM.instruction_writes(0xf380_8814, 4, &thread), CONTROL).unwrap();
         assert_eq!((c.0 & c.1, c.1 & 0xf), (1, 0xb));
         // Unprivileged thread: MSR and CPS have no effect.
         let unpriv = state(&[(XPSR, 0x0100_0000), (CONTROL, 1), (PRIMASK, 0), (r(0), 1)]);
-        assert!(ArmM.instruction_writes(0xb672, 2, &unpriv, true).is_empty());
-        assert!(ArmM.instruction_writes(0xf380_8810, 4, &unpriv, true).is_empty());
+        assert!(ArmM.instruction_writes(0xb672, 2, &unpriv).is_empty());
+        assert!(ArmM.instruction_writes(0xf380_8810, 4, &unpriv).is_empty());
         // Privilege unknown: the result is unknown where it could differ.
         let mut unsure = thread.clone();
         unsure.known[CONTROL as usize] = 0;
-        assert_eq!(get(&ArmM.instruction_writes(0xb672, 2, &unsure, true), PRIMASK), Some((0, FULL & !1)));
+        assert_eq!(get(&ArmM.instruction_writes(0xb672, 2, &unsure), PRIMASK), Some((0, FULL & !1)));
         // In a handler SPSEL is not written: msr CONTROL, r1 = 0 keeps it.
         let handler = state(&[(XPSR, 0x0100_000f), (CONTROL, 2), (r(1), 0)]);
-        let c = get(&ArmM.instruction_writes(0xf381_8814, 4, &handler, true), CONTROL).unwrap();
+        let c = get(&ArmM.instruction_writes(0xf381_8814, 4, &handler), CONTROL).unwrap();
         assert_eq!(c.0 & 2, 2);
-        // An FP instruction sets FPCA, unless FPCCR may have been changed.
-        assert_eq!(get(&ArmM.instruction_writes(0xee30_0a27, 4, &thread, true), CONTROL), Some((4, FULL)));
-        assert_eq!(get(&ArmM.instruction_writes(0xee30_0a27, 4, &thread, false), CONTROL), Some((0, FULL & !4)));
+        // An FP instruction sets FPCA when FPCCR.ASPEN is 1, and clears a
+        // pending lazy save (LSPACT); FPCCR unknown: both unknown.
+        let mut fp = thread.clone();
+        fp.apply(&RegWrite { reg: FPCCR, value: 0xc000_0001, known: FULL, derived: false });
+        let w = ArmM.instruction_writes(0xee30_0a27, 4, &fp);
+        assert_eq!((get(&w, CONTROL), get(&w, FPCCR)), (Some((4, FULL)), Some((0xc000_0000, FULL))));
+        let w = ArmM.instruction_writes(0xee30_0a27, 4, &thread);
+        assert_eq!((get(&w, CONTROL), get(&w, FPCCR).map(|f| f.1 & 1)), (Some((0, FULL & !4)), Some(0)));
         // Entry from the process stack: PSP unknown, SPSEL and FPCA clear.
         let on_psp = state(&[(XPSR, 0x0100_0000), (CONTROL, 6), (PSP, 0x2000_0400)]);
         let e = ArmM.exception_entry_writes(&on_psp);
@@ -858,10 +1035,41 @@ mod tests {
         let in_handler = state(&[(XPSR, 0x0100_000b), (LR, 0xffff_fff9)]);
         assert!(ArmM.exception_return_writes(15, 0x4770, 2, &in_handler, &[]).is_none());
         // Reset: CONTROL, PRIMASK, FAULTMASK, BASEPRI are 0; PSP is not.
-        let reset = ArmM.reset_values();
+        let reset = ArmM.reset_values(Some(13));
         assert_eq!(get(&reset, CONTROL), Some((0, FULL)));
         assert_eq!(get(&reset, PSP), None);
-        assert!(ArmM.inference_hazard(0xE000_EF34, 4) && !ArmM.inference_hazard(0xE000_EF38, 4));
+        assert_eq!(get(&reset, FPCCR), Some((0xc000_0000, FULL)));
+        assert_eq!(get(&ArmM.reset_values(None), FPCCR), Some((0xc000_0000, FULL & !4)));
+        // A store to FPCCR is all of it; to SHCSR, only its enables.
+        assert_eq!(get(&ArmM.memory_mapped_access(FPCCR, 0x4000_0000), FPCCR), Some((0x4000_0000, FULL)));
+        assert_eq!(get(&ArmM.memory_mapped_access(SHCSR, 0x0007_0080), SHCSR), Some((0x0007_0000, 0xf << 16)));
+        assert_eq!(ArmM.memory_mapped_registers()[0], (0xE000_EF34, FPCCR));
+        // FP frame allocated from thread mode (EXC_RETURN 0xffffffed, frame
+        // on PSP), lazy stacking on, faults disabled: LSPACT, THREAD, HFRDY;
+        // FPCAR = the FP area above the basic frame.
+        let mut t = state(&[
+            (XPSR, 0x0100_000f),
+            (LR, 0xffff_ffed),
+            (PSP, 0x2000_0400),
+            (CONTROL, 0),
+            (PRIMASK, 0),
+            (FAULTMASK, 0),
+            (BASEPRI, 0),
+            (FPCCR, 0xc000_0000),
+            (SHCSR, 0),
+            (DEMCR, 0),
+        ]);
+        let w = ArmM.exception_entered_writes(&t, Some(0), Some(13));
+        assert_eq!((get(&w, FPCCR), get(&w, FPCAR)), (Some((0xc000_0019, FULL)), Some((0x2000_0420, FULL))));
+        // Without an FP frame nothing changes; EXC_RETURN unknown: unknown.
+        t.apply(&RegWrite { reg: LR, value: 0xffff_fffd, known: FULL, derived: false });
+        assert!(ArmM.exception_entered_writes(&t, Some(0), Some(13)).is_empty());
+        t.apply(&RegWrite { reg: LR, value: 0, known: 0, derived: false });
+        assert_eq!(get(&ArmM.exception_entered_writes(&t, Some(0), Some(13)), FPCAR), Some((0, 0)));
+        // Returning from an FP frame drops a pending lazy save.
+        let after = state(&[(XPSR, 0x0100_0000), (CONTROL, 0), (LR, 0xffff_ffed), (FPCCR, 0xc000_0019)]);
+        let w = ArmM.exception_return_writes(15, 0x4770, 2, &after, &[]).unwrap();
+        assert_eq!(get(&w, FPCCR), Some((0xc000_0018, FULL)));
     }
 
     fn r(n: RegId) -> RegId {

@@ -357,6 +357,29 @@ impl Engine {
         data.get((addr - base) as usize).copied()
     }
 
+    /// A byte of a memory-mapped register the ISA follows (Arm FPCCR,
+    /// FPCAR), when that byte of the register is known at `index`.
+    fn mapped_register_byte(&self, addr: u64, index: u64) -> Option<Value<u8>> {
+        let &(base, reg) = self.isa.memory_mapped_registers().iter().find(|m| addr >= m.0 && addr < m.0 + 4)?;
+        let r = self.register(index, reg).ok()?;
+        let k = addr - base;
+        let shift = self.endian().at(self.isa.as_ref(), base).shift(k as usize, 4);
+        let known = r.known_mask.unwrap_or(if r.value.is_some() { u64::MAX } else { 0 });
+        if (known >> shift) & 0xff != 0xff {
+            return None;
+        }
+        let byte = ((r.value.unwrap_or(0) >> shift) & 0xff) as u8;
+        let mut evidence = r.evidence;
+        for e in &mut evidence {
+            let note = format!("memory-mapped register {}", self.isa.registers()[reg as usize].name);
+            e.note = Some(match e.note.take() {
+                Some(n) => format!("{note}: {n}"),
+                None => note,
+            });
+        }
+        Some(Value { value: Some(byte), source: r.source, known_mask: None, evidence, conflicts: Vec::new() })
+    }
+
     fn byte(&self, addr: u64, index: u64) -> Value<u8> {
         let ds = &self.ds;
         let n = ds.mi_addr.len();
@@ -365,6 +388,9 @@ impl Engine {
         // Entries for this byte are sorted by `at`: the last one at or before
         // `index` is the latest record of it.
         let pos = ds.mi_at.partition_point(lo, hi, |at| at <= index);
+        if let Some(v) = self.mapped_register_byte(addr, index) {
+            return v;
+        }
         if self.volatile(addr) {
             let mut v = Value::unknown();
             if pos > lo {

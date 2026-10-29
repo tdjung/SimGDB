@@ -430,6 +430,9 @@ for name in {regs!r}:
     except gdb.error:
         pass
 inferior = gdb.selected_inferior()
+# Memory-mapped registers (FPCCR, FPCAR on the FP build), read as memory.
+for name, addr in {mmio!r}:
+    regs[name] = int.from_bytes(bytes(inferior.read_memory(addr, 4)), "little")
 mem = {{}}
 for lo, hi in {regions!r}:
     mem["%08x" % lo] = bytes(inferior.read_memory(lo, hi - lo)).hex()
@@ -468,7 +471,8 @@ def truth_point(elf, core, pc, k, regions, tmp, rrfile):
     try:
         out = Path(tmp) / "truth.json"
         script = Path(tmp) / "truth.py"
-        script.write_text(GDB_SCRIPT.format(port=port, pc=pc, k=k, skip=k - 1, regs=REGS,
+        mmio = [("fpccr", 0xE000EF34), ("fpcar", 0xE000EF38)] if core.endswith("f") else []
+        script.write_text(GDB_SCRIPT.format(port=port, pc=pc, k=k, skip=k - 1, regs=REGS, mmio=mmio,
                                             regions=regions, out=str(out)))
         for _ in range(50):
             try:

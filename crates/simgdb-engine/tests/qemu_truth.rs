@@ -156,6 +156,10 @@ fn reconstruction_matches_gdbstub() {
             if core == "m4f" {
                 // FP registers the firmware uses, compared at most points.
                 assert!(t.fp_known > 300, "{core} {dialect}: {} FP register values compared", t.fp_known);
+                // FPCCR (lazy FP state) inferred from reset at every point,
+                // FPCAR from the first FP frame on (traces do not record them).
+                assert!(!t.unknown_by_register.contains_key("fpccr"), "{core} {dialect}: {:?}", t.unknown_by_register);
+                assert!(t.unknown_by_register.get("fpcar").copied().unwrap_or(0) < 20, "{:?}", t.unknown_by_register);
             }
         }
     }

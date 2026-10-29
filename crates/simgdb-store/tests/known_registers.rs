@@ -58,10 +58,13 @@ fn registers_unknown_somewhere_are_reported() {
         assert!(!listed.contains(&"msp".to_string()), "{dialect}");
         // Never recorded: unknown somewhere, unless inferred from the start
         // (this trace starts at reset: PRIMASK, BASEPRI, FAULTMASK are 0).
+        // FPCCR resets to a known value too; SHCSR and DEMCR only their
+        // enable bits, so they stay unknown somewhere.
         for never in &report.registers_never_written {
-            let from_reset = ["primask", "basepri", "faultmask"].contains(&never.as_str());
+            let from_reset = ["primask", "basepri", "faultmask", "fpccr"].contains(&never.as_str());
+            let partly = ["shcsr", "demcr"].contains(&never.as_str());
             assert_eq!(listed.contains(never), !from_reset, "{dialect}: {never}");
-            assert_eq!(report.registers_inferred.contains_key(never), from_reset, "{dialect}: {never}");
+            assert_eq!(report.registers_inferred.contains_key(never), from_reset || partly, "{dialect}: {never}");
         }
         // The firmware's own MSR PSP and MSR CONTROL, counted from the
         // instructions whether or not the trace records the registers; the

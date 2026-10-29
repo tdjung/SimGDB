@@ -377,7 +377,8 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
     let reset = elf.as_ref().map(|e| reset_addresses(e, endian)).unwrap_or_default();
     let mut infer = Infer {
         recorded: vec![false; nregs],
-        defaults: true,
+        elf_arch: elf.as_ref().and_then(|e| e.arm_cpu_arch),
+        entered: None,
         reset_pcs: [reset.0, reset.1, reset.2.filter(|&e| e != 0)].into_iter().flatten().collect(),
         last: None,
         reads: Vec::new(),
@@ -474,7 +475,7 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
                             continue;
                         }
                         if at == 0 && infer.reset_pcs.contains(&i.pc) {
-                            let w = isa.reset_values();
+                            let w = isa.reset_values(infer.elf_arch);
                             infer.apply(
                                 isa,
                                 w,
@@ -503,6 +504,9 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
                                     None => (Some(isa.exception_entry_writes(&state)), Inference::ExceptionEntry),
                                 }
                             };
+                            if why == Inference::ExceptionEntry {
+                                infer.entered = Some(Some(before));
+                            }
                             if let Some(w) = writes {
                                 infer.apply(
                                     isa,
@@ -522,6 +526,23 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
                             block.resolve(isa, &mut b, &mut state, &mut last_write_row, at)?;
                         if let Some(p) = pending.take() {
                             report.exception_frames_unplaced += finish_entry(&mut b, p, &state, isa)? as u64;
+                        }
+                        if let Some(before) = infer.entered.take() {
+                            let w = isa.exception_entered_writes(&state, before, infer.elf_arch);
+                            infer.apply(
+                                isa,
+                                w,
+                                Inference::ExceptionEntry,
+                                &mut b,
+                                &mut state,
+                                &mut last_write_row,
+                                &mut block,
+                                &mut report,
+                                at,
+                                lineno,
+                            )?;
+                            report.derived_register_writes +=
+                                block.resolve(isa, &mut b, &mut state, &mut last_write_row, at)?;
                         }
                         if at == 0 {
                             // The first point: anything not known yet. Later a
@@ -581,7 +602,7 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
                         // (visible from the next point, like its records).
                         if let (Some(op), false) = (i.opcode, i.failed) {
                             // `state` is still the point before it.
-                            let w = isa.instruction_writes(op, i.width, &state, infer.defaults);
+                            let w = isa.instruction_writes(op, i.width, &state);
                             let at = b.count;
                             infer.apply(
                                 isa,
@@ -659,9 +680,6 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
                                 if pending.is_some() {
                                     writes_since_entry = true;
                                 }
-                                if isa.inference_hazard(a.addr, a.size as u64) {
-                                    infer.defaults = false;
-                                }
                             } else {
                                 report.memory_reads += 1;
                                 if a.size == 4 && a.known == 0xf {
@@ -671,6 +689,26 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
                             }
                             let kind = if a.write { MEM_WRITE } else { MEM_READ };
                             b.push_mem(row_at, a.addr, a.size as u32, kind, a.value, a.known, lineno)?;
+                            // A memory-mapped register the ISA follows.
+                            if a.size == 4
+                                && a.known == 0xf
+                                && let Some(&(_, reg)) = isa.memory_mapped_registers().iter().find(|m| m.0 == a.addr)
+                            {
+                                let v = endian.at(isa, a.addr).value(&a.value.to_le_bytes()[..4]);
+                                let w = isa.memory_mapped_access(reg, v);
+                                infer.apply(
+                                    isa,
+                                    w,
+                                    Inference::Instruction,
+                                    &mut b,
+                                    &mut state,
+                                    &mut last_write_row,
+                                    &mut block,
+                                    &mut report,
+                                    at,
+                                    lineno,
+                                )?;
+                            }
                             let t = std::time::Instant::now();
                             bus.core(at, &a);
                             bus_time += t.elapsed();
@@ -702,6 +740,7 @@ pub fn build(isa: &dyn Isa, opts: &IndexOptions) -> Result<Meta, StoreError> {
                             continue;
                         }
                         infer.entry_seen = true;
+                        infer.entered = Some(infer.exception);
                         let w = isa.exception_entry_writes(&state);
                         infer.apply(
                             isa,
@@ -939,8 +978,11 @@ fn push_write_as(
 struct Infer {
     /// The trace has recorded the register: inference stops for it.
     recorded: Vec<bool>,
-    /// No recorded store has changed configuration the ISA assumes at reset.
-    defaults: bool,
+    /// Architecture the ELF declares (`Isa::reset_values`).
+    elf_arch: Option<u32>,
+    /// An exception was entered: its writes known only after it are made at
+    /// the next instruction. Holds the exception number before the entry.
+    entered: Option<Option<u32>>,
     /// PCs at which the trace starts at reset (vector, reset symbol, entry).
     reset_pcs: Vec<u64>,
     /// The last instruction: opcode, width, condition failed.

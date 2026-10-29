@@ -51,9 +51,9 @@ QEMU=/path/to/qemu-system-arm GDB=arm-none-eabi-gdb python3 tests/gdb/gdb_tests.
 
 ## 알려진 차이
 
-- **FP 문맥 예외 frame을 지나는 backtrace**: gdb는 이 frame을 풀 때 `FPCCR`(0xE000EF34, 메모리에 매핑된 레지스터)을 읽습니다.
-  SimGDB는 주변장치 값을 모르므로 gdb가 `warning: Could not fetch required FPCCR content`를 내고 그 frame에서 멈춥니다.
-  모르는 값으로 보고 허용합니다(`docs/LIMITATIONS.md`).
+- **FP 문맥 예외 frame을 지나는 backtrace**: gdb는 이 frame을 풀 때 `FPCCR`·`FPCAR`(메모리에 매핑된 레지스터)을 읽습니다.
+  SimGDB는 이를 추론해 답하므로 `fp` 시나리오의 backtrace가 QEMU와 같습니다(시험 trace는 FPCCR을 기록하지 않음). 추론이 안 되는
+  구간에서 gdb가 내는 `warning: Could not fetch required FPCCR content`는 모르는 값으로 보고 허용합니다(`docs/LIMITATIONS.md`).
 
 ## 알려진 차이 (시나리오에서 피함)
 

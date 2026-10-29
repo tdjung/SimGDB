@@ -44,10 +44,12 @@ Step 0의 실제 Tarmac 조사 결과에 따라 갱신합니다.
     D 레지스터로 기록하므로 gdb가 frame을 풀고 호출자의 S16–S31을 보여 주려면 D 레지스터가 필요하기 때문입니다.
     **대가**: 두 절반 중 하나라도 모르는 D 레지스터는 gdb에서 `<unavailable>`이고, 그 안의 S 레지스터 둘도 그렇습니다
     (`simgdb query … registers`는 아는 쪽을 보여 줌).
-  - **FP 문맥이 쌓인 예외 frame(EXC_RETURN bit 4 = 0)을 지나는 gdb backtrace는 그 frame에서 멈춥니다.** gdb가 이 frame을 풀 때
-    메모리에 매핑된 `FPCCR`(0xE000EF34)을 읽는데, PPB 주변장치 값은 trace로 알 수 없기 때문입니다
-    (`warning: Could not fetch required FPCCR content`). SimGDB 자체의 call stack(`monitor where`, MCP `call_tree`)은 영향이 없습니다.
-  - `FPCCR`, `FPCAR`, `FPDSCR` 기록과 Q 레지스터, Non-secure 뱅크는 아직 모델링하지 않습니다(`unmodelled_registers`).
+  - **FP 문맥이 쌓인 예외 frame(EXC_RETURN bit 4 = 0)**: gdb는 이 frame을 풀 때 메모리에 매핑된 `FPCCR`(0xE000EF34)과
+    `FPCAR`(0xE000EF38)을 읽습니다(lazy stacking으로 FP 레지스터가 실제로 저장됐는지 판단). SimGDB는 이 둘을 레지스터 `fpccr`·`fpcar`로
+    두고 gdb의 메모리 읽기에 그 값으로 답합니다. trace가 기록하면(CM35P `R FPCCR …`) 기록값, 없으면 아래 추론으로 정합니다.
+    값을 모르는 구간(trace가 reset에서 시작하지 않음, EXC_RETURN을 모름, fault가 켜진 채 핸들러 안에서 중첩된 FP frame 등)에서는
+    gdb가 `warning: Could not fetch required FPCCR content`를 내고 그 frame에서 멈춥니다. `monitor where`는 영향이 없습니다.
+  - `FPDSCR` 기록과 Q 레지스터, Non-secure 뱅크는 아직 모델링하지 않습니다(`unmodelled_registers`).
 - **Armv8-M `MSPLIM`/`PSPLIM`**: 기록되면 레지스터로 보입니다(검사는 하지 않음). Armv7-M에서는 늘 `unknown`입니다.
 - **SP와 MSP/PSP**: trace가 어느 쪽을 쓰든(`r13`, `r13 (MSP)`, `r13 (PSP) 값`, `SP_main`, `r13_mn`, `MSP` …) 모드(IPSR)와
   CONTROL.SPSEL로 나머지를 맞춥니다. 모드를 모르면 어느 쪽이 바뀌었는지 알 수 없으므로, 낡았을 수 있는 쪽을 `unknown`으로 둡니다.
@@ -59,7 +61,12 @@ Step 0의 실제 Tarmac 조사 결과에 따라 갱신합니다.
   - 실행된 `MSR`(MSP, PSP, PRIMASK, BASEPRI, BASEPRI_MAX, FAULTMASK, CONTROL, MSPLIM, PSPLIM)과 `CPSID`/`CPSIE`는 그때 아는
     Rn 값과 권한·모드로 계산합니다. 모르는 것에 달린 비트는 `unknown`. BASEPRI는 구현된 우선순위 비트 수를 모르므로
     값의 하위 5비트 중 1인 비트는 `unknown`. CONTROL의 FPCA·SFPA에 1을 쓰면 FPU 유무를 모르므로 `unknown`.
-  - FP 명령어는 CONTROL.FPCA를 1로(FPCCR.ASPEN 리셋 값 1 가정. trace에 FPCCR 쓰기가 나오면 그 뒤로는 `unknown`).
+  - FP 명령어는 FPCCR.ASPEN이 1이면 CONTROL.FPCA를 1로, FPCCR.LSPACT(대기 중인 lazy 저장)가 1이면 0으로 만듭니다.
+  - FPCCR·FPCAR(lazy FP stacking, B1.5.7): reset 값 FPCCR = ASPEN|LSPEN, FPCAR 모름. FP frame이 쌓이면(핸들러 첫 명령어에서
+    EXC_RETURN bit 4 = 0) LSPACT = LSPEN, THREAD·USER = 끊긴 모드, HFRDY·MMRDY·BFRDY·MONRDY = 그 fault를 그때 pending할 수
+    있었는지(SHCSR·DEMCR의 enable과 PRIMASK·BASEPRI·FAULTMASK·모드로 판단, 판단 못 하면 `unknown`), FPCAR = 그 frame의 FP 영역
+    주소. FP frame에서 복귀하면 LSPACT = 0. Armv7-M과 Armv8-M의 비트 차이는 ELF의 `Tag_CPU_arch` 속성으로 구분합니다.
+    SHCSR·DEMCR·FPCCR·FPCAR에 대한 기록된 load/store는 그 값(SHCSR·DEMCR은 enable 비트만)을 반영합니다.
   - 예외 진입: CONTROL.SPSEL·FPCA = 0. 중단된 코드가 PSP를 쓰고 있었을 수 있으면 PSP는 `unknown`(frame만큼 움직였으나 기록 없음).
   - 예외 복귀: SPSEL = EXC_RETURN bit 2, FPCA = NOT bit 4, NMI가 아니면 FAULTMASK = 0. EXC_RETURN은 `BX Rm`의 레지스터 값이나,
     복귀 명령어가 읽은 word 중 0xFF로 시작하는 값(하나일 때만)에서 얻고, 없으면 SPSEL·FPCA는 `unknown`.
